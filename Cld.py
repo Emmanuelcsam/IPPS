@@ -416,7 +416,8 @@ class ComprehensiveImageProcessor:
 # Main execution function
 def main():
     # Process the three uploaded images
-    image_files = ["image1.jpg", "image2.jpg", "image3.jpg"]
+    base_path = 'C:/Users/Saem1001/Documents/GitHub/OpenCV-Practice/'
+    image_files = [base_path + "image1.jpg", "image2.jpg", "image3.jpg"]
     
     for img_file in image_files:
         print(f"\n{'='*60}")
