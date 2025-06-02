@@ -138,15 +138,15 @@ def process_and_display_image(image_path, image_name, is_squirrel_image=False, i
 
 # --- Main execution ---
 if __name__ == "__main__":
-    # Define image paths (make sure these files are in the same directory as the script)
-    image_file_squirrel = '184A2174.jpg'
-    image_file_steps = '184A2261.jpg'
-
+    # Define image paths
+    base_path = 'C:/Users/Saem1001/Documents/GitHub/OpenCV-Practice/' # Use forward slashes
+    image_file_squirrel = base_path + '184A2174.jpg'
+    image_file_steps = base_path + '184A2261.jpg'
+ 
     print(f"Processing {image_file_squirrel}...")
     process_and_display_image(image_file_squirrel, "Squirrel in Grass", is_squirrel_image=True)
-
+ 
     print(f"\nProcessing {image_file_steps}...")
     process_and_display_image(image_file_steps, "People on Steps", is_steps_image=True)
-
+ 
     print("\nAll processing complete.")
-
