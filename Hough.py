@@ -3,7 +3,7 @@ import cv2 as cv
 import os
 
 base_path = 'C:/Users/Saem1001/Documents/GitHub/OpenCV-Practice/'
-image_path = base_path + 'image3.jpg'
+image_path = base_path + '19700103045135-J67690-FT41.jpg'
  
 if not os.path.exists(image_path):
     print(f"Error: File could not be read. Check if '{image_path}' exists.")
