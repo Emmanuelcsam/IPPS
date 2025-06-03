@@ -3,471 +3,946 @@ import numpy as np
 import json
 from pathlib import Path
 import pandas as pd
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
 import glob
 import os
+import matplotlib.pyplot as plt
+from dataclasses import dataclass, field
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import warnings
+warnings.filterwarnings('ignore')
 
-class FiberOpticInspector:
-    """
-    Automated Fiber Optic End Face Defect Detection System
-    Smarter handling of user-provided dimensions and calibration.
-    """
+@dataclass
+class DefectDetectionParams:
+    """Parameters for various defect detection algorithms"""
+    # DO2MR parameters
+    do2mr_kernel_sizes: List[Tuple[int, int]] = field(default_factory=lambda: [(5,5), (11,11), (15,15), (21,21)])
+    do2mr_gamma_values: List[float] = field(default_factory=lambda: [2.0, 2.5, 3.0, 3.5])
+    do2mr_min_area: int = 10
+    
+    # LEI parameters  
+    lei_kernel_lengths: List[int] = field(default_factory=lambda: [11, 15, 19])
+    lei_angle_steps: List[int] = field(default_factory=lambda: [5, 10, 15])
+    lei_threshold_factors: List[float] = field(default_factory=lambda: [2.0, 2.5, 3.0])
+    
+    # Canny parameters
+    canny_thresholds: List[Tuple[int, int]] = field(default_factory=lambda: [(50,150), (70,200), (100,250)])
+    canny_apertures: List[int] = field(default_factory=lambda: [3, 5, 7])
+    
+    # Morphology parameters
+    morph_kernel_sizes: List[int] = field(default_factory=lambda: [3, 5, 7])
+    morph_iterations: List[int] = field(default_factory=lambda: [1, 2, 3])
+    
+    # Threshold parameters
+    adaptive_block_sizes: List[int] = field(default_factory=lambda: [11, 21, 31])
+    adaptive_C_values: List[int] = field(default_factory=lambda: [2, 5, 8])
 
+@dataclass 
+class FiberZoneDefinition:
+    """Definition of a fiber optic zone"""
+    name: str
+    r_min_um: float
+    r_max_um: float
+    max_defect_um: float
+    defects_allowed: bool = True
+    color_bgr: Tuple[int, int, int] = (255, 255, 255)
+
+class AdvancedFiberOpticInspector:
+    """
+    Advanced Automated Fiber Optic End Face Defect Detection System
+    Implements multiple OpenCV techniques for robust defect detection
+    """
+    
     def __init__(self,
                  user_core_diameter_um: Optional[float] = None,
                  user_cladding_diameter_um: Optional[float] = None,
-                 user_ferrule_outer_diameter_um: Optional[float] = 250.0,
-                 use_calibration_file: bool = True, # Whether to attempt loading from calibration.json
-                 calibration_file_path: str = "calibration.json"):
-
+                 user_ferrule_diameter_um: Optional[float] = 250.0,
+                 calibration_file: Optional[str] = None,
+                 params: Optional[DefectDetectionParams] = None):
+        
         self.user_core_diameter_um = user_core_diameter_um
-        self.user_cladding_diameter_um = user_cladding_diameter_um
-        self.user_ferrule_outer_diameter_um = user_ferrule_outer_diameter_um
-
+        self.user_cladding_diameter_um = user_cladding_diameter_um  
+        self.user_ferrule_diameter_um = user_ferrule_diameter_um or 250.0
+        
+        self.params = params or DefectDetectionParams()
+        
+        # Calibration and scaling
         self.calibrated_um_per_px: Optional[float] = None
-        self.inferred_um_per_px_current_image: Optional[float] = None
         self.effective_um_per_px: Optional[float] = None
-
         self.operating_mode: str = "PIXEL_ONLY"
-
-        if use_calibration_file:
-            try:
-                calibration_data = self._load_calibration(calibration_file_path)
-                self.calibrated_um_per_px = calibration_data.get("um_per_px")
-                if self.calibrated_um_per_px and self.calibrated_um_per_px > 0:
-                    self.effective_um_per_px = self.calibrated_um_per_px
-                    self.operating_mode = "MICRON_CALIBRATED"
-                    print(f"Operating in MICRON_CALIBRATED mode (um_per_px: {self.effective_um_per_px:.4f} from {calibration_file_path}).")
-                else:
-                    print(f"Warning: Valid um_per_px not found in {calibration_file_path} despite use_calibration_file=True.")
-                    self.calibrated_um_per_px = None
-            except (FileNotFoundError, ValueError) as e:
-                print(f"Calibration file warning: {e}. Will proceed based on other inputs.")
-
-        if self.operating_mode != "MICRON_CALIBRATED" and self.user_cladding_diameter_um is not None:
-            self.operating_mode = "MICRON_INFERRED"
-            print(f"Operating in MICRON_INFERRED mode (will attempt to infer um_per_px from detected cladding and user input: {self.user_cladding_diameter_um} um).")
-        elif self.operating_mode != "MICRON_CALIBRATED":
-            self.operating_mode = "PIXEL_ONLY"
-            print("Operating in PIXEL_ONLY mode (no calibration and/or no user-provided cladding diameter for inference).")
-
-        self.zones_um_template = {
-            "core": {"r_min": 0, "r_max": 4.5, "max_defect_um": 3, "defects_allowed": True},
-            "cladding": {"r_min": 4.5, "r_max": 62.5, "max_defect_um": 10, "defects_allowed": True},
-            "ferrule_contact": {"r_min": 62.5, "r_max": 125.0, "max_defect_um": 25, "defects_allowed": True},
-            "adhesive_bond": {"r_min": 125.0, "r_max": 140.0, "max_defect_um": 50, "defects_allowed": True},
-        }
-        self.zones_px_definitions = {
-            "core": {"r_min_px": 0, "r_max_px": 30, "max_defect_px": 5, "defects_allowed": True},
-            "cladding": {"r_min_px": 30, "r_max_px": 80, "max_defect_px": 15, "defects_allowed": True},
-            "ferrule_contact": {"r_min_px": 80, "r_max_px": 150, "max_defect_px": 25, "defects_allowed": True},
+        
+        # Load calibration if available
+        if calibration_file and Path(calibration_file).exists():
+            self._load_calibration(calibration_file)
+            
+        # Define fiber zones
+        self._setup_zones()
+        
+        # Hough circle detection parameters
+        self.hough_params = {
+            "dp_values": [1.0, 1.2, 1.5],
+            "param1_values": [50, 70, 90],
+            "param2_values": [30, 40, 50],
+            "min_dist_factor": 0.1,
+            "min_radius_factor": 0.05,
+            "max_radius_factor": 0.5
         }
         
-        if self.user_core_diameter_um is not None and self.user_cladding_diameter_um is not None:
+    def _load_calibration(self, filepath: str):
+        """Load calibration data from JSON file"""
+        try:
+            with open(filepath, 'r') as f:
+                cal_data = json.load(f)
+            self.calibrated_um_per_px = cal_data.get("um_per_px")
+            if self.calibrated_um_per_px and self.calibrated_um_per_px > 0:
+                self.effective_um_per_px = self.calibrated_um_per_px
+                self.operating_mode = "MICRON_CALIBRATED"
+                print(f"Loaded calibration: {self.effective_um_per_px:.4f} µm/px")
+        except Exception as e:
+            print(f"Warning: Could not load calibration - {e}")
+            
+    def _setup_zones(self):
+        """Setup fiber optic zones based on user input or defaults"""
+        if self.user_core_diameter_um and self.user_cladding_diameter_um:
             core_r = self.user_core_diameter_um / 2.0
             cladding_r = self.user_cladding_diameter_um / 2.0
-            ferrule_r = (self.user_ferrule_outer_diameter_um or 250.0) / 2.0
+            ferrule_r = self.user_ferrule_diameter_um / 2.0
             
-            self.zones_um_template["core"]["r_max"] = core_r
-            self.zones_um_template["cladding"]["r_min"] = core_r
-            self.zones_um_template["cladding"]["r_max"] = cladding_r
-            self.zones_um_template["ferrule_contact"]["r_min"] = cladding_r
-            self.zones_um_template["ferrule_contact"]["r_max"] = ferrule_r
-            self.zones_um_template["adhesive_bond"]["r_min"] = ferrule_r
-            self.zones_um_template["adhesive_bond"]["r_max"] = ferrule_r + 15
-            print("Micron zone templates updated with user-provided core/cladding diameters.")
-
-        self.do2mr_params = {"kernel_size": (15, 15), "gamma": 3.0, "min_area_px": 20}
-        self.lei_params = {"kernel_size": 15, "angles": np.arange(0, 180, 10), "threshold_factor": 2.5}
-        self.hough_params = {
-            "dp": 1.2, "param1": 70, "param2": 40,
-            "minDistFactor": 1/8.0, "minRadiusFactor": 1/10.0, "maxRadiusFactor": 1/2.0
-        }
-
-    def _load_calibration(self, filepath: str) -> Dict:
-        if not Path(filepath).exists():
-            raise FileNotFoundError(f"Calibration file '{filepath}' not found.")
-        try:
-            with open(filepath, 'r') as f: cal_data = json.load(f)
-            if "um_per_px" not in cal_data or not isinstance(cal_data["um_per_px"], (float, int)) or cal_data["um_per_px"] <= 0:
-                raise ValueError("'um_per_px' is missing, not a number, or non-positive in calibration file.")
-            return cal_data
-        except json.JSONDecodeError:
-            raise ValueError(f"Error decoding JSON from {filepath}.")
-
-    def _update_pixel_zones_dynamically(self, detected_cladding_radius_px: float):
-        if not detected_cladding_radius_px or detected_cladding_radius_px <=0: return
-        um_core_r = self.zones_um_template["core"]["r_max"]
-        um_cladding_r = self.zones_um_template["cladding"]["r_max"]
-        um_ferrule_r = self.zones_um_template["ferrule_contact"]["r_max"]
-        if um_cladding_r == 0:
-            print("Warning: um_cladding_r from template is zero, cannot dynamically scale pixel zones.")
-            return
-        self.zones_px_definitions["core"]["r_max_px"] = int(detected_cladding_radius_px * (um_core_r / um_cladding_r))
-        self.zones_px_definitions["cladding"]["r_min_px"] = self.zones_px_definitions["core"]["r_max_px"]
-        self.zones_px_definitions["cladding"]["r_max_px"] = int(detected_cladding_radius_px)
-        self.zones_px_definitions["ferrule_contact"]["r_min_px"] = int(detected_cladding_radius_px)
-        self.zones_px_definitions["ferrule_contact"]["r_max_px"] = int(detected_cladding_radius_px * (um_ferrule_r / um_cladding_r))
-        print(f"Dynamically updated pixel zones based on detected cladding radius ({detected_cladding_radius_px:.2f}px)")
-
-    def preprocess_image(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        if len(image.shape) == 3: gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        else: gray = image.copy()
-        original_gray = gray.copy()
-        denoised = cv2.bilateralFilter(gray, 9, 75, 75)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        enhanced_clahe = clahe.apply(denoised)
-        return original_gray, denoised, enhanced_clahe
-
-    def find_fiber_center_and_radius(self, image_for_hough: np.ndarray) -> Tuple[Optional[Tuple[int, int]], Optional[int]]:
-        edges = cv2.Canny(image_for_hough, self.hough_params['param1'] / 2, self.hough_params['param1'])
-        min_img_dim = min(image_for_hough.shape[0], image_for_hough.shape[1])
-        min_dist = int(min_img_dim * self.hough_params['minDistFactor'])
-        min_radius_calc = int(min_img_dim * self.hough_params['minRadiusFactor'])
-        max_radius_calc = int(min_img_dim * self.hough_params['maxRadiusFactor'])
-        min_radius = max(10, min_radius_calc); max_radius = max(min_radius + 10, max_radius_calc)
-        circles = cv2.HoughCircles(edges, cv2.HOUGH_GRADIENT, dp=self.hough_params['dp'], minDist=min_dist,
-                                   param1=self.hough_params['param1'], param2=self.hough_params['param2'],
-                                   minRadius=min_radius, maxRadius=max_radius)
-        if circles is not None:
-            circles_uint = np.uint16(np.around(circles)); best_circle = circles_uint[0][np.argmax(circles_uint[0, :, 2])]
-            center, radius = (int(best_circle[0]), int(best_circle[1])), int(best_circle[2])
-            if radius < 5: print(f"Warning: Detected fiber radius {radius}px is very small.")
-            return center, radius
-        print("Warning: No fiber outline detected by HoughCircles. Fallback: image center, unknown radius.");
-        return (image_for_hough.shape[1]//2, image_for_hough.shape[0]//2), None
-
-    def _get_active_zone_definitions_and_scale(self) -> Tuple[Dict, Optional[float], str]:
-        if self.effective_um_per_px and self.effective_um_per_px > 0:
-            return self.zones_um_template, self.effective_um_per_px, ""
+            self.zones = [
+                FiberZoneDefinition("core", 0, core_r, 3.0, True, (255, 0, 0)),
+                FiberZoneDefinition("cladding", core_r, cladding_r, 10.0, True, (0, 255, 0)),
+                FiberZoneDefinition("ferrule", cladding_r, ferrule_r, 25.0, True, (0, 0, 255)),
+                FiberZoneDefinition("adhesive", ferrule_r, ferrule_r + 15, 50.0, True, (255, 255, 0))
+            ]
+            
+            if not self.effective_um_per_px:
+                self.operating_mode = "MICRON_INFERRED"
+                print("Operating in MICRON_INFERRED mode")
         else:
-            return self.zones_px_definitions, 1.0, "_px"
-
-    def create_zone_masks(self, image_shape: Tuple, center: Tuple[int, int]) -> Dict[str, np.ndarray]:
-        masks = {}
-        height, width = image_shape[:2]
-        Y, X = np.ogrid[:height, :width]
-        dist_from_center_sq = (X - center[0])**2 + (Y - center[1])**2
-        active_zones, scale, suffix = self._get_active_zone_definitions_and_scale()
-        if scale is None or scale <= 0:
-            print("Error: Invalid scale for zone creation. Returning empty masks.")
-            return {"error_invalid_scale_for_zones": np.zeros(image_shape[:2], dtype=np.uint8)}
-        for zone_name, zone_params in active_zones.items():
-            r_min_val = zone_params.get(f"r_min{suffix}")
-            r_max_val = zone_params.get(f"r_max{suffix}")
-            if r_min_val is None or r_max_val is None:
-                print(f"Warning: Zone '{zone_name}' missing r_min/max{suffix}. Skipping.")
+            # Default pixel-based zones
+            self.zones = [
+                FiberZoneDefinition("core", 0, 30, 5, True, (255, 0, 0)),
+                FiberZoneDefinition("cladding", 30, 80, 15, True, (0, 255, 0)),
+                FiberZoneDefinition("ferrule", 80, 150, 25, True, (0, 0, 255))
+            ]
+            if not self.effective_um_per_px:
+                self.operating_mode = "PIXEL_ONLY"
+                print("Operating in PIXEL_ONLY mode")
+    
+    def preprocess_image_multi_technique(self, image: np.ndarray) -> Dict[str, np.ndarray]:
+        """Apply multiple preprocessing techniques"""
+        if len(image.shape) == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image.copy()
+            
+        processed = {
+            "original": gray.copy(),
+            "bilateral": cv2.bilateralFilter(gray, 9, 75, 75),
+            "gaussian": cv2.GaussianBlur(gray, (5, 5), 0),
+            "median": cv2.medianBlur(gray, 5),
+        }
+        
+        # CLAHE enhancement
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        processed["clahe"] = clahe.apply(processed["bilateral"])
+        
+        # Histogram equalization
+        processed["histeq"] = cv2.equalizeHist(gray)
+        
+        # Morphological gradient
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        processed["morph_gradient"] = cv2.morphologyEx(gray, cv2.MORPH_GRADIENT, kernel)
+        
+        # Top-hat and black-hat
+        processed["tophat"] = cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, kernel)
+        processed["blackhat"] = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, kernel)
+        
+        return processed
+    
+    def find_fiber_center_multi_method(self, processed_images: Dict[str, np.ndarray]) -> Tuple[Optional[Tuple[int, int]], Optional[float], float]:
+        """Find fiber center using multiple methods and vote for best result"""
+        candidates = []
+        confidences = []
+        
+        # Method 1: Hough Circle Transform on different preprocessed images
+        for img_type, img in processed_images.items():
+            if img_type in ["clahe", "bilateral", "gaussian"]:
+                for dp in self.hough_params["dp_values"]:
+                    for p1 in self.hough_params["param1_values"]:
+                        for p2 in self.hough_params["param2_values"]:
+                            center, radius, conf = self._hough_circle_detect(img, dp, p1, p2)
+                            if center and radius:
+                                candidates.append((center, radius, img_type))
+                                confidences.append(conf)
+        
+        # Method 2: Contour-based detection
+        for img_type in ["clahe", "bilateral"]:
+            img = processed_images[img_type]
+            center, radius, conf = self._contour_based_detect(img)
+            if center and radius:
+                candidates.append((center, radius, f"contour_{img_type}"))
+                confidences.append(conf)
+        
+        # Method 3: Gradient-based center detection
+        if "morph_gradient" in processed_images:
+            center, radius, conf = self._gradient_based_detect(processed_images["morph_gradient"])
+            if center and radius:
+                candidates.append((center, radius, "gradient"))
+                confidences.append(conf)
+        
+        # Vote for best result
+        if not candidates:
+            print("Warning: No fiber detected by any method")
+            h, w = list(processed_images.values())[0].shape[:2]
+            return (w//2, h//2), None, 0.0
+            
+        # Cluster similar results and choose the one with highest confidence
+        best_idx = np.argmax(confidences)
+        best_center, best_radius, best_method = candidates[best_idx]
+        
+        print(f"Best detection: {best_method} (confidence: {confidences[best_idx]:.2f})")
+        return best_center, best_radius, confidences[best_idx]
+    
+    def _hough_circle_detect(self, image: np.ndarray, dp: float, param1: int, param2: int) -> Tuple[Optional[Tuple[int, int]], Optional[float], float]:
+        """Detect circles using Hough transform"""
+        edges = cv2.Canny(image, param1//2, param1)
+        h, w = image.shape[:2]
+        min_dim = min(h, w)
+        
+        circles = cv2.HoughCircles(
+            edges, 
+            cv2.HOUGH_GRADIENT,
+            dp=dp,
+            minDist=int(min_dim * self.hough_params["min_dist_factor"]),
+            param1=param1,
+            param2=param2,
+            minRadius=int(min_dim * self.hough_params["min_radius_factor"]),
+            maxRadius=int(min_dim * self.hough_params["max_radius_factor"])
+        )
+        
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+            # Choose the circle with maximum accumulator value (strongest)
+            best_circle = circles[0][0]  # Take first circle (highest votes)
+            center = (int(best_circle[0]), int(best_circle[1]))
+            radius = float(best_circle[2])
+            
+            # Calculate confidence based on edge strength along the circle
+            confidence = self._calculate_circle_confidence(edges, center, radius)
+            return center, radius, confidence
+            
+        return None, None, 0.0
+    
+    def _contour_based_detect(self, image: np.ndarray) -> Tuple[Optional[Tuple[int, int]], Optional[float], float]:
+        """Detect fiber using contour analysis"""
+        # Adaptive threshold
+        binary = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                     cv2.THRESH_BINARY, 21, 5)
+        
+        # Find contours
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if not contours:
+            return None, None, 0.0
+            
+        # Find the most circular contour
+        best_contour = None
+        best_circularity = 0
+        best_radius = 0
+        
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area < 1000:  # Skip small contours
                 continue
-            r_min_px_sq = (r_min_val / scale)**2
-            r_max_px_sq = (r_max_val / scale)**2
-            zone_mask = (dist_from_center_sq >= r_min_px_sq) & (dist_from_center_sq < r_max_px_sq)
-            masks[zone_name] = zone_mask.astype(np.uint8) * 255
-        if not masks: print("Warning: No zone masks were created.")
-        return masks
-
-    def detect_region_defects_do2mr(self, image_for_do2mr: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.do2mr_params["kernel_size"])
-        img_max = cv2.dilate(image_for_do2mr, kernel)
-        img_min = cv2.erode(image_for_do2mr, kernel)
+                
+            perimeter = cv2.arcLength(contour, True)
+            if perimeter == 0:
+                continue
+                
+            circularity = 4 * np.pi * area / (perimeter * perimeter)
+            
+            if circularity > best_circularity and circularity > 0.7:
+                best_contour = contour
+                best_circularity = circularity
+                (x, y), radius = cv2.minEnclosingCircle(contour)
+                best_radius = radius
+                
+        if best_contour is not None:
+            M = cv2.moments(best_contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                return (cx, cy), best_radius, best_circularity
+                
+        return None, None, 0.0
+    
+    def _gradient_based_detect(self, gradient_image: np.ndarray) -> Tuple[Optional[Tuple[int, int]], Optional[float], float]:
+        """Detect fiber center using gradient information"""
+        # Threshold the gradient image
+        _, binary = cv2.threshold(gradient_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        # Apply Hough on the gradient
+        return self._hough_circle_detect(gradient_image, 1.2, 70, 40)
+    
+    def _calculate_circle_confidence(self, edge_image: np.ndarray, center: Tuple[int, int], radius: float) -> float:
+        """Calculate confidence score for detected circle"""
+        if radius <= 0:
+            return 0.0
+            
+        # Sample points along the circle
+        num_samples = int(2 * np.pi * radius)
+        num_samples = min(max(num_samples, 50), 360)
+        
+        edge_count = 0
+        for i in range(num_samples):
+            angle = 2 * np.pi * i / num_samples
+            x = int(center[0] + radius * np.cos(angle))
+            y = int(center[1] + radius * np.sin(angle))
+            
+            if 0 <= x < edge_image.shape[1] and 0 <= y < edge_image.shape[0]:
+                if edge_image[y, x] > 0:
+                    edge_count += 1
+                    
+        return edge_count / num_samples
+    
+    def detect_defects_multi_algorithm(self, processed_images: Dict[str, np.ndarray], 
+                                     center: Tuple[int, int], radius: float) -> Dict[str, np.ndarray]:
+        """Apply multiple defect detection algorithms"""
+        results = {}
+        
+        # 1. DO2MR with multiple parameters
+        do2mr_combined = np.zeros_like(list(processed_images.values())[0], dtype=np.uint8)
+        for img_type in ["clahe", "bilateral", "gaussian"]:
+            if img_type in processed_images:
+                for kernel_size in self.params.do2mr_kernel_sizes:
+                    for gamma in self.params.do2mr_gamma_values:
+                        mask = self._do2mr_detection(processed_images[img_type], kernel_size, gamma)
+                        do2mr_combined = cv2.bitwise_or(do2mr_combined, mask)
+        
+        results["do2mr"] = self._clean_mask(do2mr_combined)
+        
+        # 2. LEI for scratches with multiple parameters
+        lei_combined = np.zeros_like(list(processed_images.values())[0], dtype=np.uint8)
+        for img_type in ["clahe", "bilateral"]:
+            if img_type in processed_images:
+                for kernel_len in self.params.lei_kernel_lengths:
+                    for angle_step in self.params.lei_angle_steps:
+                        mask = self._lei_detection(processed_images[img_type], kernel_len, angle_step)
+                        lei_combined = cv2.bitwise_or(lei_combined, mask)
+        
+        results["lei"] = self._clean_mask(lei_combined)
+        
+        # 3. Canny edge-based detection
+        canny_combined = np.zeros_like(list(processed_images.values())[0], dtype=np.uint8)
+        for img_type in ["clahe", "gaussian"]:
+            if img_type in processed_images:
+                for (low, high) in self.params.canny_thresholds:
+                    edges = cv2.Canny(processed_images[img_type], low, high)
+                    # Close edges to form regions
+                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+                    closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)
+                    canny_combined = cv2.bitwise_or(canny_combined, closed)
+        
+        results["canny"] = self._clean_mask(canny_combined)
+        
+        # 4. Adaptive threshold-based detection
+        adaptive_combined = np.zeros_like(list(processed_images.values())[0], dtype=np.uint8)
+        for img_type in ["clahe", "bilateral"]:
+            if img_type in processed_images:
+                for block_size in self.params.adaptive_block_sizes:
+                    for C in self.params.adaptive_C_values:
+                        binary = cv2.adaptiveThreshold(processed_images[img_type], 255,
+                                                     cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                                     cv2.THRESH_BINARY_INV, block_size, C)
+                        adaptive_combined = cv2.bitwise_or(adaptive_combined, binary)
+        
+        results["adaptive"] = self._clean_mask(adaptive_combined)
+        
+        # 5. Watershed segmentation
+        if "clahe" in processed_images:
+            watershed_mask = self._watershed_detection(processed_images["clahe"])
+            results["watershed"] = watershed_mask
+        
+        # 6. Combine all methods with voting
+        all_masks = list(results.values())
+        vote_mask = np.zeros_like(all_masks[0], dtype=np.float32)
+        
+        for mask in all_masks:
+            vote_mask += mask.astype(np.float32) / 255.0
+            
+        # Threshold based on minimum votes
+        min_votes = len(all_masks) * 0.3  # At least 30% of methods must agree
+        final_mask = (vote_mask >= min_votes).astype(np.uint8) * 255
+        
+        results["combined"] = self._clean_mask(final_mask)
+        
+        return results
+    
+    def _do2mr_detection(self, image: np.ndarray, kernel_size: Tuple[int, int], gamma: float) -> np.ndarray:
+        """DO2MR detection with specific parameters"""
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, kernel_size)
+        
+        # Min-max filtering
+        img_max = cv2.dilate(image, kernel)
+        img_min = cv2.erode(image, kernel)
+        
+        # Residual
         residual = cv2.absdiff(img_max, img_min)
+        
+        # Adaptive thresholding
         residual_filtered = cv2.medianBlur(residual, 5)
-        mean_val = np.mean(residual_filtered); std_val = np.std(residual_filtered)
-        threshold_val = mean_val + self.do2mr_params["gamma"] * std_val
-        if std_val < 1: threshold_val = mean_val + 5
-        _, binary_mask = cv2.threshold(residual_filtered, threshold_val, 255, cv2.THRESH_BINARY)
-        kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3))
-        binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_OPEN, kernel_open, iterations=2)
-        n_labels, labeled = cv2.connectedComponents(binary_mask)
-        return binary_mask, labeled
-
-    def detect_scratches_lei(self, image_for_lei: np.ndarray) -> np.ndarray:
-        scratch_strength = np.zeros_like(image_for_lei, dtype=np.float32)
-        kernel_length = self.lei_params["kernel_size"]
-        for angle in self.lei_params["angles"]:
-            angle_rad = np.deg2rad(angle); kernel_points = []
+        mean_val = np.mean(residual_filtered)
+        std_val = np.std(residual_filtered)
+        
+        threshold = mean_val + gamma * std_val
+        _, binary = cv2.threshold(residual_filtered, threshold, 255, cv2.THRESH_BINARY)
+        
+        return binary
+    
+    def _lei_detection(self, image: np.ndarray, kernel_length: int, angle_step: int) -> np.ndarray:
+        """LEI scratch detection with specific parameters"""
+        scratch_strength = np.zeros_like(image, dtype=np.float32)
+        
+        for angle in range(0, 180, angle_step):
+            angle_rad = np.deg2rad(angle)
+            
+            # Create linear kernel
+            kernel_points = []
             for i in range(-kernel_length//2, kernel_length//2 + 1):
-                if i == 0 : continue
-                x = int(round(i * np.cos(angle_rad))); y = int(round(i * np.sin(angle_rad)))
-                if (x,y) not in kernel_points: kernel_points.append((x,y))
-            if not kernel_points: continue
-            response = self._apply_linear_detector_refined(image_for_lei, kernel_points)
-            scratch_strength = np.maximum(scratch_strength, response)
+                if i == 0:
+                    continue
+                x = int(round(i * np.cos(angle_rad)))
+                y = int(round(i * np.sin(angle_rad)))
+                if (x, y) not in kernel_points:
+                    kernel_points.append((x, y))
+            
+            if kernel_points:
+                response = self._apply_linear_detector(image, kernel_points)
+                scratch_strength = np.maximum(scratch_strength, response)
         
-        # FIX: Use np.uint8 for dtype with np.zeros_like when intending to use with OpenCV normalize/threshold
-        scratch_strength_norm = np.zeros_like(scratch_strength, dtype=np.uint8) # Changed cv2.CV_8U to np.uint8
-        
+        # Normalize and threshold
         if scratch_strength.max() > 0:
-             cv2.normalize(scratch_strength, scratch_strength_norm, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U) # cv2.CV_8U is OK for OpenCV functions
+            scratch_norm = cv2.normalize(scratch_strength, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            _, scratch_mask = cv2.threshold(scratch_norm, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            return scratch_mask
         
-        _, scratch_mask = cv2.threshold(scratch_strength_norm, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        return np.zeros_like(image, dtype=np.uint8)
+    
+    def _apply_linear_detector(self, image: np.ndarray, kernel_points: List[Tuple[int, int]]) -> np.ndarray:
+        """Apply linear detector for scratch detection"""
+        h, w = image.shape
+        response = np.zeros_like(image, dtype=np.float32)
         
-        kernel_close_len = max(3, kernel_length // 3)
-        scratch_mask_closed = cv2.morphologyEx(scratch_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5)), iterations=1)
-        scratch_mask_opened = cv2.morphologyEx(scratch_mask_closed, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3)), iterations=1)
-        return scratch_mask_opened
-
-    def _apply_linear_detector_refined(self, image: np.ndarray, kernel_points: List[Tuple[int, int]]) -> np.ndarray:
-        height, width = image.shape; response = np.zeros_like(image, dtype=np.float32)
-        max_offset = max(max(abs(dx), abs(dy)) for dx, dy in kernel_points) if kernel_points else 0
+        # Pad image
+        max_offset = max(max(abs(dx), abs(dy)) for dx, dy in kernel_points)
         padded = cv2.copyMakeBorder(image, max_offset, max_offset, max_offset, max_offset, cv2.BORDER_REFLECT)
-        for r_idx in range(height):
-            for c_idx in range(width):
-                r_pad, c_pad = r_idx + max_offset, c_idx + max_offset
-                line_values = [float(padded[r_pad + dy, c_pad + dx]) for dx, dy in kernel_points]
-                if not line_values: continue
-                avg_line_val = np.mean(line_values); center_pixel_val = float(padded[r_pad, c_pad])
-                current_response = avg_line_val - center_pixel_val # Assuming scratches are brighter lines
-                response[r_idx, c_idx] = max(0, current_response)
+        
+        for y in range(h):
+            for x in range(w):
+                y_pad, x_pad = y + max_offset, x + max_offset
+                
+                # Calculate line average
+                line_vals = []
+                for dx, dy in kernel_points:
+                    line_vals.append(float(padded[y_pad + dy, x_pad + dx]))
+                
+                if line_vals:
+                    avg_line = np.mean(line_vals)
+                    center_val = float(padded[y_pad, x_pad])
+                    response[y, x] = max(0, avg_line - center_val)
+        
         return response
-
-    def classify_defects(self, labeled_regions_map: np.ndarray, scratch_mask_map: np.ndarray,
-                         zone_masks_dict: Dict[str, np.ndarray]) -> pd.DataFrame:
+    
+    def _watershed_detection(self, image: np.ndarray) -> np.ndarray:
+        """Watershed-based defect detection"""
+        # Find sure background
+        kernel = np.ones((3, 3), np.uint8)
+        sure_bg = cv2.dilate(image, kernel, iterations=3)
+        
+        # Find sure foreground
+        dist_transform = cv2.distanceTransform(image, cv2.DIST_L2, 5)
+        _, sure_fg = cv2.threshold(dist_transform, 0.3 * dist_transform.max(), 255, 0)
+        
+        # Find unknown region
+        sure_fg = np.uint8(sure_fg)
+        unknown = cv2.subtract(sure_bg, sure_fg)
+        
+        # Marker labelling
+        ret, markers = cv2.connectedComponents(sure_fg)
+        markers = markers + 1
+        markers[unknown == 255] = 0
+        
+        # Convert to 3-channel for watershed
+        img_3ch = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        markers = cv2.watershed(img_3ch, markers)
+        
+        # Create mask from markers
+        mask = np.zeros_like(image, dtype=np.uint8)
+        mask[markers == -1] = 255
+        
+        return mask
+    
+    def _clean_mask(self, mask: np.ndarray) -> np.ndarray:
+        """Clean up a binary mask"""
+        # Remove small objects
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        cleaned = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+        
+        # Fill small holes
+        cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, kernel, iterations=1)
+        
+        # Remove tiny components
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(cleaned, connectivity=8)
+        
+        min_area = self.params.do2mr_min_area
+        cleaned_final = np.zeros_like(mask)
+        
+        for i in range(1, num_labels):
+            if stats[i, cv2.CC_STAT_AREA] >= min_area:
+                cleaned_final[labels == i] = 255
+                
+        return cleaned_final
+    
+    def create_zone_masks(self, image_shape: Tuple[int, int], center: Tuple[int, int], 
+                         radius: Optional[float]) -> Dict[str, np.ndarray]:
+        """Create masks for different fiber zones"""
+        h, w = image_shape[:2]
+        masks = {}
+        
+        Y, X = np.ogrid[:h, :w]
+        dist_from_center = np.sqrt((X - center[0])**2 + (Y - center[1])**2)
+        
+        # Determine scale
+        scale = 1.0
+        if self.effective_um_per_px:
+            scale = self.effective_um_per_px
+        elif radius and self.operating_mode == "MICRON_INFERRED" and self.user_cladding_diameter_um:
+            # Infer scale from detected radius
+            scale = (self.user_cladding_diameter_um / 2.0) / radius
+            self.effective_um_per_px = scale
+            
+        # Create masks for each zone
+        for zone in self.zones:
+            if scale == 1.0:  # Pixel mode
+                r_min_px = zone.r_min_um
+                r_max_px = zone.r_max_um
+            else:  # Micron mode
+                r_min_px = zone.r_min_um / scale
+                r_max_px = zone.r_max_um / scale
+                
+            mask = ((dist_from_center >= r_min_px) & (dist_from_center < r_max_px)).astype(np.uint8) * 255
+            masks[zone.name] = mask
+            
+        return masks
+    
+    def classify_defects(self, defect_masks: Dict[str, np.ndarray], 
+                        zone_masks: Dict[str, np.ndarray]) -> pd.DataFrame:
+        """Classify detected defects by zone and type"""
         defects = []
-        active_scale = self.effective_um_per_px
         
-        num_labels_region, labels_region, stats_region, centroids_region = cv2.connectedComponentsWithStats(
-            (labeled_regions_map > 0).astype(np.uint8), connectivity=8)
-        for i in range(1, num_labels_region):
-            area_px = stats_region[i, cv2.CC_STAT_AREA]
-            if area_px < self.do2mr_params["min_area_px"]: continue
-            cx_px, cy_px = int(centroids_region[i][0]), int(centroids_region[i][1])
-            x,y,w,h = stats_region[i,cv2.CC_STAT_LEFT], stats_region[i,cv2.CC_STAT_TOP],stats_region[i,cv2.CC_STAT_WIDTH],stats_region[i,cv2.CC_STAT_HEIGHT]
-            zone = "unknown"
-            for zn, zm in zone_masks_dict.items():
-                if 0<=cy_px<zm.shape[0] and 0<=cx_px<zm.shape[1] and zm[cy_px,cx_px]>0: zone=zn; break
-            size_val, unit = (np.sqrt(4*area_px*(active_scale**2)/np.pi), "um") if active_scale and active_scale > 0 else (np.sqrt(area_px), "px")
-            ar = w/h if h>0 else (w/0.1 if w > 0 else 1.0)
-            def_type = "dig" if ar < 4.0 and ar > 0.25 else "region_elongated"
-            defects.append({"type":def_type, "zone":zone, f"size({unit})":round(size_val,2), "area_px":area_px, "cx_px":cx_px, "cy_px":cy_px,
-                            "bb_x":x,"bb_y":y,"bb_w":w,"bb_h":h, "ar":round(ar,2), "algo":"DO2MR"})
-
-        num_labels_scratch, labels_scratch, stats_scratch, centroids_scratch = cv2.connectedComponentsWithStats(
-            scratch_mask_map, connectivity=8)
-        for i in range(1, num_labels_scratch):
-            area_px = stats_scratch[i, cv2.CC_STAT_AREA]
-            if area_px < 15: continue
-            cx_px,cy_px = int(centroids_scratch[i][0]), int(centroids_scratch[i][1])
-            x,y,w,h = stats_scratch[i,cv2.CC_STAT_LEFT], stats_scratch[i,cv2.CC_STAT_TOP],stats_scratch[i,cv2.CC_STAT_WIDTH],stats_scratch[i,cv2.CC_STAT_HEIGHT]
-            zone = "unknown"
-            for zn, zm in zone_masks_dict.items():
-                if 0<=cy_px<zm.shape[0] and 0<=cx_px<zm.shape[1] and zm[cy_px,cx_px]>0: zone=zn; break
-            contours_list, _ = cv2.findContours((labels_scratch == i).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            len_px, wid_px = max(w,h), min(w,h) # Fallback
-            if contours_list and len(contours_list[0]) >= 5:
-                rect = cv2.minAreaRect(contours_list[0]); wid_px, len_px = sorted(rect[1])[:2]
-            
-            len_val, wid_val, unit = (len_px*active_scale, wid_px*active_scale, "um") if active_scale and active_scale > 0 else (len_px, wid_px, "px")
-            defects.append({"type":"scratch", "zone":zone, f"L({unit})":round(len_val,2), f"W({unit})":round(wid_val,2),
-                            "area_px":area_px, "cx_px":cx_px, "cy_px":cy_px, "bb_x":x,"bb_y":y,"bb_w":w,"bb_h":h, "algo":"LEI"})
-        return pd.DataFrame(defects)
-
-    def apply_pass_fail_criteria(self, defects_df: pd.DataFrame) -> Tuple[str, List[str]]:
-        status = "PASS"; failure_reasons = []
-        if not (self.effective_um_per_px and self.effective_um_per_px > 0):
-            mode_info = self.operating_mode
-            if self.operating_mode == "MICRON_INFERRED" and not self.inferred_um_per_px_current_image:
-                mode_info = "MICRON_INFERRED (inference failed)"
-
-            failure_reasons.append(f"Cannot apply µm-based P/F rules: No valid µm/px scale. Mode: {mode_info}.")
-            # Optionally, apply pixel-based rules from self.zones_px_definitions if they exist
-            # For now, just return UNDEFINED if micron rules can't be applied
-            return "UNDEFINED", failure_reasons
-
-        for zone_name, crit_um in self.zones_um_template.items():
-            if not crit_um.get("defects_allowed", True) and not defects_df[defects_df["zone"] == zone_name].empty:
-                status = "FAIL"; failure_reasons.append(f"{zone_name}: No defects allowed, found some.")
+        # Get combined defect mask
+        combined_mask = defect_masks.get("combined", np.zeros_like(list(defect_masks.values())[0]))
+        
+        # Find connected components
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(combined_mask, connectivity=8)
+        
+        for i in range(1, num_labels):
+            area_px = stats[i, cv2.CC_STAT_AREA]
+            if area_px < self.params.do2mr_min_area:
                 continue
-            zone_defects = defects_df[defects_df["zone"] == zone_name]
-            if zone_defects.empty: continue
-            max_allowed_um = crit_um.get("max_defect_um", float('inf'))
-            for _, defect in zone_defects.iterrows():
-                size_um = 0
-                if defect["type"] in ["dig", "region_elongated"]: size_um = defect.get("size(um)",0)
-                elif defect["type"] == "scratch": size_um = defect.get("L(um)",0)
-                if size_um > max_allowed_um:
-                    status = "FAIL"; failure_reasons.append(f"{zone_name}: {defect['type']} size {size_um:.2f}µm > {max_allowed_um}µm")
-        return status, list(set(failure_reasons))
-
-    def inspect_fiber(self, image_path: str) -> Dict:
-        self.inferred_um_per_px_current_image = None
-        self.effective_um_per_px = self.calibrated_um_per_px
-
-        image_bgr = cv2.imread(image_path)
-        if image_bgr is None: return {"image_path": image_path, "status": "ERROR", "failure_reasons": [f"Load fail: {image_path}"], "defect_count": 0}
-        
-        original_gray, denoised_img, enhanced_clahe_img = self.preprocess_image(image_bgr)
-        img_for_hough = cv2.GaussianBlur(denoised_img, (5,5), 0)
-        center_px, detected_cladding_radius_px = self.find_fiber_center_and_radius(img_for_hough)
-
-        if center_px is None: return {"image_path": image_path, "status": "ERROR", "failure_reasons":["Center find fail"], "defect_count":0}
-
-        current_mode_report = self.operating_mode
-        if self.operating_mode == "MICRON_INFERRED":
-            if detected_cladding_radius_px and detected_cladding_radius_px > 0 and \
-               self.user_cladding_diameter_um and self.user_cladding_diameter_um > 0:
-                self.inferred_um_per_px_current_image = (self.user_cladding_diameter_um/2.0) / detected_cladding_radius_px
-                self.effective_um_per_px = self.inferred_um_per_px_current_image
-                print(f"  Image {Path(image_path).name}: Inferred um_per_px: {self.effective_um_per_px:.4f}")
-            else:
-                print(f"  Image {Path(image_path).name}: Could not infer um/px. Fallback to PIXEL_ONLY for this image.")
-                self.effective_um_per_px = None; current_mode_report = "PIXEL_ONLY (Inference Fail)"
-        
-        if self.operating_mode == "PIXEL_ONLY" or not self.effective_um_per_px: # If pixel mode or inference failed
-            if detected_cladding_radius_px and detected_cladding_radius_px > 0:
-                self._update_pixel_zones_dynamically(detected_cladding_radius_px)
-            else: print(f"  Image {Path(image_path).name}: No radius for dynamic pixel zones. Using defaults.")
-
-        zone_masks = self.create_zone_masks(original_gray.shape, center_px)
-        if any(k.startswith("error_") for k in zone_masks) or not zone_masks:
-            err_key = next(iter(zone_masks.keys())) if zone_masks else "Unknown zone error"
-            return {"image_path":image_path, "status":"ERROR", "failure_reasons":[zone_masks.get(err_key, "Zone creation error")], "defect_count":0}
-
-        region_mask, labeled = self.detect_region_defects_do2mr(enhanced_clahe_img)
-        scratch_mask = self.detect_scratches_lei(denoised_img)
-        defects_df = self.classify_defects(labeled, scratch_mask, zone_masks)
-        status, reasons = self.apply_pass_fail_criteria(defects_df)
-        
-        return {"image_path":image_path, "status":status, "failure_reasons":reasons,
-                "defect_count":len(defects_df), "defects":defects_df.to_dict('records') if not defects_df.empty else [],
-                "fiber_center_px":center_px, "detected_cladding_radius_px":detected_cladding_radius_px,
-                "operating_mode":current_mode_report, "effective_um_per_px":self.effective_um_per_px if self.effective_um_per_px else "N/A",
-                "masks_viz":{"region_defects":region_mask, "scratches":scratch_mask}}
-
-    def visualize_results(self, image_path: str, results: Dict, save_path: Optional[str] = None):
-        image_bgr = cv2.imread(image_path)
-        if image_bgr is None: print(f"Vis Error: Could not load {image_path}"); return
-        vis = image_bgr.copy(); center = results.get("fiber_center_px")
-        active_zones_vis, scale_vis, suffix_vis = self._get_active_zone_definitions_and_scale()
-        if center and scale_vis and scale_vis > 0:
-            colors = {"core":(255,0,0),"cladding":(0,255,0),"ferrule_contact":(0,0,255),"adhesive_bond":(255,255,0)}
-            for zn,zp in active_zones_vis.items():
-                r_max = zp.get(f"r_max{suffix_vis}")
-                if r_max is not None: cv2.circle(vis,center,int(r_max/scale_vis),colors.get(zn,(128,128,128)),1)
-        masks = results.get("masks_viz",{})
-        if masks.get("region_defects") is not None: vis[masks["region_defects"]>0]=cv2.addWeighted(vis[masks["region_defects"]>0],0.5,np.array([0,255,255],dtype=np.uint8),0.5,0)
-        if masks.get("scratches") is not None: vis[masks["scratches"]>0]=cv2.addWeighted(vis[masks["scratches"]>0],0.5,np.array([255,0,255],dtype=np.uint8),0.5,0)
-        for d in results.get("defects",[]):
-            x,y,w,h = d.get("bb_x"),d.get("bb_y"),d.get("bb_w"),d.get("bb_h")
-            if all(v is not None for v in [x,y,w,h]): cv2.rectangle(vis,(x,y),(x+w,y+h),(0,165,255),1)
-        stat=results.get("status","N/A");clr=(0,255,0) if stat=="PASS" else ((0,165,255) if stat=="UNDEFINED" else (0,0,255))
-        cv2.putText(vis,f"Status: {stat}",(10,20),cv2.FONT_HERSHEY_SIMPLEX,0.6,clr,2)
-        cv2.putText(vis,f"Mode: {results.get('operating_mode','N/A')}",(10,40),cv2.FONT_HERSHEY_SIMPLEX,0.4,(220,220,220),1)
-        eff_scale = results.get('effective_um_per_px','N/A')
-        cv2.putText(vis,f"Scale: {eff_scale if isinstance(eff_scale, str) else f'{eff_scale:.4f}'}",(10,55),cv2.FONT_HERSHEY_SIMPLEX,0.4,(220,220,220),1)
-        cv2.putText(vis,f"Defects: {results.get('defect_count',0)}",(10,75),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
-        y_off=95
-        for i,r in enumerate(results.get("failure_reasons",[])): cv2.putText(vis,r,(10,y_off+i*15),cv2.FONT_HERSHEY_SIMPLEX,0.4,(0,0,255),1)
-        if save_path:
-            Path(save_path).parent.mkdir(parents=True,exist_ok=True)
-            fig,ax=plt.subplots(1,2,figsize=(16,8));fig.suptitle(f"{Path(image_path).name} - Status: {stat}",fontsize=14)
-            ax[0].imshow(cv2.cvtColor(cv2.imread(image_path),cv2.COLOR_BGR2RGB));ax[0].set_title("Original");ax[0].axis('off')
-            ax[1].imshow(cv2.cvtColor(vis,cv2.COLOR_BGR2RGB));ax[1].set_title("Processed");ax[1].axis('off')
-            plt.tight_layout(rect=[0,0.03,1,0.95]);plt.savefig(save_path,dpi=150,bbox_inches='tight');plt.close(fig)
-            print(f"Visualization saved: {save_path}")
-        else: cv2.imshow("Inspection Result",vis);cv2.waitKey(0);cv2.destroyAllWindows()
-
-def calibrate_system(calibration_image_path: str, dot_spacing_um: float = 10.0, config_path: str = "calibration.json") -> Optional[float]:
-    image = cv2.imread(calibration_image_path, cv2.IMREAD_GRAYSCALE)
-    if image is None: print(f"Error: Could not load calib image: {calibration_image_path}"); return None
-    blurred = cv2.GaussianBlur(image, (7,7),0)
-    binary = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 21, 5)
-    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    centroids = []
-    for contour in contours:
-        area = cv2.contourArea(contour); perimeter = cv2.arcLength(contour,True)
-        if area < 10 or area > 2000 or perimeter == 0: continue # Adjust area filter based on your target
-        circularity = 4 * np.pi * (area/(perimeter**2))
-        if 0.6 < circularity < 1.4: # Filter for dot-like shapes
-            M = cv2.moments(contour)
-            if M['m00'] != 0: centroids.append((M['m10']/M['m00'], M['m01']/M['m00']))
-    if len(centroids) < 2: print(f"Warning: Not enough distinct circular calib dots found ({len(centroids)})."); return None
-    
-    # Simplified spacing calculation assuming somewhat regular grid or line. Robust grid analysis is more complex.
-    centroids = sorted(centroids, key=lambda c: (c[0],c[1])) 
-    distances = []
-    if len(centroids) > 1: # More robust: calculate distances between all pairs, find mode or median of plausible distances
-        for i in range(len(centroids)):
-            for j in range(i + 1, len(centroids)):
-                dist = np.sqrt((centroids[i][0] - centroids[j][0])**2 + (centroids[i][1] - centroids[j][1])**2)
-                # Filter for plausible distances based on dot_spacing_um and rough pixel estimate
-                # This heuristic needs tuning based on expected pixel size of dots
-                if dist > 5 : distances.append(dist) 
-    
-    if not distances: print("Warning: Could not determine any distances between calibration dots."); return None
-    
-    # Use median of plausible distances. This is still a simplification for a true grid.
-    # For a real grid, one might expect distances to cluster around multiples of the dot spacing.
-    # A more robust approach would be to find the smallest, most frequent distances.
-    avg_dist_px = np.median(sorted(distances)[:min(len(distances), 10)]) # Median of smallest 10, if many dots
-
-    if avg_dist_px < 5: print("Warning: Calib dot spacing in pixels is too small or dots are too close."); return None
-    if avg_dist_px == 0: print("Warning: Avg px dist is zero."); return None
-    um_per_px = dot_spacing_um / avg_dist_px
-    cal_data = {"um_per_px":um_per_px, "dot_spacing_um_used":dot_spacing_um, "avg_dot_dist_px_calculated":avg_dist_px}
-    with open(config_path,"w") as f: json.dump(cal_data,f,indent=4)
-    print(f"Calibration successful: {um_per_px:.4f} µm/pixel. Saved to {config_path}"); return um_per_px
-
-# --- Main Execution ---
-if __name__ == "__main__":
-    calibration_file = "calibration.json"
-    user_core_dia_um, user_cladding_dia_um = None, None
-    if input("Provide specific core/cladding diameters (µm)? (y/n, default: n): ").lower() == 'y':
-        try:
-            core_str = input("Core diameter (µm, e.g., 9): ").strip()
-            if core_str: user_core_dia_um = float(core_str)
-            clad_str = input("Cladding diameter (µm, e.g., 125): ").strip()
-            if clad_str: user_cladding_dia_um = float(clad_str)
-        except ValueError: print("Invalid µm input. Using defaults/pixel mode."); user_core_dia_um=None;user_cladding_dia_um=None
-
-    attempt_calib_load = True
-    if Path(calibration_file).exists():
-        if input(f"Use existing '{calibration_file}'? (y/n, default: y): ").lower() == 'n':
-            attempt_calib_load = False
-            print("Calibration file will NOT be used.")
-    else: # Calibration file does not exist
-        print(f"'{calibration_file}' not found.")
-        attempt_calib_load = False
-        if user_cladding_dia_um is None: # No calib AND no user cladding for inference
-             print("No calibration file and no user-provided cladding diameter. Will operate in PIXEL_ONLY mode.")
-        else: # No calib BUT user cladding is available for inference
-            print("Will attempt MICRON_INFERRED mode using your provided cladding diameter.")
-
-    try:
-        inspector = FiberOpticInspector(
-            user_core_diameter_um=user_core_dia_um, user_cladding_diameter_um=user_cladding_dia_um,
-            use_calibration_file=attempt_calib_load, calibration_file_path=calibration_file)
-    except Exception as e: print(f"FATAL: Init Inspector failed: {e}"); exit()
-
-    image_dir = input("Enter image directory or single image file path: ").strip()
-    image_paths = []
-    if Path(image_dir).is_file(): image_paths.append(image_dir)
-    elif Path(image_dir).is_dir():
-        for ext in ("*.png","*.jpg","*.jpeg","*.bmp","*.tif","*.tiff"): image_paths.extend(glob.glob(os.path.join(image_dir,ext)))
-    else: print(f"Error: '{image_dir}' invalid."); exit()
-    if not image_paths: print(f"No images found in '{image_dir}'."); exit()
-    print(f"Found {len(image_paths)} image(s).")
-
-    output_dir = Path("./inspection_results"); output_dir.mkdir(parents=True,exist_ok=True)
-    summary = []
-    for img_path_str in image_paths:
-        img_p = Path(img_path_str)
-        print(f"\n--- Inspecting: {img_p.name} ---")
-        try:
-            results = inspector.inspect_fiber(img_path_str)
-            print(f"  Status: {results['status']}")
-            if results['failure_reasons']: print("  Failure reasons:\n" + "\n".join([f"    - {r}" for r in results['failure_reasons']]))
-            print(f"  Total defects found: {results['defect_count']}")
-            if results.get('defects') and results['defect_count'] > 0: print("  Defect details:\n" + pd.DataFrame(results['defects']).to_string())
+                
+            cx, cy = int(centroids[i][0]), int(centroids[i][1])
+            x, y, w, h = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], \
+                        stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
             
-            viz_path = output_dir / f"{img_p.stem}_inspected.png"
-            inspector.visualize_results(img_path_str, results, save_path=str(viz_path))
-            summary.append({"image":img_p.name, "status":results['status'], "defects":results['defect_count'],
-                            "mode":results.get("operating_mode"), "eff_um/px":results.get("effective_um_per_px"),
-                            "reasons":"; ".join(results.get('failure_reasons',[]))})
-        except Exception as e:
-            print(f"  ERROR inspecting {img_p.name}: {e}"); import traceback; traceback.print_exc()
-            summary.append({"image":img_p.name, "status":"ERROR_PROCESSING", "defects":-1, "reasons":str(e)})
-    if summary:
-        pd.DataFrame(summary).to_csv(output_dir / "_inspection_summary.csv", index=False)
-        print(f"\nSummary saved to: {output_dir / '_inspection_summary.csv'}")
-    print("\nBatch inspection complete.")
+            # Determine zone
+            zone_name = "unknown"
+            for zone, mask in zone_masks.items():
+                if 0 <= cy < mask.shape[0] and 0 <= cx < mask.shape[1] and mask[cy, cx] > 0:
+                    zone_name = zone
+                    break
+            
+            # Determine defect type based on shape
+            aspect_ratio = w / h if h > 0 else 1.0
+            
+            # Check if it's a scratch (elongated)
+            is_scratch = False
+            if defect_masks.get("lei") is not None:
+                lei_region = defect_masks["lei"][y:y+h, x:x+w]
+                label_region = (labels[y:y+h, x:x+w] == i)
+                overlap = np.sum(lei_region > 0) / np.sum(label_region) if np.sum(label_region) > 0 else 0
+                is_scratch = overlap > 0.5 or aspect_ratio > 3.0 or aspect_ratio < 0.33
+            
+            # Calculate size
+            if self.effective_um_per_px:
+                if is_scratch:
+                    # For scratches, calculate length and width
+                    contours, _ = cv2.findContours((labels == i).astype(np.uint8), 
+                                                 cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    if contours:
+                        rect = cv2.minAreaRect(contours[0])
+                        width_px, length_px = sorted(rect[1])
+                        length_um = length_px * self.effective_um_per_px
+                        width_um = width_px * self.effective_um_per_px
+                        size_info = {"length_um": round(length_um, 2), "width_um": round(width_um, 2)}
+                else:
+                    # For dig/pit, use equivalent diameter
+                    diameter_px = np.sqrt(4 * area_px / np.pi)
+                    diameter_um = diameter_px * self.effective_um_per_px
+                    size_info = {"diameter_um": round(diameter_um, 2)}
+            else:
+                # Pixel mode
+                if is_scratch:
+                    size_info = {"length_px": max(w, h), "width_px": min(w, h)}
+                else:
+                    size_info = {"diameter_px": round(np.sqrt(4 * area_px / np.pi), 2)}
+            
+            defect_type = "scratch" if is_scratch else "dig"
+            
+            # Count votes from different methods
+            votes = 0
+            for method_name, method_mask in defect_masks.items():
+                if method_name != "combined" and method_mask[cy, cx] > 0:
+                    votes += 1
+            
+            defects.append({
+                "type": defect_type,
+                "zone": zone_name,
+                "area_px": area_px,
+                "cx_px": cx,
+                "cy_px": cy,
+                "bbox": (x, y, w, h),
+                "aspect_ratio": round(aspect_ratio, 2),
+                "detection_votes": votes,
+                **size_info
+            })
+        
+        return pd.DataFrame(defects)
+    
+    def apply_pass_fail_criteria(self, defects_df: pd.DataFrame) -> Tuple[str, List[str]]:
+        """Apply pass/fail criteria based on zone rules"""
+        if not self.effective_um_per_px:
+            # Pixel mode - can't apply micron-based rules
+            if len(defects_df) == 0:
+                return "PASS", []
+            else:
+                return "REVIEW", [f"Found {len(defects_df)} defects - manual review needed (pixel mode)"]
+        
+        status = "PASS"
+        failures = []
+        
+        for zone in self.zones:
+            zone_defects = defects_df[defects_df["zone"] == zone.name]
+            
+            if not zone.defects_allowed and len(zone_defects) > 0:
+                status = "FAIL"
+                failures.append(f"{zone.name}: No defects allowed, found {len(zone_defects)}")
+                continue
+                
+            for _, defect in zone_defects.iterrows():
+                # Get defect size
+                if defect["type"] == "scratch":
+                    size = defect.get("length_um", 0)
+                else:
+                    size = defect.get("diameter_um", 0)
+                    
+                if size > zone.max_defect_um:
+                    status = "FAIL"
+                    failures.append(f"{zone.name}: {defect['type']} size {size:.1f}µm exceeds limit {zone.max_defect_um}µm")
+        
+        return status, failures
+    
+    def inspect_single_image(self, image_path: str) -> Dict:
+        """Inspect a single fiber optic image"""
+        # Reset per-image values
+        if self.operating_mode == "MICRON_INFERRED":
+            self.effective_um_per_px = None
+            
+        # Load image
+        image_bgr = cv2.imread(image_path)
+        if image_bgr is None:
+            return {
+                "image_path": image_path,
+                "status": "ERROR",
+                "failure_reasons": [f"Failed to load image: {image_path}"],
+                "defect_count": 0
+            }
+        
+        # Preprocess with multiple techniques
+        processed = self.preprocess_image_multi_technique(image_bgr)
+        
+        # Find fiber center using multiple methods
+        center, radius, confidence = self.find_fiber_center_multi_method(processed)
+        
+        if center is None:
+            return {
+                "image_path": image_path,
+                "status": "ERROR", 
+                "failure_reasons": ["Failed to detect fiber center"],
+                "defect_count": 0
+            }
+        
+        # Create zone masks
+        zone_masks = self.create_zone_masks(image_bgr.shape[:2], center, radius)
+        
+        # Detect defects using multiple algorithms
+        defect_masks = self.detect_defects_multi_algorithm(processed, center, radius)
+        
+        # Classify defects
+        defects_df = self.classify_defects(defect_masks, zone_masks)
+        
+        # Apply pass/fail criteria
+        status, failures = self.apply_pass_fail_criteria(defects_df)
+        
+        return {
+            "image_path": image_path,
+            "status": status,
+            "failure_reasons": failures,
+            "defect_count": len(defects_df),
+            "defects": defects_df.to_dict('records') if not defects_df.empty else [],
+            "fiber_center": center,
+            "fiber_radius": radius,
+            "detection_confidence": confidence,
+            "operating_mode": self.operating_mode,
+            "effective_um_per_px": self.effective_um_per_px,
+            "defect_masks": defect_masks,
+            "zone_masks": zone_masks
+        }
+    
+    def inspect_batch(self, image_paths: List[str], max_workers: int = 4) -> pd.DataFrame:
+        """Inspect multiple images in parallel"""
+        results = []
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_path = {executor.submit(self.inspect_single_image, path): path 
+                            for path in image_paths}
+            
+            for future in as_completed(future_to_path):
+                path = future_to_path[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                    print(f"Completed: {Path(path).name} - Status: {result['status']}")
+                except Exception as e:
+                    print(f"Error processing {path}: {e}")
+                    results.append({
+                        "image_path": path,
+                        "status": "ERROR",
+                        "failure_reasons": [str(e)],
+                        "defect_count": -1
+                    })
+        
+        return pd.DataFrame(results)
+    
+    def visualize_results(self, image_path: str, results: Dict, save_path: Optional[str] = None):
+        """Visualize inspection results"""
+        image = cv2.imread(image_path)
+        if image is None:
+            return
+            
+        vis = image.copy()
+        
+        # Draw zone circles
+        center = results.get("fiber_center")
+        zone_masks = results.get("zone_masks", {})
+        
+        if center and zone_masks:
+            # Draw zone boundaries
+            for zone in self.zones:
+                if zone.name in zone_masks:
+                    # Find zone boundary
+                    mask = zone_masks[zone.name]
+                    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    if contours:
+                        cv2.drawContours(vis, contours, -1, zone.color_bgr, 2)
+        
+        # Overlay defect masks
+        defect_masks = results.get("defect_masks", {})
+        if "combined" in defect_masks:
+            mask = defect_masks["combined"]
+            # Create colored overlay - properly handle channel mismatch
+            overlay = np.zeros_like(vis)
+            overlay[mask > 0] = [0, 255, 255]  # Yellow for defects
+            vis = cv2.addWeighted(vis, 0.7, overlay, 0.3, 0)
+        
+        # Draw defect bounding boxes
+        for defect in results.get("defects", []):
+            x, y, w, h = defect["bbox"]
+            color = (0, 0, 255) if defect["type"] == "scratch" else (255, 0, 0)
+            cv2.rectangle(vis, (x, y), (x + w, y + h), color, 2)
+            
+            # Add label
+            label = f"{defect['type'][:3]}"
+            cv2.putText(vis, label, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+        
+        # Add status text
+        status = results.get("status", "N/A")
+        color = (0, 255, 0) if status == "PASS" else (0, 0, 255)
+        cv2.putText(vis, f"Status: {status}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+        cv2.putText(vis, f"Defects: {results.get('defect_count', 0)}", (10, 60), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        
+        # Add mode info
+        mode = results.get("operating_mode", "Unknown")
+        cv2.putText(vis, f"Mode: {mode}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+        
+        if save_path:
+            # Create comparison figure
+            fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+            fig.suptitle(f"{Path(image_path).name} - Status: {status}", fontsize=16)
+            
+            # Original image
+            axes[0, 0].imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+            axes[0, 0].set_title("Original")
+            axes[0, 0].axis('off')
+            
+            # Result visualization
+            axes[0, 1].imshow(cv2.cvtColor(vis, cv2.COLOR_BGR2RGB))
+            axes[0, 1].set_title("Detected Defects")
+            axes[0, 1].axis('off')
+            
+            # Combined defect mask
+            if "combined" in defect_masks:
+                axes[0, 2].imshow(defect_masks["combined"], cmap='gray')
+                axes[0, 2].set_title("Combined Defect Mask")
+                axes[0, 2].axis('off')
+            
+            # Individual method results
+            methods = ["do2mr", "lei", "canny"]
+            for i, method in enumerate(methods):
+                if method in defect_masks:
+                    axes[1, i].imshow(defect_masks[method], cmap='gray')
+                    axes[1, i].set_title(f"{method.upper()} Detection")
+                    axes[1, i].axis('off')
+            
+            plt.tight_layout()
+            plt.savefig(save_path, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+        else:
+            cv2.imshow("Inspection Result", vis)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
+def main():
+    """Main execution function"""
+    print("Advanced Fiber Optic End Face Inspector")
+    print("=" * 50)
+    
+    # Get user input for fiber specifications
+    user_core_diameter_um = None
+    user_cladding_diameter_um = None
+    
+    if input("Provide fiber specifications? (y/n, default: n): ").lower() == 'y':
+        try:
+            core_input = input("Core diameter (µm, e.g., 9 for single-mode, 50/62.5 for multi-mode): ").strip()
+            if core_input:
+                user_core_diameter_um = float(core_input)
+                
+            clad_input = input("Cladding diameter (µm, typically 125): ").strip()
+            if clad_input:
+                user_cladding_diameter_um = float(clad_input)
+        except ValueError:
+            print("Invalid input. Proceeding without specifications.")
+    
+    # Check for calibration file
+    calibration_file = None
+    if Path("calibration.json").exists():
+        if input("Use existing calibration file? (y/n, default: y): ").lower() != 'n':
+            calibration_file = "calibration.json"
+    
+    # Initialize inspector
+    inspector = AdvancedFiberOpticInspector(
+        user_core_diameter_um=user_core_diameter_um,
+        user_cladding_diameter_um=user_cladding_diameter_um,
+        calibration_file=calibration_file
+    )
+    
+    # Get input path
+    input_path = input("Enter image directory or file path: ").strip()
+    if not input_path:
+        print("No input provided.")
+        return
+    
+    # Collect image paths
+    image_paths = []
+    input_path_obj = Path(input_path)
+    
+    if input_path_obj.is_file():
+        image_paths.append(str(input_path_obj))
+    elif input_path_obj.is_dir():
+        for ext in ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.tif", "*.tiff"]:
+            image_paths.extend(glob.glob(str(input_path_obj / ext)))
+    else:
+        print(f"Invalid path: {input_path}")
+        return
+    
+    if not image_paths:
+        print("No images found.")
+        return
+    
+    print(f"\nFound {len(image_paths)} image(s)")
+    
+    # Create output directory
+    output_dir = Path("inspection_results")
+    output_dir.mkdir(exist_ok=True)
+    
+    # Process images
+    print("\nProcessing images...")
+    results_df = inspector.inspect_batch(image_paths, max_workers=4)
+    
+    # Save results
+    summary_path = output_dir / "inspection_summary.csv"
+    results_df.to_csv(summary_path, index=False)
+    print(f"\nSummary saved to: {summary_path}")
+    
+    # Generate visualizations
+    print("\nGenerating visualizations...")
+    for _, row in results_df.iterrows():
+        if row["status"] != "ERROR":
+            image_path = row["image_path"]
+            image_name = Path(image_path).stem
+            
+            # Recreate results dict for visualization
+            results = {
+                "fiber_center": row.get("fiber_center"),
+                "fiber_radius": row.get("fiber_radius"),
+                "status": row["status"],
+                "defect_count": row["defect_count"],
+                "defects": row.get("defects", []),
+                "operating_mode": row.get("operating_mode"),
+                "defect_masks": row.get("defect_masks", {}),
+                "zone_masks": row.get("zone_masks", {})
+            }
+            
+            vis_path = output_dir / f"{image_name}_result.png"
+            
+            # Re-run inspection to get masks (since they're not stored in DataFrame)
+            full_results = inspector.inspect_single_image(image_path)
+            inspector.visualize_results(image_path, full_results, str(vis_path))
+            
+    print("\nInspection complete!")
+    
+    # Print summary statistics
+    print("\nSummary Statistics:")
+    print(f"Total images: {len(results_df)}")
+    print(f"Passed: {len(results_df[results_df['status'] == 'PASS'])}")
+    print(f"Failed: {len(results_df[results_df['status'] == 'FAIL'])}")
+    print(f"Errors: {len(results_df[results_df['status'] == 'ERROR'])}")
+    
+    # Show defect statistics
+    all_defects = []
+    for _, row in results_df.iterrows():
+        if isinstance(row.get("defects"), list):
+            all_defects.extend(row["defects"])
+    
+    if all_defects:
+        defects_df = pd.DataFrame(all_defects)
+        print(f"\nTotal defects found: {len(defects_df)}")
+        print("\nDefects by type:")
+        print(defects_df["type"].value_counts())
+        print("\nDefects by zone:")
+        print(defects_df["zone"].value_counts())
+
+if __name__ == "__main__":
+    main()
