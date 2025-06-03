@@ -297,7 +297,7 @@ class FiberOpticInspector:
                 
                 # Calculate length
                 points = np.column_stack([x_coords, y_coords])
-                distances = np.sqrt(np.sum((points - [x0, y0])**2, axis=1))
+                distances = np.sqrt(np.sum((points - [x0[0], y0[0]])**2, axis=1))
                 length_px = np.max(distances) * 2
                 length_um = length_px * self.um_per_px
                 
@@ -533,13 +533,13 @@ def calibrate_system(calibration_image_path: str, dot_spacing_um: float = 10.0) 
 if __name__ == "__main__":
     # First, calibrate if needed
     # um_per_px = calibrate_system("calibration_target.png", dot_spacing_um=10.0)
-    base_path = 'C:/Users/Saem1001/Documents/GitHub/OpenCV-Practice/'
-    img_path = base_path + 'img1.jpg' 
+#    base_path = '/home/jarvis/Documents/GitHub/OpenCV-Practice/test3.py'
+    img_path = '/home/jarvis/Documents/GitHub/OpenCV-Practice/img5.jpg'
     # Create inspector instance
     inspector = FiberOpticInspector()
     
     # Inspect a fiber end face
-    results = inspector.inspect_fiber("img_path")
+    results = inspector.inspect_fiber(img_path)
     
     # Print results
     print(f"Inspection Status: {results['status']}")
@@ -557,5 +557,5 @@ if __name__ == "__main__":
         print(defects_df)
     
     # Visualize results
-    inspector.visualize_results("img_path", results, "img_path")
+    inspector.visualize_results(img_path, results, img_path)
 
