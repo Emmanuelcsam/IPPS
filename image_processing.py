@@ -475,7 +475,7 @@ def generate_zone_masks(
             # Create outer ellipse mask
             outer_ellipse_axes_max = (int(r_max_px * 2 * (base_minor_axis / (base_major_axis + base_minor_axis))), int(r_max_px * 2 * (base_major_axis / (base_major_axis + base_minor_axis))))
             # Create inner ellipse mask
-            inner_ellipse_axes_min = (int(r_min_px * 2 * (base_minor_axis / (base_major_axis + base_minor_axis))), int(r_min_px * 2 * (base_major_axis + base_minor_axis))))
+            inner_ellipse_axes_min = (int(r_min_px * 2 * (base_minor_axis / (base_major_axis + base_minor_axis))), int(r_min_px * 2 * (base_major_axis + base_minor_axis)))
             
             if r_max_px > 0 : # Only draw if radius is positive.
                  cv2.ellipse(zone_mask_np, (current_zone_center, outer_ellipse_axes_max, base_angle), 255, -1) # Draw outer ellipse.
