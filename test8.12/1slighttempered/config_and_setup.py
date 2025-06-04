@@ -75,9 +75,9 @@ class DefectInfo:
     zone_name: str  # Name of the zone where the defect is primarily located.
     defect_type: str  # Type of defect (e.g., "Region", "Scratch").
     centroid_px: Tuple[int, int]  # Centroid coordinates (x, y) in pixels.
+    bounding_box_px: Tuple[int, int, int, int]  # Bounding box (x, y, width, height) in pixels.
     area: DefectMeasurement = field(default_factory=DefectMeasurement) # Area of the defect.
     perimeter: DefectMeasurement = field(default_factory=DefectMeasurement) # Perimeter of the defect.
-    bounding_box_px: Tuple[int, int, int, int]  # Bounding box (x, y, width, height) in pixels.
     # For scratches: length, width. For regions: equivalent diameter.
     major_dimension: DefectMeasurement = field(default_factory=DefectMeasurement) # Primary dimension (e.g. length of scratch, diameter of pit)
     minor_dimension: DefectMeasurement = field(default_factory=DefectMeasurement) # Secondary dimension (e.g. width of scratch)
@@ -113,7 +113,7 @@ class ImageResult:
     error_message: Optional[str] = None # Error message if processing failed.
     # For storing intermediate processing images/masks for debugging or detailed visualization
     intermediate_defect_maps: Dict[str, np.ndarray] = field(default_factory=dict)
-
+    timing_log: Dict[str, float] = field(default_factory=dict)  # NEW: store per-step durations
 
 # --- Configuration Class ---
 
@@ -230,9 +230,8 @@ def _log_duration(operation_name: str, start_time: float, image_result: Optional
     _log_message(f"Operation '{operation_name}' completed in {duration:.4f} seconds.")
     # If an ImageResult object is provided, store the timing information there (to be implemented).
     # For now, this is a placeholder for more structured timing logs.
-    if image_result:
-        # This part would be filled in when ImageResult has a dedicated timing dictionary.
-        pass # e.g., image_result.timing_log[operation_name] = duration
+    if image_result and hasattr(image_result, "timing_log"):
+        image_result.timing_log[operation_name] = duration
     return duration
 
 
@@ -360,18 +359,58 @@ class FiberInspector:
             adhesive_r_um = ferrule_r_um * 1.1 # Example: adhesive zone 10% larger than ferrule
 
             self.active_zone_definitions = [
-                ZoneDefinition(name="core", r_min_factor_or_um=0.0, r_max_factor_or_um=core_r_um,
-                               color_bgr=next(z.color_bgr for z in self.config.DEFAULT_ZONES if z.name=="core"),
-                               max_defect_size_um=next(z.max_defect_size_um for z in self.config.DEFAULT_ZONES if z.name=="core")),
-                ZoneDefinition(name="cladding", r_min_factor_or_um=core_r_um, r_max_factor_or_um=cladding_r_um,
-                               color_bgr=next(z.color_bgr for z in self.config.DEFAULT_ZONES if z.name=="cladding"),
-                               max_defect_size_um=next(z.max_defect_size_um for z in self.config.DEFAULT_ZONES if z.name=="cladding")),
-                ZoneDefinition(name="ferrule_contact", r_min_factor_or_um=cladding_r_um, r_max_factor_or_um=ferrule_r_um,
-                               color_bgr=next(z.color_bgr for z in self.config.DEFAULT_ZONES if z.name=="ferrule_contact"),
-                               max_defect_size_um=next(z.max_defect_size_um for z in self.config.DEFAULT_ZONES if z.name=="ferrule_contact")),
-                ZoneDefinition(name="adhesive", r_min_factor_or_um=ferrule_r_um, r_max_factor_or_um=adhesive_r_um,
-                               color_bgr=next(z.color_bgr for z in self.config.DEFAULT_ZONES if z.name=="adhesive"),
-                               max_defect_size_um=next(z.max_defect_size_um for z in self.config.DEFAULT_ZONES if z.name=="adhesive"))
+                ZoneDefinition(
+                    name="core",
+                    r_min_factor_or_um=0.0,
+                    r_max_factor_or_um=core_r_um,
+                    color_bgr=next(
+                        (z.color_bgr for z in self.config.DEFAULT_ZONES if z.name == "core"),
+                        (255, 0, 0),
+                    ),
+                    max_defect_size_um=next(
+                        (z.max_defect_size_um for z in self.config.DEFAULT_ZONES if z.name == "core"),
+                        5.0,
+                    ),
+                ),
+                ZoneDefinition(
+                    name="cladding",
+                    r_min_factor_or_um=core_r_um,
+                    r_max_factor_or_um=cladding_r_um,
+                    color_bgr=next(
+                        (z.color_bgr for z in self.config.DEFAULT_ZONES if z.name == "cladding"),
+                        (0, 255, 0),
+                    ),
+                    max_defect_size_um=next(
+                        (z.max_defect_size_um for z in self.config.DEFAULT_ZONES if z.name == "cladding"),
+                        10.0,
+                    ),
+                ),
+                ZoneDefinition(
+                    name="ferrule_contact",
+                    r_min_factor_or_um=cladding_r_um,
+                    r_max_factor_or_um=ferrule_r_um,
+                    color_bgr=next(
+                        (z.color_bgr for z in self.config.DEFAULT_ZONES if z.name == "ferrule_contact"),
+                        (0, 0, 255),
+                    ),
+                    max_defect_size_um=next(
+                        (z.max_defect_size_um for z in self.config.DEFAULT_ZONES if z.name == "ferrule_contact"),
+                        25.0,
+                    ),
+                ),
+                ZoneDefinition(
+                    name="adhesive",
+                    r_min_factor_or_um=ferrule_r_um,
+                    r_max_factor_or_um=adhesive_r_um,
+                    color_bgr=next(
+                        (z.color_bgr for z in self.config.DEFAULT_ZONES if z.name == "adhesive"),
+                        (0, 255, 255),
+                    ),
+                    max_defect_size_um=next(
+                        (z.max_defect_size_um for z in self.config.DEFAULT_ZONES if z.name == "adhesive"),
+                        50.0,
+                    ),
+                )
             ]
             _log_message(f"Zone parameters initialized for MICRON_CALCULATED mode: Core R={core_r_um}µm, Clad R={cladding_r_um}µm, Ferrule R={ferrule_r_um}µm.")
 

@@ -1,0 +1,2 @@
+Defect_ID,Zone,Type,Centroid_X_px,Centroid_Y_px,Centroid_X_um,Centroid_Y_um,BBox_X_px,BBox_Y_px,BBox_W_px,BBox_H_px,BBox_W_um,BBox_H_um,Area_px,Area_um,Perimeter_px,Perimeter_um,Major_px,Major_um,Minor_px,Minor_um,Confidence,Detection_Methods
+1,core,Scratch,573,428,N/A,N/A,210,66,726,722,N/A,N/A,406970.50,N/A,2571.44,N/A,726.00,N/A,722.00,N/A,1.000,do2mr; lei; canny; adaptive
