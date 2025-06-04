@@ -266,21 +266,6 @@ if __name__ == "__main__":
     # The main system's logging will be configured by main.py when its logic is called.
     logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s') # Configure basic logging.
     main_interactive() # Call the main interactive function.
-```
-
-**To make this `run_inspector_interactive.py` fully work with your existing `main.py`, you would need to make a small modification to your `main.py` file.**
-
-**Conceptual Modification for `main.py`:**
-
-Your current `main.py` likely has a `main()` function that starts with `argparse`. You would modify it like this:
-
-```python
-# In your main.py
-
-# ... (all your existing imports in main.py) ...
-# import argparse # Keep this if you still want CLI functionality
-
-# ... (your existing functions in main.py like setup_logging, process_single_image) ...
 
 def main(args_override=None): # Add args_override=None
     """
