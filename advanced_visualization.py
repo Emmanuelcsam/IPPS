@@ -8,7 +8,7 @@ Provides interactive visualization using Napari for detailed inspection.
 """
 import numpy as np
 import logging
-import cv2                              # <<<<<< Add this line
+import cv2
 from typing import Dict, Any, List, Optional
 
 try:
@@ -66,19 +66,29 @@ class InteractiveVisualizer:
                     )
             
             # Add defect masks
-            all_defects = np.zeros_like(original_image[:,:,0])
-            defect_id = 1
+            # --- Start of Edit 1: Robust Initialization of all_defects ---
+            if original_image.ndim == 3:
+                shape_2d = original_image.shape[:2]
+            elif original_image.ndim == 2:
+                shape_2d = original_image.shape
+            else:
+                logging.error(f"Original image has unsupported dimension: {original_image.ndim}")
+                return None
+            
+            all_defects = np.zeros(shape_2d, dtype=int)
+            # --- End of Edit 1 ---
+            defect_id_counter = 1 # Renamed to avoid conflict with defect_id from analysis_results
             
             for defect in analysis_results.get('characterized_defects', []):
                 # Create a mask for this specific defect
-                defect_mask = np.zeros_like(all_defects)
+                defect_mask = np.zeros_like(all_defects) # Uses the correctly shaped all_defects
                 
                 # Use contour points if available
                 if 'contour_points_px' in defect:
                     contour = np.array(defect['contour_points_px'])
-                    cv2.fillPoly(defect_mask, [contour], defect_id)
-                    all_defects[defect_mask > 0] = defect_id
-                    defect_id += 1
+                    cv2.fillPoly(defect_mask, [contour], defect_id_counter)
+                    all_defects[defect_mask > 0] = defect_id_counter
+                    defect_id_counter += 1
             
             if np.any(all_defects):
                 self.viewer.add_labels(
@@ -86,17 +96,20 @@ class InteractiveVisualizer:
                     name='Detected Defects',
                     opacity=0.7
                 )
+
+            # --- Start of Edit 2: Correct Coordinate Order and Variable Naming for Defect ID Text ---
             for defect in analysis_results.get('characterized_defects', []):
                 cx, cy = defect.get('centroid_x_px', 0), defect.get('centroid_y_px', 0)
-                defect_id = defect.get('defect_id', '')
+                defect_label_id = defect.get('defect_id', '') # Use a distinct variable name for the defect's string ID
                 self.viewer.add_text(
-                    text=f"ID: {defect_id}",
-                    position=(cx, cy),
+                    text=f"ID: {defect_label_id}",
+                    position=(cy, cx), # Corrected order: (row, column) or (y, x)
                     color='yellow',
                     size=12,
                     anchor='center',
-                    name=f"Defect {defect_id}"
+                    name=f"Defect {defect_label_id}"
                 )
+            # --- End of Edit 2 ---
                         
             # Add text annotations (Napari >=0.4)
             status = analysis_results.get('overall_status', 'UNKNOWN')
@@ -105,13 +118,12 @@ class InteractiveVisualizer:
             # Place status text at top-left corner (10,10)
             self.viewer.add_text(
                 text=f"Status: {status}",
-                position=(10, 10),
+                position=(10, 10), # (row, column) for Napari
                 color=status_color,
                 size=20,                   # Font size
                 anchor='upper_left',
                 name='Overall Status'
             )
-
             
             if interactive:
                 napari.run()
@@ -120,9 +132,12 @@ class InteractiveVisualizer:
             
         except Exception as e:
             logging.error(f"Napari visualization failed: {e}")
+            # Optionally, re-raise or handle more gracefully
+            # if self.viewer: self.viewer.close() # Close viewer if it was partially created
             return None
     
     def close(self):
         """Close the viewer."""
         if self.viewer:
             self.viewer.close()
+            self.viewer = None # Ensure viewer is reset after closing

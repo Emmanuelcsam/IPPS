@@ -1,0 +1,455 @@
+I've reviewed the Python files and the Pylance error report. Below is a detailed breakdown of each error with explanations and specific fixes. Many of the OpenCV and NumPy related errors are likely due to Pylance's strict type checking with existing type stubs, where the code is functionally correct.
+
+General Notes on Pylance Errors with OpenCV/NumPy:
+
+Scalar Type for Colors: Pylance often flags errors when integer literals (e.g., 255, 0) are used for the color parameter in OpenCV drawing functions (like cv2.circle, cv2.fillPoly) on single-channel images. OpenCV itself handles this correctly by interpreting the integer as the scalar value for the single channel. While the code is functionally correct, to strictly satisfy Pylance, you can wrap the integer in a tuple (e.g., (255,)). However, for simplicity and standard OpenCV practice, the original code is often preferred. I will mostly recommend keeping the functional code but explain this Pylance behavior.
+None for dst in cv2.normalize: Using None for the dst (destination) parameter in cv2.normalize is a standard OpenCV Python pattern to make the function create and return a new array. Pylance might complain that None is not MatLike. This is typically a type stub limitation. The code is functionally correct.
+NumPy Array Operations (np.mean, np.std): Pylance might sometimes struggle with precise type inference for NumPy arrays, leading to messages about incompatible types for functions like np.mean or np.std, even when the code is correct.
+Missing Imports (napari, anomalib, circle_fit): Your code already handles these gracefully with try-except ImportError blocks and fallback flags (NAPARI_AVAILABLE, etc.). This is good practice. The errors indicate these libraries are not in the environment Pylance is using. Users need to install them if they want the features.
+File: advanced_visualization.py
+
+Error: Import "napari" could not be resolved
+
+Line: 15
+Code Context:
+Python
+
+import logging
+import cv2
+from typing import Dict, Any, List, Optional
+
+try:
+    import napari # Error here
+    NAPARI_AVAILABLE = True
+except ImportError:
+    NAPARI_AVAILABLE = False
+    logging.warning("Napari not available. Interactive visualization disabled.")
+Explanation: The napari library is not installed or not found in your Python environment. Your code correctly handles this by setting NAPARI_AVAILABLE to False.
+Fix: No code change is strictly needed for the script to run without napari (due to the try-except block). If you intend to use napari features, install it: pip install napari[all]
+Error: No overloads for "fillPoly" match the provided arguments
+
+Error: Argument of type "int" cannot be assigned to parameter "color" of type "Scalar" in function "fillPoly"
+Line: 89
+Code Context:
+Python
+
+            contour = np.array(defect['contour_points_px'])
+            cv2.fillPoly(defect_mask, [contour], defect_id_counter) # Error here
+            all_defects[defect_mask > 0] = defect_id_counter
+Explanation: defect_mask is a single-channel integer array. defect_id_counter is an integer. Using an integer as the color for cv2.fillPoly on a single-channel image is standard and functionally correct. Pylance's warning is likely due to strict type stubs.
+Fix (Recommended: No change for functionality): The code is functionally correct.
+Fix (To silence Pylance, optional): Replace:cv2.fillPoly(defect_mask, [contour], defect_id_counter) With:cv2.fillPoly(defect_mask, [contour], color=(defect_id_counter,)) However, the original is common practice.
+File: analysis.py
+
+Error: No overloads for "circle" match the provided arguments
+
+Error: Argument of type "Literal[255]" cannot be assigned to parameter "color" of type "Scalar" in function "circle"
+Line: 353
+Code Context:
+Python
+
+    # Defect 2 (Pit/Dig-like) - CV: center (100,100), radius 10. Area approx pi*10^2 = 314
+    cv2.circle(dummy_mask, (100, 100), 10, 255, -1) # Error here
+    # Defect 3 (Small, should be filtered by area if min_defect_area_px is e.g. 5) Area = 2*2=4
+Explanation: dummy_mask is uint8. 255 is a valid integer color for a single-channel image. Pylance strictness.
+Fix (Recommended: No change for functionality): The code is functionally correct.
+Error: (Similar to above for cv2.circle)
+
+Line: 365 (cv2.circle(dummy_zone_masks["Core"], (100, 100), 40, 255, -1))
+Line: 368 (cv2.circle(dummy_zone_masks["Cladding"], (100, 100), 80, 255, -1))
+Line: 369 (cv2.circle(dummy_zone_masks["Cladding"], (100, 100), 40, 0, -1))
+Explanation: Same as above. The integer colors (255, 0) are appropriate for uint8 masks.
+Fix (Recommended: No change for functionality): The code is functionally correct.
+File: anomaly_detection.py
+
+Error: Import "anomalib.data.utils" could not be resolved (and similar for anomalib.deploy, anomalib.models)
+
+Lines: 18, 19, 20
+Code Context:
+Python
+
+try:
+    from anomalib.data.utils import read_image # Error here
+    from anomalib.deploy import OpenVINOInferencer # Error here
+    from anomalib.models import Padim # Error here
+    ANOMALIB_AVAILABLE = True
+except ImportError:
+    ANOMALIB_AVAILABLE = False
+    logging.warning("Anomalib not available. Deep learning features disabled.")
+Explanation: The anomalib library is not installed. Your code handles this correctly.
+Fix: No code change needed for the script to run (due to try-except). If anomalib features are desired, install it: pip install anomalib
+Error: Second argument to "isinstance" must be a class or tuple of classes. Generic type with type arguments not allowed...
+
+Line: 122
+Code Context:
+Python
+
+            # If the anomaly map values are between 0 and 1.
+            threshold = 0.5 # This is an example, needs to be tuned.
+            if isinstance(predictions.pred_score, (float, np.float32, np.float64)) and predictions.pred_score > threshold : # Check image level score # Error here
+                 # if the image is considered anomalous, then use the map
+Explanation: Pylance is correct. np.float32 and np.float64 are dtype objects, not classes for isinstance. Use np.floating for NumPy float types.
+Fix: Replace:if isinstance(predictions.pred_score, (float, np.float32, np.float64)) and predictions.pred_score > threshold : With:if isinstance(predictions.pred_score, (float, np.floating)) and predictions.pred_score > threshold :
+Error: (Same as above isinstance error)
+
+Line: 141
+Code Context:
+Python
+
+    # Reverting to a structure closer to original for `pred_score` usage, assuming it's a valid threshold
+    # The user should verify how `pred_score` is intended to be used with `anomaly_map` for their model
+    if isinstance(predictions.pred_score, (float, np.float32, np.float64)): # if pred_score is scalar # Error here
+        anomaly_mask = (anomaly_map > predictions.pred_score).astype(np.uint8) * 255
+    else: # if pred_score is an array (e.g. pixel-wise thresholds, less common for image-level score)
+Fix: Replace:if isinstance(predictions.pred_score, (float, np.float32, np.float64)): # if pred_score is scalar With:if isinstance(predictions.pred_score, (float, np.floating)): # if pred_score is scalar
+File: image_processing.py
+
+Error: Import "circle_fit" could not be resolved
+
+Line: 31
+Explanation: The circle_fit library is not installed. Your code handles this correctly.
+Fix: No code change needed (due to try-except). If features are desired, install it: pip install circle-fit
+Error: No overloads for "mean" match... and Argument of type "ndarray[Any, dtype[integer[Any] | floating[Any]]]" cannot be assigned...
+
+Line: 77
+Code Context: (Inside _do2mr_detection_stub)
+Python
+
+        zone_vals = residual[residual > 0]
+        if zone_vals.size == 0:
+            return np.zeros_like(gray_img, dtype=np.uint8)
+        mean_res = np.mean(zone_vals) # Error here
+        std_res = np.std(zone_vals)  # Potential similar error next line
+Explanation: np.mean and np.std correctly operate on NumPy arrays of numbers. This is likely a Pylance type inference or stub issue.
+Fix (Recommended: No change for functionality): The code is functionally correct.
+Error: (Similar for np.std)
+
+Line: 78
+Code Context: std_res = np.std(zone_vals)
+Explanation & Fix: Same as for np.mean. Functionally correct.
+Error: No overloads for "normalize" match... and Argument of type "None" cannot be assigned to parameter "dst"...
+
+Line: 98 (in _gabor_defect_detection_stub)
+Code Context: accum_uint8 = cv2.normalize(accum, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+Explanation: Using None for dst in cv2.normalize is standard for auto-creating the output array. Pylance warning is common due to type stubs.
+Fix (Recommended: No change for functionality): The code is functionally correct.
+Error: No overloads for "line" match... and Argument of type "Literal[1]" cannot be assigned to parameter "color"...
+
+Lines: 130-135 (in _lei_scratch_detection_stub)
+Code Context:
+Python
+
+            cv2.line(
+                kern,
+                (length // 2, 0),
+                (length // 2, length - 1),
+                1, thickness=1 # Error relates to color '1'
+            )
+Explanation: kern is np.float32. The color 1 (an integer) will be cast to 1.0 (float) by OpenCV for a float32 image. Pylance might be expecting an explicit float 1.0 or a tuple (1.0,).
+Fix: Replace:1, thickness=1 With:1.0, thickness=1
+Error: (Similar for cv2.line with color 255 for uint8 mask)
+
+Line: 156 (in _advanced_scratch_detection_stub)
+Code Context: cv2.line(mask, (x1, y1), (x2, y2), 255, 1)
+Explanation: mask is np.uint8. 255 is a correct color. Pylance strictness.
+Fix (Recommended: No change for functionality): The code is functionally correct.
+Error: (Similar for cv2.normalize with None as dst)
+
+Line: 169 (in _wavelet_defect_detection_stub)
+Code Context: mag_uint8 = cv2.normalize(mag_resized, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+Explanation & Fix: Functionally correct.
+Error: Assignment type mismatches for stub functions (e.g., _do2mr_detection = _do2mr_detection_stub)
+
+Lines: 176-181
+
+Explanation: The stub functions (e.g., _do2mr_detection_stub) have slightly different signatures (parameter names, missing parameters like gamma) than the full implementations defined later in the file. Pylance warns about this when the full implementation is assigned to the same name previously holding the stub.
+
+Fix: Align the stub function signatures with the full function signatures.
+
+For _do2mr_detection_stub (Line 63):
+Change:def _do2mr_detection_stub(gray_img: np.ndarray, kernel_size: int = 5) -> np.ndarray:
+To (match parameters of the full _do2mr_detection):def _do2mr_detection_stub(masked_zone_image: np.ndarray, kernel_size: int = 5, gamma: float = 1.5) -> np.ndarray:
+And use masked_zone_image instead of gray_img within the stub. The gamma parameter can be ignored in the stub's simple logic if not used.
+
+For _gabor_defect_detection_stub (Line 88):
+Change:def _gabor_defect_detection_stub(gray_img: np.ndarray) -> np.ndarray:
+To (match parameter name of full _gabor_defect_detection):def _gabor_defect_detection_stub(image: np.ndarray) -> np.ndarray:
+And use image instead of gray_img within the stub.
+
+For _multiscale_defect_detection_stub (Line 102):
+Change:def _multiscale_defect_detection_stub(gray_img: np.ndarray, scales: List[float]) -> np.ndarray:
+To (match full _multiscale_defect_detection):def _multiscale_defect_detection_stub(image: np.ndarray, scales: List[float] = [0.5, 1.0, 1.5, 2.0]) -> np.ndarray:
+And use image instead of gray_img.
+
+For _lei_scratch_detection_stub (Line 117):
+Change:def _lei_scratch_detection_stub(gray_img: np.ndarray, kernel_lengths: List[int], angle_step: int) -> np.ndarray:
+To (match full _lei_scratch_detection):def _lei_scratch_detection_stub(enhanced_image: np.ndarray, kernel_lengths: List[int], angle_step: int = 15) -> np.ndarray:
+And use enhanced_image instead of gray_img.
+
+For _advanced_scratch_detection_stub (Line 143):
+Change:def _advanced_scratch_detection_stub(gray_img: np.ndarray) -> np.ndarray:
+To (match full _advanced_scratch_detection):def _advanced_scratch_detection_stub(image: np.ndarray) -> np.ndarray:
+And use image instead of gray_img.
+
+For _wavelet_defect_detection_stub (Line 160):
+Change:def _wavelet_defect_detection_stub(gray_img: np.ndarray) -> np.ndarray:
+To (match full _wavelet_defect_detection):def _wavelet_defect_detection_stub(image: np.ndarray) -> np.ndarray:
+And use image instead of gray_img.
+
+After these changes, also update the assignments at lines 176-181:
+
+Python
+
+# At line 175, around the assignments:
+    _wavelet_defect_detection = _wavelet_defect_detection_stub
+
+# Assign stubs to the names that will be later (potentially) overwritten by detailed implementations
+# This ensures that if this module is run standalone and config_loader is missing,
+# the _multiscale_defect_detection (stub or later detailed one) can call _do2mr_detection (stub).
+_do2mr_detection = _do2mr_detection_stub
+_gabor_defect_detection = _gabor_defect_detection_stub
+_multiscale_defect_detection = _multiscale_defect_detection_stub
+_lei_scratch_detection = _lei_scratch_detection_stub
+_advanced_scratch_detection = _advanced_scratch_detection_stub
+_wavelet_defect_detection = _wavelet_defect_detection_stub
+This block (lines 176-181) should now be consistent with the updated stub signatures.
+
+Error: No overloads for "add" match... and Argument of type "Literal[128]" cannot be assigned to parameter "src2"...
+
+Line: 259
+Code Context: (in _correct_illumination)
+Python
+
+    corrected = cv2.subtract(gray_image, background)
+    corrected = cv2.add(corrected, 128)  # Shift to mid-gray # Error here
+Explanation: corrected is likely a single-channel image. Adding a scalar 128 is common. Pylance might expect src2 to be MatLike.
+Fix: For single-channel images, wrapping the scalar in a tuple is a robust way to satisfy type checkers. Replace:corrected = cv2.add(corrected, 128) With:corrected = cv2.add(corrected, (128,))
+Error: (Similar for cv2.circle with color 255)
+
+Line: 322 (in locate_fiber_structure)
+Code Context: cv2.circle(template, (template_radius, template_radius), template_radius, 255, -1)
+Explanation & Fix: template is uint8. 255 is fine. Functionally correct.
+Error: __getitem__ method not defined on type "uint16"
+
+Line: 371
+Code Context: cx_h, cy_h, r_h = int(c_hough[0]), int(c_hough[1]), int(c_hough[2])
+Explanation: c_hough is a 1D NumPy array of uint16 values (e.g., array([x, y, r], dtype=uint16)). Accessing elements by index c_hough[0] is correct. This is a Pylance type inference error; it incorrectly thinks c_hough is a scalar uint16.
+Fix (Recommended: No change for functionality): The code is correct.
+Error: (Similar __getitem__ error)
+
+Line: 386
+Code Context: cladding_cx, cladding_cy, cladding_r = int(best_circle_hough[0]), int(best_circle_hough[1]), int(best_circle_hough[2])
+Explanation & Fix: best_circle_hough is also a 1D NumPy array. Code is correct.
+Error: __getitem__ method not defined on type "uint16"
+
+Line: 387
+Code Context: localization_result['cladding_ellipse_params'] = ellipse_params
+Explanation: The error message likely refers to a different part of the line or a related line where ellipse_params might be indexed, e.g., ellipse_params[1][0] on line 469: cladding_minor_axis = ellipse_params[1][0]. ellipse_params from cv2.fitEllipse is a tuple ((center_x, center_y), (minor_axis, major_axis), angle). ellipse_params[1] is (minor_axis, major_axis) (tuple of floats). ellipse_params[1][0] is minor_axis (a float). This indexing is correct. This is likely a Pylance type misinterpretation of ellipse_params.
+Fix (Recommended: No change for functionality): The code using ellipse_params appears correct.
+Error: astype is not a known attribute of "None"
+
+Line: 447
+Code Context:
+Python
+
+        # binary_fill_holes expects a binary image (0 or 1).
+        closed_adaptive_binary = (closed_adaptive // 255).astype(np.uint8) # Convert to 0/1.
+        try:
+            filled_adaptive = ndimage.binary_fill_holes(closed_adaptive_binary).astype(np.uint8) * 255 # Error here
+            logging.debug("Applied hole filling to adaptive threshold result.")
+        except Exception as e_fill: # Handle potential errors in binary_fill_holes.
+Explanation: ndimage.binary_fill_holes might return None in some edge cases or if scipy has issues. Calling .astype on None causes the error. Your existing try-except Exception as e_fill block would catch the resulting AttributeError.
+Fix (Minor improvement for explicitness, current try-except is okay): While the try-except catches it, an explicit check is cleaner if Pylance is specifically warning about the None.astype path. Modify the try block:
+Python
+
+        # binary_fill_holes expects a binary image (0 or 1).
+        closed_adaptive_binary = (closed_adaptive // 255).astype(np.uint8) # Convert to 0/1.
+        try:
+            # filled_adaptive = ndimage.binary_fill_holes(closed_adaptive_binary).astype(np.uint8) * 255 # Original
+            # logging.debug("Applied hole filling to adaptive threshold result.") # Original
+            fill_result = ndimage.binary_fill_holes(closed_adaptive_binary)
+            if fill_result is not None:
+                filled_adaptive = fill_result.astype(np.uint8) * 255
+                logging.debug("Applied hole filling to adaptive threshold result.")
+            else:
+                logging.warning("ndimage.binary_fill_holes returned None. Using pre-fill image.")
+                filled_adaptive = closed_adaptive # Fallback to image before hole filling
+        except Exception as e_fill: # Handle potential errors in binary_fill_holes.
+Error: (Similar for cv2.circle with color 255)
+
+Line: 619 (in locate_fiber_structure)
+Explanation & Fix: cladding_mask_for_core_det is uint8. 255 fine. Functionally correct.
+Error: (Similar for cv2.ellipse with color 255)
+
+Line: 624 (in locate_fiber_structure)
+Explanation & Fix: cladding_mask_for_core_det is uint8. 255 fine. Functionally correct.
+Error: "cy_fit" is not defined
+
+Line: 682
+Code Context:
+Python
+
+            localization_result['core_center_xy'] = (int(core_cx_fit), int(core_cy_fit))
+            localization_result['core_radius_px'] = float(core_r_fit)
+            logging.info(f"Core (ContourFit): Center=({int(core_cx_fit)},{int(cy_fit)}), Radius={core_r_fit:.1f}px") # Error here
+        else: # If no suitable core contour found.
+Explanation: Typo. Should be core_cy_fit.
+Fix: Replace:logging.info(f"Core (ContourFit): Center=({int(core_cx_fit)},{int(cy_fit)}), Radius={core_r_fit:.1f}px") With:logging.info(f"Core (ContourFit): Center=({int(core_cx_fit)},{int(core_cy_fit)}), Radius={core_r_fit:.1f}px")
+Error: "None" is not iterable
+
+Line: 834 (in detect_defects)
+Code Context: for zone_name, zone_mask_np in zone_masks.items():
+Explanation: The detect_defects function is called from main.py within a loop for zone_name, zone_mask_np in zone_masks.items():. So zone_masks in main.py is already iterated. The detect_defects function itself receives a single zone_mask and zone_name. The loop you intended is likely in the caller. The detect_defects function is designed to process one zone at a time. This error message in Pylance points to zone_masks.items() but zone_masks is not a parameter of detect_defects. This seems to be a misunderstanding of where detect_defects is called. The error as reported for line 834 within image_processing.py is nonsensical because detect_defects doesn't take zone_masks (plural) as input. The error description likely refers to a context outside image_processing.py or is a misinterpretation. The detect_defects signature is:def detect_defects(processed_image: np.ndarray, zone_mask: np.ndarray, zone_name: str, profile_config: Dict[str, Any], global_algo_params: Dict[str, Any]) There is no zone_masks.items() call within detect_defects.Correction: The error is likely in main.py when calling detect_defects or Pylance is confused. Let's assume the error means profile_config might be None and then .get is called. Looking at main.py where detect_defects is called:defects_in_zone_mask, zone_confidence_map = detect_defects( processed_image, zone_mask_np, zone_name, profile_config, global_algo_params ) Here profile_config is active_profile_config. active_profile_config is checked after get_processing_profile. If that failed, the script exits. So profile_config should be a dict. This error is very likely a Pylance false alarm or a misreported line number from the problem description.
+Error: Object of type "None" is not subscriptable
+
+Lines: 844, 857, 858, 859 (within generate_zone_masks)
+Code Context (e.g. Line 844):
+Python
+
+        if use_ellipse_for_zone:
+            base_center_ell = (int(cladding_ellipse_params[0][0]), int(cladding_ellipse_params[0][1])) # Error example
+Explanation: cladding_ellipse_params comes from localization_data.get('cladding_ellipse_params'). If this key is missing, cladding_ellipse_params is None. The code attempts to guard this with use_ellipse_for_zone = cladding_ellipse_params and .... If cladding_ellipse_params is None, use_ellipse_for_zone becomes False, and this block should not be entered. Pylance might not be fully tracking this conditional logic.
+Fix (Recommended: No change for functionality): The code appears logically sound. This is likely a Pylance false positive due to the complexity of the condition.
+Error: (Similar for cv2.ellipse, cv2.normalize, cv2.line, cv2.threshold as previously detailed - these are mostly Pylance strictness with type stubs or scalar interpretation)
+
+Lines: 878, 883, 971, 1008, 1032, 1046, 1099, 1177, 1221, 1252, 1306, 1314, 1386, 1414, 1530, 1544, 1620, 1621, 1623-1624, 1626.
+Specific Fix for Line 1099 (threshold value type):thresh_value is mean_res + gamma_local * std_res. These are floats. cv2.threshold's thresh parameter expects a float. Pylance complains floating[Any] cannot be assigned to float. In _do2mr_detection: Replace:_, defect_binary = cv2.threshold(residual_normalized, thresh_value, 255, cv2.THRESH_BINARY) With:_, defect_binary = cv2.threshold(residual_normalized, float(thresh_value), 255, cv2.THRESH_BINARY)
+Error: Operator issues with None potentially for adaptive_threshold_val
+
+Lines: 1478, 1479, 1480 (in detect_defects)
+Explanation: adaptive_threshold_val = zone_adaptive_threshold_map.get(zone_name, confidence_threshold_from_config). confidence_threshold_from_config defaults to 0.9. So adaptive_threshold_val should always be a float.
+Fix (Recommended: No change for functionality): The code logic ensures adaptive_threshold_val is a float. These are likely Pylance false positives.
+File: main.py
+
+Error: Argument missing for parameter "global_algo_params"
+
+Line: 222-224 (call to detect_defects)
+Code Context:
+Python
+
+        logging.debug(f"Detecting defects in zone: '{zone_name}'...")
+        defects_in_zone_mask, zone_confidence_map = detect_defects( # Error in this call
+            processed_image, zone_mask_np, profile_config, global_algo_params
+        )
+        all_zone_defect_masks[zone_name] = defects_in_zone_mask
+detect_defects signature (from image_processing.py):def detect_defects(processed_image: np.ndarray, zone_mask: np.ndarray, zone_name: str, profile_config: Dict[str, Any], global_algo_params: Dict[str, Any])
+Explanation: The call to detect_defects is missing the zone_name argument. Arguments are shifted: profile_config is passed for zone_name, global_algo_params for profile_config, and the actual global_algo_params argument is missing.
+Fix: Replace:
+Python
+
+                logging.debug(f"Detecting defects in zone: '{zone_name}'...")
+                defects_in_zone_mask, zone_confidence_map = detect_defects(
+                    processed_image, zone_mask_np, profile_config, global_algo_params
+                )
+                all_zone_defect_masks[zone_name] = defects_in_zone_mask
+With:
+Python
+
+                logging.debug(f"Detecting defects in zone: '{zone_name}'...")
+                defects_in_zone_mask, zone_confidence_map = detect_defects(
+                    processed_image, zone_mask_np, zone_name, profile_config, global_algo_params
+                )
+                all_zone_defect_masks[zone_name] = defects_in_zone_mask
+Error: Argument of type "List[Dict[str, Any]]" cannot be assigned to parameter "fiber_type_key" of type "str" in function "apply_pass_fail_rules"
+
+Line: 240
+Code Context:
+Python
+
+    # ...
+    # ) # End of characterize_and_classify_defects
+
+    overall_status, failure_reasons = apply_pass_fail_rules(characterized_defects, zone_definitions_for_type) # Error here
+
+    analysis_summary = { # Create analysis summary dictionary.
+apply_pass_fail_rules signature (from analysis.py):def apply_pass_fail_rules(characterized_defects: List[Dict[str, Any]], fiber_type_key: str)
+Explanation: The function apply_pass_fail_rules expects fiber_type_key (a string like "single_mode_pc") as its second argument. However, zone_definitions_for_type (which is List[Dict[str, Any]]) is being passed. The correct fiber_type_key is available as an argument to the process_single_image function.
+Fix: Replace:overall_status, failure_reasons = apply_pass_fail_rules(characterized_defects, zone_definitions_for_type) With:overall_status, failure_reasons = apply_pass_fail_rules(characterized_defects, fiber_type_key)
+File: reporting.py
+
+Error: No overloads for "drawContours" match... and Argument of type "list[intp]" cannot be assigned to parameter "contours"...
+
+Line: 132
+Code Context: (inside generate_annotated_image, drawing defect rotated rectangle)
+Python
+
+        rot_rect_params = cv2.minAreaRect(contour_np)
+        box_points = cv2.boxPoints(rot_rect_params)
+        box_points_int = np.intp(box_points) # Use np.intp for consistency
+        cv2.drawContours(annotated_image, [box_points_int], 0, defect_color, defect_line_thickness) # Error here
+    elif contour_np.size > 0: # Fallback for contours with < 3 points but > 0 points (e.g., a line)
+Explanation: box_points_int is a NumPy array of integer points (shape (4,2)). [box_points_int] is a list containing this single contour, which is the correct format for cv2.drawContours. Pylance's complaint about list[intp] not being assignable to Sequence[MatLike] is due to type stubs not recognizing np.intp arrays directly as MatLike in this context.
+Fix (Recommended: No change for functionality): The code is functionally correct.
+Error: Cannot access attribute "set_rmax" for class "Axes"
+
+Lines: 376, 378, 380
+Code Context (Line 376): ax.set_rmax(max_display_radius * 1.1)
+Explanation: Matplotlib polar axes use set_rlim((bottom, top)) to set radial limits, not set_rmax.
+Fix:
+For Line 376: Replace: ax.set_rmax(max_display_radius * 1.1) With: ax.set_rlim(0, max_display_radius * 1.1)
+For Line 378: Replace: ax.set_rmax(max(radii_px) * 1.2) With: ax.set_rlim(0, max(radii_px) * 1.2)
+For Line 380: Replace: ax.set_rmax(100) With: ax.set_rlim(0, 100)
+Error: Cannot access attribute "set_rticks" for class "Axes"
+
+Line: 382
+Code Context: ax.set_rticks(np.linspace(0, ax.get_rmax(), 5))
+Explanation: set_rticks is a valid method for polar axes. This appears to be an incorrect Pylance error or an incomplete stub for Matplotlib's polar projection.
+Fix (Recommended: No change for functionality if set_rticks works at runtime): The code using ax.set_rticks is standard. This error is likely due to Pylance/stubs.
+Error: Cannot access attribute "get_rmax" for class "Axes"
+
+Line: 382 (within the set_rticks call)
+Code Context: ax.set_rticks(np.linspace(0, ax.get_rmax(), 5))
+Explanation: Similar to set_rmax, polar axes use get_rlim() which returns a tuple (bottom, top). You need the top value.
+Fix: Replace:ax.set_rticks(np.linspace(0, ax.get_rmax(), 5)) With:ax.set_rticks(np.linspace(0, ax.get_rlim()[1], 5))
+Error: Cannot access attribute "set_rlabel_position" for class "Axes"
+
+Line: 383
+Code Context: ax.set_rlabel_position(22.5)
+Explanation: set_rlabel_position is a valid method for polar axes. This is likely a Pylance/stub issue.
+Fix (Recommended: No change for functionality if it works at runtime): The code is standard.
+File: run.py
+
+Error: Argument of type "ArgsSimulator" cannot be assigned to parameter "args_namespace" of type "Namespace" in function "execute_inspection_run"
+
+Line: 246
+Code Context:
+Python
+
+        if hasattr(d_scope_main_module, 'execute_inspection_run'):
+            print("\n[INFO] Calling 'execute_inspection_run' from the imported main module (main.py)...")
+            d_scope_main_module.execute_inspection_run(simulated_args) # Error here
+            inspection_successful = True
+execute_inspection_run signature (in main.py): def execute_inspection_run(args_namespace: argparse.Namespace) -> None:
+Explanation: simulated_args is an instance of ArgsSimulator. While it's designed to mimic argparse.Namespace, it's not a direct instance. Python's dynamic typing ("duck typing") means this will work if execute_inspection_run only accesses attributes that ArgsSimulator provides. Pylance is being strict about the type hint.
+Fix (Option 1: Modify main.py - Recommended for type safety): In main.py, change the type hint for args_namespace in execute_inspection_run (and main_with_args if used) to be more flexible if you intend to call it with objects other than argparse.Namespace. You could use Any or a custom Protocol. In main.py:
+Python
+
+# from argparse import Namespace # Keep if used for CLI
+from typing import Any # Add Any
+
+# ...
+
+# def execute_inspection_run(args_namespace: argparse.Namespace) -> None: # Original
+def execute_inspection_run(args_namespace: Any) -> None: # Changed
+    """
+    Core inspection logic that takes an args-like namespace object.
+    This function contains the main processing flow.
+    """
+# ...
+# def main_with_args(args_namespace: argparse.Namespace) -> None: # Original
+def main_with_args(args_namespace: Any) -> None: # Changed
+    """
+    Entry point that uses a pre-filled args_namespace object.
+    This is callable by other scripts.
+    """
+Fix (Option 2: Cast in run.py - Less ideal): In run.py:
+Python
+
+from typing import cast, Any # Add to imports
+# ...
+d_scope_main_module.execute_inspection_run(cast(Any, simulated_args))
+Error: (Same as above for main_with_args)
+
+Line: 252
+Fix: Same as above (modifying main.py is preferred). If main_with_args in main.py is also type-hinted with argparse.Namespace, change that hint to Any as well.
+This covers all the reported errors with detailed explanations and actionable fixes. Remember to test the changes.

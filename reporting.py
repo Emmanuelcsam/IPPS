@@ -124,12 +124,22 @@ def generate_annotated_image(
         contour_pts = defect.get("contour_points_px", None)
         if contour_pts:
             contour_np = np.array(contour_pts, dtype=np.int32).reshape(-1, 1, 2)
-            if contour_np.size > 0:
+            # cv2.minAreaRect requires at least 3 points.
+            if contour_np.shape[0] >= 3: # Check if there are enough points for minAreaRect
                 rot_rect_params = cv2.minAreaRect(contour_np)
                 box_points = cv2.boxPoints(rot_rect_params)
                 box_points_int = np.intp(box_points) # Use np.intp for consistency
                 cv2.drawContours(annotated_image, [box_points_int], 0, defect_color, defect_line_thickness)
-            else: # Fallback to bounding box if contour_np is empty after reshape
+            elif contour_np.size > 0: # Fallback for contours with < 3 points but > 0 points (e.g., a line)
+                                      # Or if contour_np is empty after reshape but contour_pts existed.
+                x, y, w, h = cv2.boundingRect(contour_np) # Use boundingRect for these cases
+                if w > 0 and h > 0:
+                    cv2.rectangle(annotated_image, (x, y), (x + w, y + h), defect_color, defect_line_thickness)
+                elif contour_np.shape[0] == 2: # Draw a line if it's two points
+                    cv2.line(annotated_image, tuple(contour_np[0,0]), tuple(contour_np[1,0]), defect_color, defect_line_thickness)
+                elif contour_np.shape[0] == 1: # Draw a circle if it's one point
+                    cv2.circle(annotated_image, tuple(contour_np[0,0]), defect_line_thickness, defect_color, -1) # Small circle
+            else: # Fallback to bounding box from defect data if contour_np is effectively empty
                 x, y, w, h = (
                     defect.get("bbox_x_px", 0),
                     defect.get("bbox_y_px", 0),
@@ -362,7 +372,13 @@ def generate_polar_defect_histogram(
                 ax.plot(np.linspace(0, 2 * np.pi, 100), [zone_outer_radius_px] * 100, 
                         color=zone_rgb_normalized, linestyle='--', label=label_to_use)
     
-    ax.set_rmax(max_display_radius * 1.1 if max_display_radius > 0 else (max(radii_px)*1.2 if radii_px else 100) ) 
+    if max_display_radius > 0:
+        ax.set_rmax(max_display_radius * 1.1)
+    elif radii_px: # Check if radii_px is not empty
+        ax.set_rmax(max(radii_px) * 1.2)
+    else: # Default if no zones and no defect radii
+        ax.set_rmax(100) # Default rmax if nothing else to scale by
+
     ax.set_rticks(np.linspace(0, ax.get_rmax(), 5)) 
     ax.set_rlabel_position(22.5) 
     ax.grid(True) 
@@ -426,15 +442,15 @@ if __name__ == "__main__":
                 "contour_points_px": [[180,130],[195,130],[195,155],[180,155]], 
                 "area_um2": 12.5, "length_um": 11.0, "width_um": 1.25
             },
-            {
-                "defect_id": "D1_P1", "zone": "Cladding", "classification": "Pit/Dig", "confidence_score": 0.88,
-                "centroid_x_px": 230, "centroid_y_px": 170, "area_px": 75, "length_px": 10, "width_px": 9, 
-                "aspect_ratio_oriented": 1.1, "bbox_x_px": 225, "bbox_y_px": 165, "bbox_w_px": 10, "bbox_h_px": 10,
+            { # Defect with only two contour points to test line drawing fallback
+                "defect_id": "D1_L1", "zone": "Cladding", "classification": "Scratch", "confidence_score": 0.88,
+                "centroid_x_px": 230, "centroid_y_px": 170, "area_px": 0, "length_px": 10, "width_px": 0, 
+                "aspect_ratio_oriented": 0, "bbox_x_px": 225, "bbox_y_px": 165, "bbox_w_px": 10, "bbox_h_px": 10,
                 "rotated_rect_center_px": (230.0, 170.0), "rotated_rect_angle_deg": 0.0,
-                "contour_points_px": [[225,165],[235,165],[235,175],[225,175]], 
-                "area_um2": 18.75, "effective_diameter_um": 4.89, "length_um":5.0, "width_um":4.5
+                "contour_points_px": [[225,165],[235,175]], # Only two points - should become a line
+                "area_um2": 0, "length_um":5.0, "width_um":0
             },
-            { # Defect with no contour points to test fallback
+            { # Defect with no contour points to test fallback to bbox
                 "defect_id": "D2_P2", "zone": "Contact", "classification": "Pit/Dig", "confidence_score": 0.70,
                 "centroid_x_px": 150, "centroid_y_px": 100, "area_px": 20, "length_px": 5, "width_px": 4,
                 "bbox_x_px": 148, "bbox_y_px": 98, "bbox_w_px": 5, "bbox_h_px": 5,
@@ -494,7 +510,8 @@ if __name__ == "__main__":
     
     # Test with no defects
     logging.info("\n--- Test Case 4: Reporting with NO defects ---")
-    dummy_analysis_no_defects = dummy_analysis_results.copy()
+    dummy_analysis_no_defects = dummy_analysis_results.copy() # Start with a copy
+    # Modify the copy for the no-defects scenario
     dummy_analysis_no_defects["characterized_defects"] = []
     dummy_analysis_no_defects["total_defect_count"] = 0
     dummy_analysis_no_defects["overall_status"] = "PASS"
@@ -514,6 +531,20 @@ if __name__ == "__main__":
         dummy_zone_masks_hist, dummy_fiber_type, no_defect_annotated_img_path,
         report_timestamp=datetime.datetime.now()
     )
+    
+    # Test with defects but no centroids for polar histogram
+    logging.info("\n--- Test Case 5: Polar histogram with NO defect centroids ---")
+    dummy_analysis_no_centroids = dummy_analysis_results.copy()
+    # Make a deep copy of defects to modify them
+    defects_no_centroids = [d.copy() for d in dummy_analysis_results["characterized_defects"]]
+    for defect in defects_no_centroids:
+        if "centroid_x_px" in defect: del defect["centroid_x_px"]
+        if "centroid_y_px" in defect: del defect["centroid_y_px"]
+    dummy_analysis_no_centroids["characterized_defects"] = defects_no_centroids
+    
+    no_centroids_timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    no_centroids_hist_path = test_output_dir / f"{dummy_image_base_name}_{no_centroids_timestamp_str}_no_centroids_histogram.png"
+    generate_polar_defect_histogram(dummy_analysis_no_centroids, dummy_localization_data, dummy_zone_masks_hist, dummy_fiber_type, no_centroids_hist_path)
 
 
     # Clean up dummy image created by this test script

@@ -97,8 +97,7 @@ def process_single_image(
     user_core_dia_um: Optional[float],
     user_clad_dia_um: Optional[float],
     fiber_type_key: str
-) -> Optional[Dict[str, Any]]:
-    image_start_time = time.perf_counter()
+) -> Dict[str, Any]: # Ensure it always returns a Dict
     """
     Orchestrates the full processing pipeline for a single image.
 
@@ -113,7 +112,7 @@ def process_single_image(
         fiber_type_key: Key for the fiber type being processed.
 
     Returns:
-        A dictionary containing summary results for the image, or None on critical failure.
+        A dictionary containing summary results for the image.
     """
     image_start_time = time.perf_counter() # Start timer for image processing.
     logging.info(f"--- Processing image: {image_path.name} ---")
@@ -124,20 +123,32 @@ def process_single_image(
     preprocess_results = load_and_preprocess_image(str(image_path), profile_config) # Call function to load and preprocess.
     if preprocess_results is None: # Check if preprocessing failed.
         logging.error(f"Failed to load/preprocess image {image_path.name}. Skipping.") # Log error.
-        # Ensure image_start_time is defined at the beginning of this function for this return path.
-        # Add this line if not already present at the top of process_single_image:
-        # image_start_time = time.perf_counter() 
-        return {"image_filename": image_path.name, "status": "ERROR_LOAD_PREPROCESS", "processing_time_s": time.perf_counter() - image_start_time, "total_defect_count": 0, "failure_reasons": ["Load/preprocess failed"]}
+        return {
+            "image_filename": image_path.name,
+            "pass_fail_status": "ERROR_LOAD_PREPROCESS",
+            "processing_time_s": round(time.perf_counter() - image_start_time, 2),
+            "total_defect_count": 0,
+            "core_defect_count": 0,
+            "cladding_defect_count": 0,
+            "failure_reason_summary": "Load/preprocess failed"
+        }
     # Unpack results from preprocessing.
     original_bgr, original_gray, processed_image = preprocess_results
 
     # --- 2. Locate Fiber Structure (Cladding and Core) ---
     logging.info("Step 2: Locating Fiber Structure...") # Log current step.
-    # Modify this line:
     localization_data = locate_fiber_structure(processed_image, profile_config, original_gray_image=original_gray)# Locate fiber structure.
     if localization_data is None or "cladding_center_xy" not in localization_data: # If localization failed.
         logging.error(f"Failed to localize fiber structure in {image_path.name}. Skipping.")
-        return {"image_filename": image_path.name, "status": "ERROR_LOCALIZATION", "processing_time_s": time.perf_counter() - image_start_time, "total_defect_count": 0, "failure_reasons": ["Localization failed"]}
+        return {
+            "image_filename": image_path.name,
+            "pass_fail_status": "ERROR_LOCALIZATION",
+            "processing_time_s": round(time.perf_counter() - image_start_time, 2),
+            "total_defect_count": 0,
+            "core_defect_count": 0,
+            "cladding_defect_count": 0,
+            "failure_reason_summary": "Localization failed"
+        }
     
     current_image_um_per_px = calibration_um_per_px # Default to generic calibration.
     if user_clad_dia_um is not None: # If user provided cladding diameter.
@@ -168,7 +179,15 @@ def process_single_image(
         zone_definitions_for_type = get_zone_definitions(fiber_type_key)
     except ValueError as e: # Handle if fiber type not found in config.
         logging.error(f"Configuration error for fiber type '{fiber_type_key}': {e}. Cannot generate zone masks for {image_path.name}. Skipping.")
-        return {"image_filename": image_path.name, "status": "ERROR_CONFIG_ZONES", "processing_time_s": time.perf_counter() - image_start_time, "total_defect_count": 0, "failure_reasons": [f"Config error for fiber type {fiber_type_key}"]}
+        return {
+            "image_filename": image_path.name,
+            "pass_fail_status": "ERROR_CONFIG_ZONES",
+            "processing_time_s": round(time.perf_counter() - image_start_time, 2),
+            "total_defect_count": 0,
+            "core_defect_count": 0,
+            "cladding_defect_count": 0,
+            "failure_reason_summary": f"Config error for fiber type '{fiber_type_key}': {e}"
+        }
 
     zone_masks = generate_zone_masks( # Generate zone masks.
         processed_image.shape, localization_data, zone_definitions_for_type,
@@ -176,7 +195,15 @@ def process_single_image(
     )
     if not zone_masks: # If zone mask generation failed.
         logging.error(f"Failed to generate zone masks for {image_path.name}. Skipping.")
-        return {"image_filename": image_path.name, "status": "ERROR_ZONES", "processing_time_s": time.perf_counter() - image_start_time, "total_defect_count": 0, "failure_reasons": ["Zone mask generation failed"]}
+        return {
+            "image_filename": image_path.name,
+            "pass_fail_status": "ERROR_ZONES",
+            "processing_time_s": round(time.perf_counter() - image_start_time, 2),
+            "total_defect_count": 0,
+            "core_defect_count": 0,
+            "cladding_defect_count": 0,
+            "failure_reason_summary": "Zone mask generation failed"
+        }
 
     # --- 4. Defect Detection in Each Zone ---
     logging.info("Step 4: Detecting Defects in Zones...")
@@ -201,8 +228,6 @@ def process_single_image(
     
     # --- 5. Characterize, Classify Defects and Apply Pass/Fail ---
     logging.info("Step 5: Analyzing Defects and Applying Rules...")
-    # Updated call to characterize_and_classify_defects, expecting three return values:
-    # characterized_defects, overall_status (preliminary), total_defect_count
     characterized_defects, overall_status, total_defect_count = characterize_and_classify_defects(
         combined_final_defect_mask, 
         zone_masks, 
@@ -212,16 +237,14 @@ def process_single_image(
         confidence_map=combined_confidence_map
     )
     
-    # Apply pass/fail rules. This call will update overall_status and provide failure_reasons.
-    # zone_definitions_for_type was fetched in Step 3.
     overall_status, failure_reasons = apply_pass_fail_rules(characterized_defects, zone_definitions_for_type)
 
     analysis_summary = { # Create analysis summary dictionary.
         "image_filename": image_path.name,
         "characterized_defects": characterized_defects,
-        "overall_status": overall_status, # Final status from apply_pass_fail_rules
-        "total_defect_count": total_defect_count, # Count from characterize_and_classify_defects
-        "failure_reasons": failure_reasons, # Reasons from apply_pass_fail_rules
+        "overall_status": overall_status, 
+        "total_defect_count": total_defect_count, 
+        "failure_reasons": failure_reasons, 
         "um_per_px_used": current_image_um_per_px
     }
 
@@ -258,12 +281,12 @@ def process_single_image(
             
     summary_for_batch = { # Create summary dictionary for batch.
         "image_filename": image_path.name,
-        "pass_fail_status": overall_status, # Use final overall_status from apply_pass_fail_rules
+        "pass_fail_status": overall_status, 
         "processing_time_s": round(processing_time_s, 2),
-        "total_defect_count": total_defect_count, # Use total_defect_count from characterize_and_classify_defects
+        "total_defect_count": total_defect_count, 
         "core_defect_count": sum(1 for d in characterized_defects if d["zone"] == "Core"),
         "cladding_defect_count": sum(1 for d in characterized_defects if d["zone"] == "Cladding"),
-        "failure_reason_summary": "; ".join(failure_reasons) if failure_reasons else "N/A" # Use final failure_reasons
+        "failure_reason_summary": "; ".join(failure_reasons) if failure_reasons else "N/A" 
     }
     return summary_for_batch # Return summary.
 
@@ -280,14 +303,11 @@ def execute_inspection_run(args_namespace: argparse.Namespace) -> None:
 
     # --- Configuration and Logging Setup ---
     try:
-        # Convert config_file path to string if it's a Path object from ArgsSimulator
         config_file_path = str(args_namespace.config_file)
         global_config = load_config(config_file_path) # Load global configuration.
     except (FileNotFoundError, ValueError) as e: # Handle config loading errors.
         print(f"[CRITICAL] Failed to load configuration: {e}. Exiting.", file=sys.stderr)
-        # Attempt to set up basic logging if possible, or just print
         try:
-            # Try to set up basic logging to a default location or console
             fallback_log_dir = Path(".") / "d_scope_blink_error_logs"
             fallback_log_dir.mkdir(parents=True, exist_ok=True)
             setup_logging("ERROR", True, fallback_log_dir)
@@ -300,7 +320,7 @@ def execute_inspection_run(args_namespace: argparse.Namespace) -> None:
     setup_logging( # Setup logging.
         general_settings.get("log_level", "INFO"),
         general_settings.get("log_to_console", True),
-        current_run_output_dir # Log files will go into the run-specific output directory.
+        current_run_output_dir 
     )
 
     logging.info("D-Scope Blink: Inspection System Started.")
@@ -318,7 +338,6 @@ def execute_inspection_run(args_namespace: argparse.Namespace) -> None:
         sys.exit(1) # Exit.
 
     # --- Load Calibration Data ---
-    # Convert calibration_file path to string if it's a Path object from ArgsSimulator
     calibration_file_path = str(args_namespace.calibration_file)
     calibration_data = load_calibration_data(calibration_file_path) # Load calibration data.
     loaded_um_per_px: Optional[float] = None # Initialize loaded um/px.
@@ -357,7 +376,8 @@ def execute_inspection_run(args_namespace: argparse.Namespace) -> None:
 
     for i, image_file_path in enumerate(image_paths_to_process): # Iterate through image paths.
         logging.info(f"--- Starting image {i+1}/{len(image_paths_to_process)}: {image_file_path.name} ---")
-        image_specific_output_subdir = current_run_output_dir / image_file_path.stem # Define path for image-specific output.
+        image_specific_output_subdir = current_run_output_dir / image_file_path.stem
+        current_image_processing_start_time = time.perf_counter() # Timer for this specific image processing attempt
         
         try:
             summary = process_single_image( # Process single image.
@@ -370,18 +390,30 @@ def execute_inspection_run(args_namespace: argparse.Namespace) -> None:
                 args_namespace.clad_dia_um,
                 args_namespace.fiber_type
             )
-            # Append summary directly, assuming process_single_image always returns a dict
+            # process_single_image is designed to always return a dict.
+            # Adding a safeguard for unforeseen None returns.
+            if summary is None: 
+                 logging.error(f"Critical internal error: process_single_image returned None for {image_file_path.name}. This should not happen.")
+                 summary = {
+                    "image_filename": image_file_path.name,
+                    "pass_fail_status": "ERROR_UNEXPECTED_NONE_RETURN",
+                    "processing_time_s": round(time.perf_counter() - current_image_processing_start_time, 2),
+                    "total_defect_count": 0,
+                    "core_defect_count": 0,
+                    "cladding_defect_count": 0,
+                    "failure_reason_summary": "Internal error: process_single_image returned None."
+                }
             all_image_summaries.append(summary) 
         except Exception as e: # Handle unexpected errors during single image processing.
-            # Updated logging message as per the snippet
-            logging.error(f"Unexpected error processing {image_file_path.name}: {e}")
-            # Updated error summary structure as per the snippet
+            logging.error(f"Unexpected error processing {image_file_path.name}: {e}", exc_info=True) # Log full traceback
             failure_summary = { 
                 "image_filename": image_file_path.name,
-                "status": "ERROR_PROCESSING", # Key "status"
-                "processing_time_s": 0,
+                "pass_fail_status": "ERROR_UNHANDLED_EXCEPTION",
+                "processing_time_s": round(time.perf_counter() - current_image_processing_start_time, 2),
                 "total_defect_count": 0,
-                "failure_reasons": [str(e)] # Key "failure_reasons" as a list
+                "core_defect_count": 0,
+                "cladding_defect_count": 0,
+                "failure_reason_summary": f"Unhandled exception: {str(e)}"
             }
             all_image_summaries.append(failure_summary)
             
