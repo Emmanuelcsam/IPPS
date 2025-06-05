@@ -116,7 +116,7 @@ def characterize_and_classify_defects(
         # --- Precise Dimension Calculation using minAreaRect ---
         rotated_rect = cv2.minAreaRect(defect_contour)
         box_points = cv2.boxPoints(rotated_rect)
-        box_points = np.int0(box_points)
+        box_points = np.intp(box_points)
 
         # Compute dimensions in pixels
         width_px = rotated_rect[1][0]

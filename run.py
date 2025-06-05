@@ -370,11 +370,34 @@ def main_with_args(args_namespace): # Renamed from 'main' or new function.
     print(f"[INFO] Placeholder for main_with_args logic from main.py, if it were in run.py")
 
 
+    try:
+        # Direct integration with main.py
+        from main import execute_inspection_run
+        
+        print("\n[INFO] Starting D-Scope Blink inspection with collected parameters...")
+        
+        # Call the main inspection logic directly
+        execute_inspection_run(simulated_args)
+        
+        print("\n--- Inspection Complete ---")
+        print(f"Results saved to: {output_dir}")
+        
+    except ImportError as e:
+        print(f"\n[ERROR] Could not import inspection module: {e}")
+        print("Please ensure main.py is in the same directory as run.py")
+    except Exception as e:
+        logging.error(f"Inspection failed: {e}", exc_info=True)
+        print(f"\n[ERROR] Inspection failed: {e}")
+        print("Check the log files for detailed error information")
+
 if __name__ == "__main__":
-    # Basic logging setup for the runner itself.
     logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
     try:
         main_interactive()
+    except KeyboardInterrupt:
+        print("\n\n[INFO] Inspection cancelled by user")
+        sys.exit(0)
     except Exception as e:
         logging.error(f"Interactive runner failed: {e}")
+        print(f"\n[CRITICAL] Interactive runner failed: {e}")
         sys.exit(1)

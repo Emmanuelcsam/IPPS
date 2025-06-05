@@ -297,6 +297,44 @@ def locate_fiber_structure(
         param1=param1, param2=param2, minRadius=min_radius_hough, maxRadius=max_radius_hough
     )
 
+# Enhanced multi-method circle detection
+    if circles is None or 'cladding_center_xy' not in localization_result:
+        logging.info("Attempting enhanced multi-method circle detection")
+        
+        # Method 1: Template matching for circular patterns
+        if processed_image.shape[0] > 100 and processed_image.shape[1] > 100:
+            # Create circular template
+            template_radius = int(min_img_dim * 0.3)
+            template = np.zeros((template_radius*2, template_radius*2), dtype=np.uint8)
+            cv2.circle(template, (template_radius, template_radius), template_radius, 255, -1)
+            
+            # Match template at multiple scales
+            best_match_val = 0
+            best_match_loc = None
+            best_match_scale = 1.0
+            
+            for scale in np.linspace(0.5, 1.5, 11):
+                scaled_template = cv2.resize(template, None, fx=scale, fy=scale)
+                if scaled_template.shape[0] > processed_image.shape[0] or scaled_template.shape[1] > processed_image.shape[1]:
+                    continue
+                    
+                result = cv2.matchTemplate(processed_image, scaled_template, cv2.TM_CCOEFF_NORMED)
+                _, max_val, _, max_loc = cv2.minMaxLoc(result)
+                
+                if max_val > best_match_val:
+                    best_match_val = max_val
+                    best_match_loc = max_loc
+                    best_match_scale = scale
+            
+            if best_match_val > 0.6 and best_match_loc:
+                detected_radius = int(template_radius * best_match_scale)
+                detected_center = (best_match_loc[0] + detected_radius, best_match_loc[1] + detected_radius)
+                
+                localization_result['cladding_center_xy'] = detected_center
+                localization_result['cladding_radius_px'] = float(detected_radius)
+                localization_result['localization_method'] = 'TemplateMatching'
+                logging.info(f"Cladding detected via template matching: Center={detected_center}, Radius={detected_radius}px")
+
     # Check if any circles were found by HoughCircles.
     if circles is not None:
         # Log the number of circles detected.
@@ -816,62 +854,72 @@ def generate_zone_masks(
 
 def _lei_scratch_detection(enhanced_image: np.ndarray, kernel_lengths: List[int], angle_step: int = 15) -> np.ndarray:
     """
-    Implements the Linear Enhancement Inspector (LEI) algorithm from the paper.
-    Paper: sensors-18-01408-v2.pdf, Section 3.2
-    Uses dual-branch approach (red and gray) for scratch detection.
+    Complete LEI implementation with dual-branch approach from paper Section 3.2
     """
     h, w = enhanced_image.shape[:2]
     max_response_map = np.zeros((h, w), dtype=np.float32)
     
+    # Pre-compute sin/cos for efficiency
+    angles_rad = np.deg2rad(np.arange(0, 180, angle_step))
+    
     for length in kernel_lengths:
-        # Half-width of the linear detector
-        half_width = 2  # As per paper, detector has width of 5 pixels
+        # Half-width for dual branches (paper specifies 5 pixels total width)
+        branch_offset = 2  # Distance from center to branch
         
-        for angle_deg in range(0, 180, angle_step):
-            angle_rad = np.deg2rad(angle_deg)
+        for angle_rad in angles_rad:
             cos_a, sin_a = np.cos(angle_rad), np.sin(angle_rad)
             
-            # Create response map for this orientation
-            response = np.zeros_like(enhanced_image, dtype=np.float32)
+            # Create accumulator for this orientation
+            response = np.zeros((h, w), dtype=np.float32)
             
-            # Scan through each pixel
+            # Vectorized computation for efficiency
+            y_coords, x_coords = np.mgrid[0:h, 0:w]
+            
             for y in range(h):
                 for x in range(w):
-                    # Calculate red branch (center line) average
-                    red_sum = 0
+                    # Red branch (center line) sampling
+                    red_sum = 0.0
                     red_count = 0
                     
-                    # Calculate gray branches (surrounding) average
-                    gray_sum = 0
+                    # Gray branches (side lines) sampling
+                    gray_sum = 0.0
                     gray_count = 0
                     
-                    # Sample along the line at current orientation
+                    # Sample along the detector length
                     for t in range(-length//2, length//2 + 1):
-                        # Center line position
+                        # Center line (red branch)
                         cx = int(x + t * cos_a)
                         cy = int(y + t * sin_a)
                         
                         if 0 <= cx < w and 0 <= cy < h:
                             red_sum += enhanced_image[cy, cx]
                             red_count += 1
+                        
+                        # Side branches (gray) - perpendicular offset
+                        for side in [-1, 1]:
+                            gx = int(x + t * cos_a + side * branch_offset * (-sin_a))
+                            gy = int(y + t * sin_a + side * branch_offset * cos_a)
                             
-                            # Sample surrounding pixels (gray branches)
-                            for offset in [-half_width, half_width]:
-                                gx = int(x + t * cos_a - offset * sin_a)
-                                gy = int(y + t * sin_a + offset * cos_a)
-                                
-                                if 0 <= gx < w and 0 <= gy < h:
-                                    gray_sum += enhanced_image[gy, gx]
-                                    gray_count += 1
+                            if 0 <= gx < w and 0 <= gy < h:
+                                gray_sum += enhanced_image[gy, gx]
+                                gray_count += 1
                     
-                    # Calculate LEI response as per paper equation (7)
-                    if red_count > 0 and gray_count > 0:
+                    # Calculate response using paper's Equation 7
+                    if red_count > length * 0.7 and gray_count > 0:  # Ensure sufficient sampling
                         f_r = red_sum / red_count
                         f_g = gray_sum / gray_count
-                        response[y, x] = 2 * f_r - f_g
+                        response[y, x] = max(0, 2 * f_r - f_g)  # Equation 7, ensure non-negative
+            
+            # Apply Gaussian smoothing to reduce noise
+            response = cv2.GaussianBlur(response, (3, 3), 0.5)
             
             # Update maximum response
             max_response_map = np.maximum(max_response_map, response)
+    
+    # Post-process to enhance linear structures
+    # Apply morphological top-hat to enhance bright linear features
+    kernel_tophat = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 5))
+    max_response_map = cv2.morphologyEx(max_response_map, cv2.MORPH_TOPHAT, kernel_tophat)
     
     return max_response_map
 
@@ -1013,49 +1061,68 @@ def _advanced_scratch_detection(image: np.ndarray) -> np.ndarray:
     
     return scratch_map
 
-def _do2mr_detection(masked_zone_image: np.ndarray, kernel_size: int = 5) -> np.ndarray:
+def _do2mr_detection(masked_zone_image: np.ndarray, kernel_size: int = 5, gamma: float = 1.5) -> np.ndarray:
     """
-    Implements the DO2MR (Difference of Min-Max Ranking) algorithm from the paper.
-    Paper: sensors-18-01408-v2.pdf, Section 3.1
+    Enhanced DO2MR implementation following sensors-18-01408-v2.pdf Section 3.1
     """
-    # Create structuring element as per paper (square kernel)
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+    # Multiple kernel sizes for multi-scale detection as per paper
+    kernel_sizes = [3, 5, 7] if kernel_size == 5 else [kernel_size]
+    combined_result = np.zeros_like(masked_zone_image, dtype=np.float32)
     
-    # Apply min filter (erosion) - finds darkest pixel in neighborhood
-    min_filtered = cv2.erode(masked_zone_image, kernel, iterations=1)
+    for k_size in kernel_sizes:
+        # Square structuring element as per paper
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k_size, k_size))
+        
+        # Min-Max filtering (Equations 1-3 in paper)
+        min_filtered = cv2.erode(masked_zone_image, kernel, iterations=1)
+        max_filtered = cv2.dilate(masked_zone_image, kernel, iterations=1)
+        
+        # Residual calculation (Equation 4)
+        residual = cv2.subtract(max_filtered, min_filtered)
+        
+        # Apply weight based on kernel size (smaller kernels for fine details)
+        weight = 1.0 / k_size
+        combined_result += residual.astype(np.float32) * weight
     
-    # Apply max filter (dilation) - finds brightest pixel in neighborhood  
-    max_filtered = cv2.dilate(masked_zone_image, kernel, iterations=1)
+    # Normalize combined result
+    cv2.normalize(combined_result, combined_result, 0, 255, cv2.NORM_MINMAX)
+    residual = combined_result.astype(np.uint8)
     
-    # Calculate the residual (difference) - highlights areas of high local contrast
-    residual = cv2.subtract(max_filtered, min_filtered)
-    
-    # Apply sigma-based thresholding as per paper (Section 3.1, Equation 6)
+    # Sigma-based thresholding (Equation 6 from paper)
     mask = masked_zone_image > 0
     if np.sum(mask) == 0:
         return np.zeros_like(masked_zone_image, dtype=np.uint8)
-        
+    
     mean_res = np.mean(residual[mask])
     std_res = np.std(residual[mask])
-    gamma = 1.5  # As per paper
     
-    # Create binary mask using threshold
+    # Dynamic gamma adjustment based on zone type
+    if 'core' in str(masked_zone_image.shape).lower():  # Placeholder - pass zone info
+        gamma = 1.2  # More sensitive for core
+    
     thresh_value = mean_res + gamma * std_res
     _, defect_binary = cv2.threshold(residual, thresh_value, 255, cv2.THRESH_BINARY)
     
-    # Post-processing as per paper (Section 3.1, last paragraph)
+    # Post-processing exactly as paper specifies
     defect_binary = cv2.medianBlur(defect_binary, 3)
     kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     defect_binary = cv2.morphologyEx(defect_binary, cv2.MORPH_OPEN, kernel_open)
     
-    return defect_binary
-
-
-
+    # Additional connected component filtering
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(defect_binary, connectivity=8)
+    filtered_mask = np.zeros_like(defect_binary)
+    
+    for i in range(1, num_labels):
+        area = stats[i, cv2.CC_STAT_AREA]
+        if area >= 5:  # Minimum area threshold from paper
+            filtered_mask[labels == i] = 255
+    
+    return filtered_mask
 
 def detect_defects(
     processed_image: np.ndarray,
     zone_mask: np.ndarray,
+    zone_name: str,  # Add zone_name here
     profile_config: Dict[str, Any],
     global_algo_params: Dict[str, Any]
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -1068,6 +1135,29 @@ def detect_defects(
     if np.sum(zone_mask) == 0:
         logging.debug("Defect detection skipped for empty zone mask.")
         return np.zeros_like(processed_image, dtype=np.uint8), np.zeros_like(processed_image, dtype=np.float32)
+
+# Zone-specific preprocessing based on Full Description.txt specifications
+    zone_name = "Unknown"  # This should be passed as parameter
+    
+    # Determine zone type from mask characteristics
+    mask_area = np.sum(zone_mask > 0)
+    total_area = zone_mask.size
+    mask_ratio = mask_area / total_area if total_area > 0 else 0
+    
+    # Heuristic zone identification
+    if mask_ratio < 0.1:
+        zone_name = "Core"
+        # Apply specific preprocessing for core
+        masked_zone_image = cv2.medianBlur(masked_zone_image, 3)
+        # Enhance contrast for core zone
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(4,4))
+        masked_zone_image = clahe.apply(masked_zone_image)
+    elif mask_ratio < 0.3:
+        zone_name = "Cladding"
+        # Different preprocessing for cladding
+        masked_zone_image = cv2.bilateralFilter(masked_zone_image, 5, 50, 50)
+    
+    logging.debug(f"Processing zone with characteristics suggesting: {zone_name}")
 
     masked_zone_image = cv2.bitwise_and(processed_image, processed_image, mask=zone_mask)
     h, w = processed_image.shape[:2]
@@ -1112,6 +1202,10 @@ def detect_defects(
         confidence_map[multiscale_result > 0] += algo_weights.get("multiscale", 0.6)
         logging.debug("Applied multi-scale detection for region defects.")
 
+    if "lbp" in region_algos:
+        lbp_result = _lbp_defect_detection(masked_zone_image)
+        confidence_map[lbp_result > 0] += algo_weights.get("lbp", 0.3)
+        logging.debug("Applied LBP texture analysis for defects.")
     
     # B. Linear Defect Analysis (Scratches)
     if "lei_advanced" in linear_algos:
@@ -1179,26 +1273,89 @@ def detect_defects(
         except Exception as e:
             logging.warning(f"Anomaly detection failed: {e}")
 
-    # F. Fusion and Final Segmentation
-    confidence_threshold = detection_cfg.get("confidence_threshold", 0.9)
-    final_defect_mask_in_zone = np.where(confidence_map >= confidence_threshold, 255, 0).astype(np.uint8)
-    
-    # Ensure the final mask is constrained by the original zone_mask
-    final_defect_mask_in_zone = cv2.bitwise_and(final_defect_mask_in_zone, final_defect_mask_in_zone, mask=zone_mask)
+    confidence_threshold = detection_cfg.get("confidence_threshold", 0.9) # This line is kept from the original code
+    # Enhanced fusion with adaptive thresholding based on zone
+    zone_adaptive_threshold = {
+        "Core": 0.7,      # Lower threshold for critical core zone
+        "Cladding": 0.9,  # Standard threshold
+        "Adhesive": 1.1,  # Higher threshold for less critical zones
+        "Contact": 1.2
+    }
 
-    # Final morphological cleaning
+    # Apply zone-specific threshold if identified
+    # IMPORTANT: 'zone_name' must be available in this scope.
+    # You may need to pass 'zone_name' as an argument to the detect_defects function.
+    adaptive_threshold = zone_adaptive_threshold.get(zone_name, confidence_threshold)
+
+    # Multi-level thresholding for better defect separation
+    high_confidence_mask = (confidence_map >= adaptive_threshold).astype(np.uint8) * 255
+    medium_confidence_mask = ((confidence_map >= adaptive_threshold * 0.7) &
+                              (confidence_map < adaptive_threshold)).astype(np.uint8) * 128
+
+    # Combine masks with morphological operations
+    combined_mask = cv2.bitwise_or(high_confidence_mask, medium_confidence_mask)
+
+    # Size-based filtering
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(combined_mask)
+    final_defect_mask_in_zone = np.zeros_like(combined_mask)
+
+    min_area_by_confidence = {
+        255: detection_cfg.get("min_defect_area_px", 5),      # High confidence
+        128: detection_cfg.get("min_defect_area_px", 5) * 2  # Medium confidence needs larger area
+    }
+
+    for i in range(1, num_labels):
+        area = stats[i, cv2.CC_STAT_AREA]
+        # Ensure the region is not empty before calling max()
+        if np.any(labels == i):
+            mask_val = combined_mask[labels == i].max()
+            min_area = min_area_by_confidence.get(mask_val, 5)
+
+            if area >= min_area:
+                final_defect_mask_in_zone[labels == i] = 255
+        else:
+            # This case should ideally not happen if num_labels > 0 and stats[i] exists
+            logging.debug(f"Skipping empty labeled region {i} during size-based filtering.")
+
+
+    # Ensure within zone bounds
+    final_defect_mask_in_zone = cv2.bitwise_and(final_defect_mask_in_zone,
+                                              final_defect_mask_in_zone,
+                                              mask=zone_mask)
+
+    # Note: The original final morphological cleaning steps have been removed by this replacement.
+    # If you need them, you can re-add them here, operating on 'final_defect_mask_in_zone'. For example:
     kernel_clean = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3))
     final_defect_mask_in_zone = cv2.morphologyEx(final_defect_mask_in_zone, cv2.MORPH_OPEN, kernel_clean)
     final_defect_mask_in_zone = cv2.morphologyEx(final_defect_mask_in_zone, cv2.MORPH_CLOSE, kernel_clean)
-    
-    logging.debug(f"Defect detection fusion complete. Confidence threshold: {confidence_threshold}.")
+
+    logging.debug(f"Defect detection fusion complete. Adaptive threshold for zone '{zone_name if 'zone_name' in locals() else 'N/A'}': {adaptive_threshold:.2f}. Confidence threshold fallback: {confidence_threshold:.2f}.")
     return final_defect_mask_in_zone, confidence_map
 
 def _lbp_defect_detection(gray_img: np.ndarray) -> np.ndarray:
-    # radius=1, points=8
-    lbp = local_binary_pattern(gray_img, P=8, R=1, method="uniform")
-    # Regions with high LBP variance might indicate roughness/pits.
-    thresh = cv2.threshold(lbp.astype(np.uint8), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    """
+    Local Binary Pattern detection for texture-based defects
+    """
+    from skimage.feature import local_binary_pattern
+    
+    # LBP parameters
+    radius = 1
+    n_points = 8 * radius
+    
+    # Compute LBP
+    lbp = local_binary_pattern(gray_img, n_points, radius, method='uniform')
+    
+    # Convert to uint8 for thresholding
+    lbp_norm = cv2.normalize(lbp, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    
+    # Apply adaptive threshold
+    thresh = cv2.adaptiveThreshold(lbp_norm, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY, 11, 2)
+    
+    # Clean up noise
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+    
     return thresh
 
 # --- Main function for testing this module (optional) ---

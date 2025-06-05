@@ -23,3 +23,50 @@
 [2025-06-05 11:45:06] [ERROR] [config_loader:267] Zone definitions for fiber type 'sinlge_mode_pc' not found.
 [2025-06-05 11:45:06] [WARNING] [config_loader:271] Falling back to first available zone definition: 'single_mode_pc'.
 [2025-06-05 11:45:06] [INFO] [main:182] Step 4: Detecting Defects in Zones...
+[2025-06-05 11:57:05] [WARNING] [anomaly_detection:36] Anomalib not installed. Anomaly detection disabled.
+[2025-06-05 12:08:54] [WARNING] [anomaly_detection:36] Anomalib not installed. Anomaly detection disabled.
+[2025-06-05 12:20:29] [WARNING] [anomaly_detection:36] Anomalib not installed. Anomaly detection disabled.
+[2025-06-05 12:32:37] [WARNING] [anomaly_detection:36] Anomalib not installed. Anomaly detection disabled.
+[2025-06-05 12:32:37] [INFO] [main:203] Step 5: Analyzing Defects and Applying Rules...
+[2025-06-05 12:32:37] [INFO] [analysis:76] Found 1 potential defect components from fused mask.
+[2025-06-05 12:32:37] [ERROR] [main:377] Unexpected error processing ima12.jpg: module 'numpy' has no attribute 'int0'
+[2025-06-05 12:32:37] [INFO] [main:359] --- Starting image 2/6: ima18.jpg ---
+[2025-06-05 12:32:37] [INFO] [main:119] --- Processing image: ima18.jpg ---
+[2025-06-05 12:32:37] [INFO] [main:123] Step 1: Loading and Preprocessing...
+[2025-06-05 12:32:37] [INFO] [image_processing:197] Image 'ima18.jpg' loaded successfully.
+[2025-06-05 12:32:37] [INFO] [main:135] Step 2: Locating Fiber Structure...
+[2025-06-05 12:32:37] [WARNING] [image_processing:354] HoughCircles found no circles initially.
+[2025-06-05 12:32:37] [WARNING] [image_processing:361] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-05 12:32:37] [INFO] [image_processing:436] Selected largest valid contour (Area: 84152.5px, Circularity: 0.89) for fitting.
+[2025-06-05 12:32:37] [INFO] [image_processing:454] Cladding (ContourFitEllipse): Center=(565,416), Axes=(326.9,327.9)px, Angle=75.0deg
+[2025-06-05 12:32:37] [WARNING] [image_processing:628] Could not identify a distinct core contour within the cladding using current criteria.
+[2025-06-05 12:32:37] [WARNING] [image_processing:632] Core detection failed, defaulting to 0.4 * cladding radius.
+[2025-06-05 12:32:37] [INFO] [main:162] No µm/px scale available for ima18.jpg. Measurements will be in pixels.
+[2025-06-05 12:32:37] [INFO] [main:166] Step 3: Generating Zone Masks...
+[2025-06-05 12:32:37] [ERROR] [config_loader:267] Zone definitions for fiber type 'sinlge_mode_pc' not found.
+[2025-06-05 12:32:37] [WARNING] [config_loader:271] Falling back to first available zone definition: 'single_mode_pc'.
+[2025-06-05 12:32:37] [INFO] [main:182] Step 4: Detecting Defects in Zones...
+[2025-06-05 12:44:29] [WARNING] [anomaly_detection:36] Anomalib not installed. Anomaly detection disabled.
+[2025-06-05 12:56:14] [WARNING] [anomaly_detection:36] Anomalib not installed. Anomaly detection disabled.
+[2025-06-05 13:07:49] [WARNING] [anomaly_detection:36] Anomalib not installed. Anomaly detection disabled.
+[2025-06-05 13:19:58] [WARNING] [anomaly_detection:36] Anomalib not installed. Anomaly detection disabled.
+[2025-06-05 13:19:58] [INFO] [main:203] Step 5: Analyzing Defects and Applying Rules...
+[2025-06-05 13:19:58] [INFO] [analysis:76] Found 1 potential defect components from fused mask.
+[2025-06-05 13:19:58] [ERROR] [main:377] Unexpected error processing ima18.jpg: module 'numpy' has no attribute 'int0'
+[2025-06-05 13:19:58] [INFO] [main:359] --- Starting image 3/6: ima19.jpg ---
+[2025-06-05 13:19:58] [INFO] [main:119] --- Processing image: ima19.jpg ---
+[2025-06-05 13:19:58] [INFO] [main:123] Step 1: Loading and Preprocessing...
+[2025-06-05 13:19:58] [INFO] [image_processing:197] Image 'ima19.jpg' loaded successfully.
+[2025-06-05 13:19:58] [INFO] [main:135] Step 2: Locating Fiber Structure...
+[2025-06-05 13:19:58] [WARNING] [image_processing:354] HoughCircles found no circles initially.
+[2025-06-05 13:19:58] [WARNING] [image_processing:361] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-05 13:19:58] [INFO] [image_processing:436] Selected largest valid contour (Area: 84105.0px, Circularity: 0.88) for fitting.
+[2025-06-05 13:19:58] [INFO] [image_processing:454] Cladding (ContourFitEllipse): Center=(570,425), Axes=(327.1,327.6)px, Angle=132.9deg
+[2025-06-05 13:19:58] [INFO] [image_processing:626] Core (ContourFit): Center=(570,425), Radius=148.0px
+[2025-06-05 13:19:58] [INFO] [main:162] No µm/px scale available for ima19.jpg. Measurements will be in pixels.
+[2025-06-05 13:19:58] [INFO] [main:166] Step 3: Generating Zone Masks...
+[2025-06-05 13:19:58] [ERROR] [config_loader:267] Zone definitions for fiber type 'sinlge_mode_pc' not found.
+[2025-06-05 13:19:58] [WARNING] [config_loader:271] Falling back to first available zone definition: 'single_mode_pc'.
+[2025-06-05 13:19:58] [INFO] [main:182] Step 4: Detecting Defects in Zones...
+[2025-06-05 13:33:18] [WARNING] [anomaly_detection:36] Anomalib not installed. Anomaly detection disabled.
+[2025-06-05 13:45:09] [WARNING] [anomaly_detection:36] Anomalib not installed. Anomaly detection disabled.
