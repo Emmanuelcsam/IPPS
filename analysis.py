@@ -170,10 +170,6 @@ def characterize_and_classify_defects(
         # --- Store Defect Information ---
         # The confidence score would ideally come from the fusion map value at the defect's location,
         # or be an aggregation of contributing algorithm confidences.
-        # For now, Placeholder or average from fusion map if available.
-        # This requires passing the confidence_map to this function and sampling it.
-        # Simplified confidence for now:
-        # Replace the placeholder confidence score
         if confidence_map is not None:
             # Sample confidence values at defect location
             defect_mask_single = (labels_img == i).astype(np.uint8)
