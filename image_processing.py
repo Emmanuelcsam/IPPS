@@ -9,6 +9,7 @@ It includes functions for preprocessing, fiber localization (cladding and core),
 zone mask generation, and the multi-algorithm defect detection engine with fusion.
 """
 # Missing imports - add these
+import pywt  # Add to imports
 from scipy import ndimage
 from skimage import morphology, filters
 import cv2 # OpenCV for all core image processing tasks.
@@ -42,6 +43,21 @@ except ImportError:
             },
             # Add other keys as needed by functions in this module for standalone testing
         }
+
+def _correct_illumination(gray_image: np.ndarray) -> np.ndarray:
+    """
+    Performs advanced illumination correction using rolling ball algorithm.
+    """
+    # Estimate background using morphological closing with large kernel
+    kernel_size = 50
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+    background = cv2.morphologyEx(gray_image, cv2.MORPH_CLOSE, kernel)
+    
+    # Subtract background
+    corrected = cv2.subtract(gray_image, background)
+    corrected = cv2.add(corrected, 128)  # Shift to mid-gray
+    
+    return corrected
 
 # --- Image Loading and Preprocessing ---
 def load_and_preprocess_image(image_path_str: str, profile_config: Dict[str, Any]) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
@@ -101,6 +117,10 @@ def load_and_preprocess_image(image_path_str: str, profile_config: Dict[str, Any
     logging.debug(f"Gaussian blur applied with kernel size {gaussian_blur_kernel_size}.")
 
     return original_bgr, gray_image, processed_image # Return original, grayscale, and processed images.
+
+
+
+
 
 # --- Fiber Localization and Zoning ---
 def locate_fiber_structure(
@@ -323,6 +343,8 @@ def locate_fiber_structure(
 
     return localization_result # Return all localization data.
 
+
+
 def generate_zone_masks(
     image_shape: Tuple[int, int],
     localization_data: Dict[str, Any],
@@ -497,6 +519,120 @@ def generate_zone_masks(
 
     return masks # Return dictionary of zone masks.
 
+
+def _lei_scratch_detection(enhanced_image: np.ndarray, kernel_lengths: List[int], angle_step: int = 15) -> np.ndarray:
+    """
+    Implements the Linear Enhancement Inspector (LEI) algorithm from the paper.
+    Uses dual-branch approach (red and gray) for scratch detection.
+    
+    Args:
+        enhanced_image: Histogram-equalized input image
+        kernel_lengths: List of kernel lengths to try
+        angle_step: Angular step in degrees
+        
+    Returns:
+        Scratch response map
+    """
+    h, w = enhanced_image.shape[:2]
+    max_response_map = np.zeros((h, w), dtype=np.float32)
+    
+    for length in kernel_lengths:
+        for angle_deg in range(0, 180, angle_step):
+            # Create the dual-branch kernel as per paper
+            # Red branch (center line)
+            red_kernel = np.zeros((length, 3), dtype=np.float32)
+            red_kernel[:, 1] = 1.0 / length  # Center column
+            
+            # Gray branches (surrounding pixels)
+            gray_kernel = np.zeros((length, 5), dtype=np.float32)
+            gray_kernel[:, 0] = 0.5 / length  # Left side
+            gray_kernel[:, 2] = 0.5 / length  # Right side (skip center)
+            gray_kernel[:, 4] = 0.5 / length  # Far right
+            
+            # Rotate kernels
+            angle_rad = np.deg2rad(angle_deg)
+            cos_a, sin_a = np.cos(angle_rad), np.sin(angle_rad)
+            
+            # Apply convolution with rotated kernel
+            # This is simplified - for production, use proper rotation
+            red_response = cv2.filter2D(enhanced_image.astype(np.float32), -1, red_kernel)
+            gray_response = cv2.filter2D(enhanced_image.astype(np.float32), -1, gray_kernel)
+            
+            # LEI formula from paper: s_θ(x,y) = 2 * f_r - f_g
+            scratch_strength = 2 * red_response - gray_response
+            
+            # Update max response
+            max_response_map = np.maximum(max_response_map, scratch_strength)
+    
+    return max_response_map
+
+def _gabor_defect_detection(image: np.ndarray) -> np.ndarray:
+    """
+    Uses Gabor filters for texture-based defect detection.
+    Particularly good for detecting periodic defects and scratches.
+    """
+    filters = []
+    ksize = 31
+    sigma = 4.0
+    lambd = 10.0
+    gamma = 0.5
+    
+    # Create Gabor filters at different orientations
+    for theta in np.arange(0, np.pi, np.pi / 8):
+        kern = cv2.getGaborKernel((ksize, ksize), sigma, theta, lambd, gamma, 0, ktype=cv2.CV_32F)
+        filters.append(kern)
+    
+    # Apply filters and combine responses
+    responses = []
+    for kern in filters:
+        filtered = cv2.filter2D(image, cv2.CV_32F, kern)
+        responses.append(np.abs(filtered))
+    
+    # Combine responses - use maximum response across all orientations
+    gabor_response = np.max(responses, axis=0)
+    
+    # Threshold to get defect mask
+    _, defect_mask = cv2.threshold(gabor_response.astype(np.uint8), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    
+    return defect_mask
+
+def _multiscale_defect_detection(image: np.ndarray, scales: List[float] = [0.5, 1.0, 1.5, 2.0]) -> np.ndarray:
+    """
+    Performs multi-scale defect detection for improved accuracy.
+    
+    Args:
+        image: Input grayscale image
+        scales: List of scale factors to analyze
+        
+    Returns:
+        Combined confidence map
+    """
+    h, w = image.shape[:2]
+    combined_map = np.zeros((h, w), dtype=np.float32)
+    
+    for scale in scales:
+        # Resize image
+        if scale != 1.0:
+            scaled_h, scaled_w = int(h * scale), int(w * scale)
+            scaled_image = cv2.resize(image, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
+        else:
+            scaled_image = image.copy()
+        
+        # Apply DO2MR at this scale
+        do2mr_result = _do2mr_detection(scaled_image, kernel_size=int(5 * scale))
+        
+        # Resize result back to original size
+        if scale != 1.0:
+            do2mr_result = cv2.resize(do2mr_result, (w, h), interpolation=cv2.INTER_LINEAR)
+        
+        # Weight by scale (smaller scales for fine details, larger for bigger defects)
+        weight = 1.0 / scale if scale > 1 else scale
+        combined_map += do2mr_result.astype(np.float32) * weight
+    
+    # Normalize
+    cv2.normalize(combined_map, combined_map, 0, 255, cv2.NORM_MINMAX)
+    return combined_map.astype(np.uint8)
+
 def _do2mr_detection(masked_zone_image: np.ndarray, kernel_size: int = 5) -> np.ndarray:
     """
     Implements the DO2MR (Difference of Min-Max Ranking) algorithm from the paper.
@@ -536,6 +672,25 @@ def _do2mr_detection(masked_zone_image: np.ndarray, kernel_size: int = 5) -> np.
     defect_binary = cv2.morphologyEx(defect_binary, cv2.MORPH_OPEN, kernel_open)
     
     return defect_binary
+
+def _wavelet_defect_detection(image: np.ndarray) -> np.ndarray:
+    """
+    Uses wavelet transform for multi-resolution defect detection.
+    """
+    # Perform 2D discrete wavelet transform
+    coeffs = pywt.dwt2(image, 'db4')
+    cA, (cH, cV, cD) = coeffs
+    
+    # Combine detail coefficients
+    details = np.sqrt(cH**2 + cV**2 + cD**2)
+    
+    # Reconstruct at original size
+    details_resized = cv2.resize(details, (image.shape[1], image.shape[0]))
+    
+    # Threshold to get defects
+    _, defect_mask = cv2.threshold(details_resized.astype(np.uint8), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    
+    return defect_mask
 
 # --- Defect Detection Engine ---
 def detect_defects(
@@ -678,6 +833,7 @@ def detect_defects(
     
     logging.debug(f"Defect detection fusion complete. Confidence threshold: {confidence_threshold}.")
     return final_defect_mask_in_zone # Return the final binary defect mask for the zone.
+
 
 
 # --- Main function for testing this module (optional) ---

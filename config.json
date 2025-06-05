@@ -1,90 +1,17 @@
-{
-  "general_settings": {
-    "output_dir_name": "d_scope_blink_output",
-    "log_level": "INFO",
-    "log_to_console": true
-  },
-  "processing_profiles": {
-    "fast_scan": {
-      "description": "Uses a minimal set of computationally inexpensive algorithms for quick checks.",
-      "preprocessing": {
-        "clahe_clip_limit": 1.0,
-        "clahe_tile_grid_size": [4, 4],
-        "gaussian_blur_kernel_size": [3, 3]
-      },
-      "localization": {
-        "hough_dp": 1.5,
-        "hough_min_dist_factor": 0.2,
-        "hough_param1": 50,
-        "hough_param2": 25,
-        "hough_min_radius_factor": 0.1,
-        "hough_max_radius_factor": 0.4
-      },
-      "defect_detection": {
-        "region_algorithms": ["black_hat"],
-        "linear_algorithms": ["lei_simple"],
-        "confidence_threshold": 0.6,
-        "min_defect_area_px": 15
-      }
-    },
-    "deep_inspection": {
-      "description": "Uses the full suite of algorithms and fusion for maximum accuracy.",
-      "preprocessing": {
-        "clahe_clip_limit": 2.0,
-        "clahe_tile_grid_size": [8, 8],
-        "gaussian_blur_kernel_size": [5, 5]
-      },
-      "localization": {
-        "hough_dp": 1.2,
-        "hough_min_dist_factor": 0.15,
-        "hough_param1": 70,
-        "hough_param2": 35,
-        "hough_min_radius_factor": 0.08,
-        "hough_max_radius_factor": 0.45
-      },
-      "defect_detection": {
-        "region_algorithms": ["morph_gradient", "black_hat"],
-        "linear_algorithms": ["lei_advanced", "skeletonization"],
-        "confidence_threshold": 0.9,
-        "min_defect_area_px": 5,
-        "scratch_aspect_ratio_threshold": 3.0,
-        "algorithm_weights": {
-            "morph_gradient": 0.4,
-            "black_hat": 0.6,
-            "lei_advanced": 0.7,
-            "skeletonization": 0.3
-        }
-      }
+"deep_inspection": {
+  "defect_detection": {
+    "region_algorithms": ["do2mr", "morph_gradient", "black_hat", "gabor"],
+    "linear_algorithms": ["lei_advanced", "skeletonization"],
+    "confidence_threshold": 0.9,
+    "min_defect_area_px": 5,
+    "scratch_aspect_ratio_threshold": 3.0,
+    "algorithm_weights": {
+      "do2mr": 0.8,
+      "morph_gradient": 0.3,
+      "black_hat": 0.5,
+      "lei_advanced": 0.8,
+      "skeletonization": 0.3,
+      "gabor": 0.4
     }
-  },
-  "algorithm_parameters": {
-    "flat_field_image_path": null,
-    "morph_gradient_kernel_size": [5, 5],
-    "black_hat_kernel_size": [11, 11],
-    "lei_kernel_lengths": [11, 17],
-    "lei_angle_step_deg": 15,
-    "sobel_scharr_ksize": 3,
-    "skeletonization_dilation_kernel_size": [3, 3]
-  },
-  "zone_definitions_iec61300_3_35": {
-    "single_mode_pc": [
-      {"name": "Core", "r_min_factor": 0.0, "r_max_factor_core_relative": 1.0, "color_bgr": [255,0,0], "pass_fail_rules": {"max_scratches": 0, "max_defects": 0, "max_defect_size_um": 3}},
-      {"name": "Cladding", "r_min_factor_cladding_relative": 0.0, "r_max_factor_cladding_relative": 1.0, "color_bgr": [0,255,0], "pass_fail_rules": {"max_scratches": 5, "max_scratches_gt_5um": 0, "max_defects": 5, "max_defect_size_um": 10}},
-      {"name": "Adhesive", "r_min_factor_cladding_relative": 1.0, "r_max_factor_cladding_relative": 1.15, "color_bgr": [0,255,255], "pass_fail_rules": {"max_defects": "unlimited", "max_defect_size_um": 50}},
-      {"name": "Contact", "r_min_factor_cladding_relative": 1.15, "r_max_factor_cladding_relative": 2.0, "color_bgr": [255,0,255], "pass_fail_rules": {"max_defects": "unlimited", "max_defect_size_um": 100}}
-    ],
-    "multi_mode_pc": [
-        {"name": "Core", "r_min_factor": 0.0, "r_max_factor_core_relative": 1.0, "color_bgr": [255,100,100], "pass_fail_rules": {"max_scratches": 1, "max_scratch_length_um": 10, "max_defects": 3, "max_defect_size_um": 5}},
-        {"name": "Cladding", "r_min_factor_cladding_relative": 0.0, "r_max_factor_cladding_relative": 1.0, "color_bgr": [100,255,100], "pass_fail_rules": {"max_scratches": "unlimited", "max_defects": "unlimited", "max_defect_size_um": 20}},
-        {"name": "Adhesive", "r_min_factor_cladding_relative": 1.0, "r_max_factor_cladding_relative": 1.15, "color_bgr": [100,255,255], "pass_fail_rules": {"max_defects": "unlimited"}},
-        {"name": "Contact", "r_min_factor_cladding_relative": 1.15, "r_max_factor_cladding_relative": 2.0, "color_bgr": [255,100,255], "pass_fail_rules": {"max_defects": "unlimited"}}
-    ]
-  },
-  "reporting": {
-    "annotated_image_dpi": 150,
-    "defect_label_font_scale": 0.4,
-    "defect_label_thickness": 1,
-    "pass_fail_stamp_font_scale": 1.5,
-    "pass_fail_stamp_thickness": 2
   }
 }

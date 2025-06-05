@@ -54,7 +54,8 @@ def characterize_and_classify_defects(
     zone_masks: Dict[str, np.ndarray],
     profile_config: Dict[str, Any],
     um_per_px: Optional[float],
-    image_filename: str # For generating unique defect IDs.
+    image_filename: str,
+    confidence_map: Optional[np.ndarray] = None  # Add this parameter
 ) -> List[Dict[str, Any]]:
     """
     Analyzes connected components in the final defect mask to characterize and classify each defect.
@@ -172,7 +173,18 @@ def characterize_and_classify_defects(
         # For now, Placeholder or average from fusion map if available.
         # This requires passing the confidence_map to this function and sampling it.
         # Simplified confidence for now:
-        confidence_score_placeholder = 1.0 # Placeholder value.
+        # Replace the placeholder confidence score
+        if confidence_map is not None:
+            # Sample confidence values at defect location
+            defect_mask_single = (labels_img == i).astype(np.uint8)
+            confidence_values = confidence_map[defect_mask_single > 0]
+            if len(confidence_values) > 0:
+                # Use mean confidence value for the defect
+                confidence_score = float(np.mean(confidence_values))
+            else:
+                confidence_score = 0.5  # Default if no confidence data
+        else:
+            confidence_score = 0.5  # Default if no confidence map provided
 
         defect_data = { # Create dictionary for defect data.
             "defect_id": defect_id_str,
@@ -204,6 +216,13 @@ def characterize_and_classify_defects(
 
     logging.info(f"Characterized and classified {len(characterized_defects)} defects.")
     return characterized_defects # Return list of characterized defects.
+
+def calculate_defect_density(defects: List[Dict[str, Any]], zone_area_px: float) -> float:
+    """
+    Calculates defect density (defects per unit area).
+    """
+    total_defect_area = sum(d.get('area_px', 0) for d in defects)
+    return total_defect_area / zone_area_px if zone_area_px > 0 else 0
 
 # --- Pass/Fail Evaluation ---
 def apply_pass_fail_rules(
