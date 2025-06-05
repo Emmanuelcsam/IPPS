@@ -1,0 +1,558 @@
+﻿FOCUS: DEVELOP AN ADVANCED D-SCOPE BLINK
+The software scans the image on a pixel-by-pixel basis within the defined zones. It looks for deviations in grayscale values that signify a potential defect. A scratch, for instance, appears as a dark line, while a pit might be a small, dark, roughly circular area.
+When a potential defect is identified, the software does not just see a "dark spot." It performs a detailed morphological analysis, extracting key features:
+Size: Measured in micrometers (µm), calculated from the number of pixels it occupies.
+Shape: Is it linear (a scratch) or roughly circular (a pit/dig)? What is its aspect ratio?
+Contrast: How much darker is it than the surrounding background? This can help differentiate between a deep, damaging scratch and a minor surface anomaly.
+Location: Its precise coordinates on the end-face, which determines which zone it falls into.
+Scratches are identified by their high aspect ratio (long and thin) and linear nature.
+Pits or Digs are identified by their low aspect ratio (more circular) and distinct, sharp edges.
+Contamination (like oil or dust) might be identified by its lower contrast compared to a true surface defect and its irregular, amorphous shape. The deep learning modules are particularly effective here, as they can be trained on thousands of images to distinguish the subtle visual signatures of different types of debris.
+Cracks are identified as fine, often jagged lines that may propagate across zones.
+Defect Tabulation: The software creates a table of all detected defects, listing their type, size, and zone location.Absolutely! Here's the document reformatted into structured bullet points, maintaining all the details:
+
+
+I. FOCUS: DEVELOP AN ADVANCED D-SCOPE BLINK
+* The software scans the image on a pixel-by-pixel basis within the defined zones. It looks for deviations in grayscale values that signify a potential defect. A scratch, for instance, appears as a dark line, while a pit might be a small, dark, roughly circular area.
+* When a potential defect is identified, the software does not just see a "dark spot." It performs a detailed morphological analysis, extracting key features:
+   * Size: Measured in micrometers (µm), calculated from the number of pixels it occupies.
+   * Shape: Is it linear (a scratch) or roughly circular (a pit/dig)? What is its aspect ratio?
+   * Contrast: How much darker is it than the surrounding background? This can help differentiate between a deep, damaging scratch and a minor surface anomaly.
+   * Location: Its precise coordinates on the end-face, which determines which zone it falls into.
+* Scratches are identified by their high aspect ratio (long and thin) and linear nature.
+* Pits or Digs are identified by their low aspect ratio (more circular) and distinct, sharp edges.
+* Contamination (like oil or dust) might be identified by its lower contrast compared to a true surface defect and its irregular, amorphous shape. The deep learning modules are particularly effective here, as they can be trained on thousands of images to distinguish the subtle visual signatures of different types of debris.
+* Cracks are identified as fine, often jagged lines that may propagate across zones.
+* Defect Tabulation: The software creates a table of all detected defects, listing their type, size, and zone location.
+* Primary Objective: To develop a robust, in-house Python and OpenCV-based automated system for inspecting polished end faces of optical fiber connectors.
+* Core Task: Automatically identify, classify, measure, and report defects such as dirt, pits, chips, and scratches from a batch of microscope images.
+* Key Motivations: Reduce costs, overcome limitations of commercial systems (especially for diverse fiber types like single-mode few microns to 1000 microns, custom geometries like loose fiber ends, angled polishes for glaucoma probes), improve accuracy, modularity, reporting, and leverage insights from "sensors-18-01408-v2.pdf". The project is considered "industry level experimentation" to "get the ball rolling".
+II. Core Technologies, Libraries, and Key Resources
+* Programming Language:
+   * Python 3.12 (managed with Conda environment).
+* Primary Libraries:
+   * OpenCV (cv2): For all core image processing.
+      * Image I/O: cv2.imread(), cv2.imwrite().
+      * Color Conversion: cv2.cvtColor() (e.g., cv2.COLOR_BGR2GRAY).
+      * Noise Reduction: cv2.GaussianBlur(), cv2.medianBlur().
+      * Geometric Transformations: cv2.warpAffine(), cv2.getRotationMatrix2D().
+      * Thresholding: cv2.threshold() (types: cv2.THRESH_BINARY, cv2.THRESH_BINARY_INV, cv2.THRESH_OTSU), cv2.adaptiveThreshold() (cv2.ADAPTIVE_THRESH_GAUSSIAN_C often preferred).
+      * Morphological Operations: cv2.erode(), cv2.dilate(), cv2.morphologyEx() (types: cv2.MORPH_OPEN, cv2.MORPH_CLOSE, cv2.MORPH_BLACKHAT, cv2.MORPH_TOPHAT, cv2.MORPH_GRADIENT). Kernel creation with cv2.getStructuringElement() (shapes: cv2.MORPH_RECT, cv2.MORPH_ELLIPSE, cv2.MORPH_CROSS).
+      * Image Gradients: cv2.Sobel(), cv2.Scharr(), cv2.Laplacian().
+      * Edge Detection: cv2.Canny().
+      * Contour Processing: cv2.findContours(), cv2.drawContours(), cv2.contourArea(), cv2.arcLength(), cv2.boundingRect(), cv2.minAreaRect(), cv2.moments().
+      * Hough Transforms: cv2.HoughCircles(), cv2.HoughLinesP().
+      * Image Enhancement: cv2.equalizeHist(), cv2.createCLAHE().
+      * Filtering: cv2.filter2D().
+      * Bitwise Operations: cv2.bitwise_and().
+      * Drawing: cv2.circle(), cv2.rectangle(), cv2.line(), cv2.putText().
+      * Connected Components: cv2.connectedComponents(), cv2.connectedComponentsWithStats().
+      * Ellipse Fitting: cv2.fitEllipse().
+      * Specialized Modules: cv2.ximgproc.thinning() (from opencv-contrib-python).
+   * NumPy (np): For numerical computations, array manipulation.
+   * Matplotlib (matplotlib.pyplot as plt): For static/interactive visualizations (histograms, defect distributions, calibration plots).
+   * OS (os): For file/directory manipulation (os.path.join(), os.listdir(), os.makedirs()).
+   * CSV (csv): For CSV data logging/reporting.
+   * Datetime (datetime): For timestamping processes.
+   * Pandas (pd): For advanced data manipulation, CSV/Excel reports, and handling defect data (as seen in defects.py and beam_profile.py from "Internship Master Doc.txt").
+   * JSON (json): For loading/saving configuration files (calibration, rule sets).
+   * SciPy (scipy): Optional, for scipy.ndimage filters or advanced analysis if OpenCV doesn't cover a specific need.
+   * Pillow (PIL): Alternative/supplementary image processing, good for specific file formats or drawing.
+   * Hardware Interfacing Libraries:
+      * Pypylon: Official Python wrapper for Basler Pylon SDK. Essential for controlling the Basler a2A2048-37gcBAS camera. Provides pylon.InstantCamera, TlFactory.GetInstance().EnumerateDevices(), camera.Open(), parameter access (e.g., camera.PixelFormat.SetValue("Mono8"), camera.ExposureTime.SetValue(), camera.Gain.SetValue()), image grabbing (camera.GrabOne(), camera.StartGrabbing(), camera.RetrieveResult()), and camera closing (camera.Close()).
+   * Key Reference Documents:
+      * "sensors-18-01408-v2.pdf" ("Golden Research Paper"): Primary scientific guide for DO2MR and LEI defect detection methods.
+      * "Internship Master Doc.txt", "Claud Prompt.txt", "Internship Transcript Comprehensive Analysis_.txt", "Project.html", "Dump Sheet.txt": Define project requirements, hardware, software, timelines, and context.
+      * OpenCV Tutorials (provided PDFs: "Tutorial1.pdf", "Tutorial2.pdf", "Tutorial3.pdf", "Hough.pdf", "OpenCV_Image_Thresholding.pdf", "OpenCV_Template_Matching.pdf"): Practical OpenCV function examples.
+      * "AI Fiber Optic Inspection Resources_.txt", "Fiber-Optic Endface Inspection System (Python_OpenCV).pdf", "Defect Detector Open CV.pdf": Provide extensive details on camera setup, optical principles, specific library usage, and alternative techniques.
+      * IEC 61300-3-35 Standard (specifically the 2022 revision): Defines fiber zones and pass/fail criteria.
+III. Detailed Step-by-Step Conceptual Process
+* 1. Setup and Initialization
+   * Import Libraries: As listed above.
+   * Environment Setup: Create and activate a Conda environment (fiber_inspection) with Python 3.12. Install all required libraries using pip install -r requirements.txt (create this file).
+   * Git Repository: Initialize a Git repository in fiber_inspection/. Commit early and often to the private company GitLab.
+   * Global Configurations (config.json):
+      * Load configurations: Output directory names, default kernel sizes, minimum defect areas (e.g., min_defect_area_um2), thresholds for classification heuristics, paths to rule sets.
+      * Store hardware-specific details if needed (e.g., default camera parameters if not using user sets).
+   * Main Function (main()): Orchestrates the entire batch processing workflow.
+   * Timestamping: start_time = datetime.datetime.now(). Log "Batch processing started at [start_time]".
+   * Logging Setup: Initialize Python's logging module to log important events, errors, and processing stages to a file (e.g., inspection_log_YYYYMMDD_HHMMSS.log) and to the console.
+* 2. User Input and Fiber Specifications
+   * Image Directory Input: Prompt user for the
+
+
+* Primary Objective: To develop a robust, in-house Python and OpenCV-based automated system for inspecting polished end faces of optical fiber connectors.
+* Core Task: Automatically identify, classify, measure, and report defects such as dirt, pits, chips, and scratches from a batch of microscope images.
+* Key Motivations: Reduce costs, overcome limitations of commercial systems (especially for diverse fiber types like single-mode few microns to 1000 microns, custom geometries like loose fiber ends, angled polishes for glaucoma probes), improve accuracy, modularity, reporting, and leverage insights from "sensors-18-01408-v2.pdf". The project is considered "industry level experimentation" to "get the ball rolling".
+II. Core Technologies, Libraries, and Key Resources
+* Programming Language:
+   * Python 3.12 (managed with Conda environment).
+* Primary Libraries:
+   * OpenCV (cv2): For all core image processing.
+      * Image I/O: cv2.imread(), cv2.imwrite().
+      * Color Conversion: cv2.cvtColor() (e.g., cv2.COLOR_BGR2GRAY).
+      * Noise Reduction: cv2.GaussianBlur(), cv2.medianBlur().
+      * Geometric Transformations: cv2.warpAffine(), cv2.getRotationMatrix2D().
+      * Thresholding: cv2.threshold() (types: cv2.THRESH_BINARY, cv2.THRESH_BINARY_INV, cv2.THRESH_OTSU), cv2.adaptiveThreshold() (cv2.ADAPTIVE_THRESH_GAUSSIAN_C often preferred).
+      * Morphological Operations: cv2.erode(), cv2.dilate(), cv2.morphologyEx() (types: cv2.MORPH_OPEN, cv2.MORPH_CLOSE, cv2.MORPH_BLACKHAT, cv2.MORPH_TOPHAT, cv2.MORPH_GRADIENT). Kernel creation with cv2.getStructuringElement() (shapes: cv2.MORPH_RECT, cv2.MORPH_ELLIPSE, cv2.MORPH_CROSS).
+      * Image Gradients: cv2.Sobel(), cv2.Scharr(), cv2.Laplacian().
+      * Edge Detection: cv2.Canny().
+      * Contour Processing: cv2.findContours(), cv2.drawContours(), cv2.contourArea(), cv2.arcLength(), cv2.boundingRect(), cv2.minAreaRect(), cv2.moments().
+      * Hough Transforms: cv2.HoughCircles(), cv2.HoughLinesP().
+      * Image Enhancement: cv2.equalizeHist(), cv2.createCLAHE().
+      * Filtering: cv2.filter2D().
+      * Bitwise Operations: cv2.bitwise_and().
+      * Drawing: cv2.circle(), cv2.rectangle(), cv2.line(), cv2.putText().
+      * Connected Components: cv2.connectedComponents(), cv2.connectedComponentsWithStats().
+      * Ellipse Fitting: cv2.fitEllipse().
+      * Specialized Modules: cv2.ximgproc.thinning() (from opencv-contrib-python).
+   * NumPy (np): For numerical computations, array manipulation.
+   * Matplotlib (matplotlib.pyplot as plt): For static/interactive visualizations (histograms, defect distributions, calibration plots).
+   * OS (os): For file/directory manipulation (os.path.join(), os.listdir(), os.makedirs()).
+   * CSV (csv): For CSV data logging/reporting.
+   * Datetime (datetime): For timestamping processes.
+   * Pandas (pd): For advanced data manipulation, CSV/Excel reports, and handling defect data (as seen in defects.py and beam_profile.py from "Internship Master Doc.txt").
+   * JSON (json): For loading/saving configuration files (calibration, rule sets).
+   * SciPy (scipy): Optional, for scipy.ndimage filters or advanced analysis if OpenCV doesn't cover a specific need.
+   * Pillow (PIL): Alternative/supplementary image processing, good for specific file formats or drawing.
+* Hardware Interfacing Libraries:
+   * Pypylon: Official Python wrapper for Basler Pylon SDK. Essential for controlling the Basler a2A2048-37gcBAS camera. Provides pylon.InstantCamera, TlFactory.GetInstance().EnumerateDevices(), camera.Open(), parameter access (e.g., camera.PixelFormat.SetValue("Mono8"), camera.ExposureTime.SetValue(), camera.Gain.SetValue()), image grabbing (camera.GrabOne(), camera.StartGrabbing(), camera.RetrieveResult()), and camera closing (camera.Close()).
+* Key Reference Documents:
+   * "sensors-18-01408-v2.pdf" ("Golden Research Paper"): Primary scientific guide for DO2MR and LEI defect detection methods.
+   * "Internship Master Doc.txt", "Claud Prompt.txt", "Internship Transcript Comprehensive Analysis_.txt", "Project.html", "Dump Sheet.txt": Define project requirements, hardware, software, timelines, and context.
+   * OpenCV Tutorials (provided PDFs: "Tutorial1.pdf", "Tutorial2.pdf", "Tutorial3.pdf", "Hough.pdf", "OpenCV_Image_Thresholding.pdf", "OpenCV_Template_Matching.pdf"): Practical OpenCV function examples.
+   * "AI Fiber Optic Inspection Resources_.txt", "Fiber-Optic Endface Inspection System (Python_OpenCV).pdf", "Defect Detector Open CV.pdf": Provide extensive details on camera setup, optical principles, specific library usage, and alternative techniques.
+   * IEC 61300-3-35 Standard (specifically the 2022 revision): Defines fiber zones and pass/fail criteria.
+III. Detailed Step-by-Step Conceptual Process
+1. Setup and Initialization
+* Import Libraries: As listed above.
+* Environment Setup: Create and activate a Conda environment (fiber_inspection) with Python 3.12. Install all required libraries using pip install -r requirements.txt (create this file).
+* Git Repository: Initialize a Git repository in fiber_inspection/. Commit early and often to the private company GitLab.
+* Global Configurations (config.json):
+* Load configurations: Output directory names, default kernel sizes, minimum defect areas (e.g., min_defect_area_um2), thresholds for classification heuristics, paths to rule sets.
+* Store hardware-specific details if needed (e.g., default camera parameters if not using user sets).
+* Main Function (main()): Orchestrates the entire batch processing workflow.
+* Timestamping: start_time = datetime.datetime.now(). Log "Batch processing started at [start_time]".
+* Logging Setup: Initialize Python's logging module to log important events, errors, and processing stages to a file (e.g., inspection_log_YYYYMMDD_HHMMSS.log) and to the console.
+2. User Input and Fiber Specifications
+* Image Directory Input: Prompt user for the path to the image directory. Validate path existence.
+* Fiber Specifications Input (Optional):
+* Ask: "Provide known fiber specifications (core/cladding diameter in microns)? (yes/no/skip)".
+* If 'yes':
+* Prompt for known_core_diameter_microns (e.g., 9, 50, 62.5). Validate input.
+* Prompt for known_cladding_diameter_microns (e.g., 125). Validate input.
+* Set user_specs_provided = True.
+* If 'no'/'skip': Set user_specs_provided = False. The system will rely on calibrate.py output or default to pixel measurements.
+* Output Directory Creation: output_dir = f"results_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}". os.makedirs(output_dir, exist_ok=True).
+3. Hardware Setup, Connection, and Calibration (calibrate.py)
+**3.1. Physical Assembly & Optical Path Verification (Referenced from "Internship Master Doc.txt", "AI Fiber Optic Inspection Resources\_.txt")**
+   * **Frame:** Assemble 2020 aluminum extrusion frame. Mount camera vertically.
+   * **Microscope & Camera:**
+       * Basler a2A2048-37gcBAS camera (C-mount, 1/3.1" sensor, 2.25µm pixels).
+       * Optispec ME2502 microscope (C-mount camera port).
+       * **Critical C-Mount Adapter:** Use a **reducing C-mount adapter (approx. 0.3x to 0.45x magnification)** to correctly match the Basler's small sensor to the Optispec's image circle. This is vital for achieving a proper field of view and focus. A 1x adapter would result in excessive magnification and a very small FOV.
+       * **Objective Lens:** Plan-Apochromat 10x NA 0.28 (or other selected, e.g., 5x, 20x). If infinity-corrected, ensure the ~180mm tube lens is correctly integrated (often part of the C-mount adapter assembly for microscopes).
+   * **Illumination:**
+       * Primary: External 60mm ID, diffuse, 5600K, dimmable LED ring light for coaxial illumination.
+       * Alternative: Evaluate Optispec's internal adjustable fiber optic/blue LED source.
+       * **Lock Settings:** Once optimal illumination is found, its intensity and geometry *must not be changed* to ensure consistency.
+   * **Stage & Fixture:** XYZ micro-stage (5µm repeatability). Mount custom 3D-printed quick-swap "claws" for FC/PC, FC/APC, SMA, bare-fiber, syringe tips.
+
+**3.2. Camera Connection and Parameter Configuration (using `pypylon`)**
+   * Connect Basler camera via Gigabit Ethernet (use PoE or separate 12-24VDC power).
+   * In Python (`pypylon`):
+       * Enumerate and create camera instance: `tl_factory = pylon.TlFactory.GetInstance(); devices = tl_factory.EnumerateDevices(); camera = pylon.InstantCamera(tl_factory.CreateDevice(devices[0]))`. Error handle if no camera.
+       * `camera.Open()`.
+       * **Set Essential Parameters for Consistency:**
+           * Pixel Format: `camera.PixelFormat.SetValue("Mono8")` (critical for grayscale processing).
+           * Exposure: `camera.ExposureAuto.SetValue("Off"); camera.ExposureTime.SetValue(target_exposure_us)` (e.g., 10000-20000 µs, tune for good brightness without saturation).
+           * Gain: `camera.GainAuto.SetValue("Off"); camera.Gain.SetValue(camera.Gain.Min)` (minimize gain to reduce noise).
+           * White Balance: Not applicable for Mono8. If color format were used, `camera.BalanceWhiteAuto.SetValue("Off")` and set manual values.
+           * Gamma: `camera.Gamma.SetValue(1.0)` (for linear response, if adjustable).
+       * **User Sets:** After finding optimal parameters using Pylon Viewer or script, save to a camera user set: `camera.UserSetSelector.SetValue("UserSet1"); camera.UserSetSave.Execute(); camera.UserSetDefaultSelector.SetValue("UserSet1")`. Power cycle camera for default set to load.
+       * Image Acquisition: `grabResult = camera.GrabOne(timeout_ms); img_array = grabResult.Array` or use continuous grabbing with `camera.StartGrabbing()` and `camera.RetrieveResult()`.
+       * `camera.Close()` when done.
+
+**3.3. Pixel-to-Micron Calibration (`calibrate.py`)**
+   * **Purpose:** Determine `um_per_px` scale factor. Run *every time* the optical setup (lens, adapter, camera-objective distance) changes.
+   * **Hardware:** Calibration target (e.g., stage micrometer with 10µm dot spacing).
+   * **`find_scale(frame, dot_spacing_um=10)` function:**
+       1.  Acquire well-focused image of calibration target (`frame`).
+       2.  `gray_cal_img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` (if camera provides BGR).
+       3.  `_, binary_cal_img = cv2.threshold(gray_cal_img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)` (assuming dark dots).
+       4.  `contours, _ = cv2.findContours(binary_cal_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)`.
+       5.  Filter contours by area: `valid_contours = [c for c in contours if min_dot_area_px < cv2.contourArea(c) < max_dot_area_px]`. (Define `min/max_dot_area_px` based on target).
+       6.  Calculate centroids: `dot_centroids_px = []`. For `cnt` in `valid_contours`: `M = cv2.moments(cnt)`. If `M["m00"] != 0: cx = int(M["m10"]/M["m00"]); cy = int(M["m01"]/M["m00"]); dot_centroids_px.append((cx,cy))`.
+       7.  Error check: If `len(dot_centroids_px) < 2`, raise error.
+       8.  Sort centroids (e.g., by x then y) to find adjacent dots. Calculate average pixel distance (`avg_pixel_distance`) between known corresponding dots (e.g., horizontal or vertical neighbors). This step requires robust logic to correctly pair dots in the grid.
+       9.  `um_per_px = known_dot_spacing_um / avg_pixel_distance`.
+   * **`save_scale(camera_object_or_id)` function:**
+       1.  Acquires frame using the provided camera object or by initializing a new one.
+       2.  Calls `find_scale()`.
+       3.  Saves `{"um_per_px": um_per_px}` to `calibration.json`. Prints result.
+   * **Load Scale:** `def load_scale(filepath="calibration.json"): data = json.loads(Path(filepath).read_text()); return data["um_per_px"]`. This `UM_PER_PX` is used globally.
+
+4. Main Batch Processing Loop
+* List image files (e.g., .png, .jpg, .tif, .bmp) from input directory.
+* all_images_summary_data = [].
+* Loop through each image_path:
+* image_start_time = datetime.datetime.now(). Log "Processing [filename]...".
+* image_results = process_single_image(image_path, UM_PER_PX, CFG_ZONES, CFG_RULES).
+* Append image_results['summary'] to all_images_summary_data.
+* Log "Finished [filename]. Duration: X.XXs".
+5. Single Image Analysis Pipeline (process_single_image function in defects.py)
+**5.1. Load and Advanced Preprocessing**
+   * `image = cv2.imread(image_path)`. Handle load errors.
+   * `original_for_annotation = image.copy()`.
+   * `gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)`.
+   * **Noise Reduction:**
+       * `blurred_image = cv2.GaussianBlur(gray_image, (5,5), 0)`. Kernel size (e.g., (3,3) or (5,5)) depends on noise level and smallest defect size.
+       * Consider `cv2.medianBlur(gray_image, 5)` for salt-and-pepper noise.
+   * **Contrast Enhancement (Optional but Recommended for LEI):**
+       * `equalized_image = cv2.equalizeHist(blurred_image)` (for global contrast).
+       * `clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8)); clahe_image = clahe.apply(blurred_image)` (for local contrast, often better). Use `clahe_image` or `equalized_image` as input for subsequent steps if enhancement is beneficial.
+   * **Illumination Correction (Advanced, if needed):**
+       * Flat-field correction: Acquire image of blank, clean surface. Smooth it. Divide subsequent images by this flat-field image.
+       * Background Subtraction: If a "perfect" fiber image exists, subtract it. More complex.
+
+**5.2. Automatic Circle/Ellipse Recognition and Zoning**
+   * Timestamp "Zone Detection".
+   * **Fiber Center/Outline Detection:**
+       * **Circular Fibers:** `circles = cv2.HoughCircles(blurred_image, cv2.HOUGH_GRADIENT, dp=1, minDist=int(blurred_image.shape[0]/4), param1=100, param2=30, minRadius=int(0.1*blurred_image.shape[1]), maxRadius=int(0.45*blurred_image.shape[1]))`. Parameters are highly image-dependent. `minDist` prevents multiple concentric circles. `param1` is Canny high threshold. `param2` is accumulator threshold. `min/maxRadius` in pixels.
+       * **Angled/Elliptical Fibers:**
+           1.  Initial segmentation of fiber from background (e.g., adaptive thresholding on `blurred_image`).
+           2.  Find largest contour: `contours, _ = cv2.findContours(thresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE); fiber_contour = max(contours, key=cv2.contourArea)`.
+           3.  Fit ellipse: `if len(fiber_contour) >= 5: ellipse_params = cv2.fitEllipse(fiber_contour) else: # Handle error`. `ellipse_params` is `((center_x, center_y), (minor_axis, major_axis), angle)`.
+   * **Determine `fiber_center_xy` and `cladding_radius_pixels`** (or `ellipse_params`).
+   * **Refine `microns_per_pixel` (if user specs provided for current fiber type):**
+       * If `user_specs_provided` and `known_cladding_diameter_microns`: `detected_cladding_diameter_px = 2 * cladding_radius_pixels` (or `ellipse_params[1][1]` if major axis is cladding diameter). `current_image_microns_per_pixel = known_cladding_diameter_microns / detected_cladding_diameter_px`. Use this for *this image*.
+   * **Zone Radii/Definitions (from `CFG_ZONES` and IEC 61300-3-35:2022):**
+       * Core: e.g., 0 to `core_radius_um`.
+       * Cladding: e.g., `core_radius_um` to `cladding_outer_radius_um` (typically 110µm or 125µm from center depending on standard interpretation and fiber type).
+       * Contact Area: e.g., `cladding_outer_radius_um` to `contact_zone_radius_um` (e.g., 250µm from center).
+   * Store zone parameters (center, radii/axes, angle in pixels).
+   * Timestamp end "Zone Detection".
+
+**5.3. Zone Isolation and Masking**
+   * For each zone ("core", "cladding", "contact"):
+       * If circular: `zone_mask = create_radial_mask(gray_image.shape, fiber_center_xy, r_min_um, r_max_um, UM_PER_PX)`.
+       * If elliptical: Create elliptical mask using `cv2.ellipse()` with `ellipse_params`, then combine to form annular regions if needed.
+       * `isolated_zone_image = cv2.bitwise_and(blurred_image_or_enhanced, blurred_image_or_enhanced, mask=zone_mask)`.
+
+**5.4. Defect Detection (on `isolated_zone_image` for relevant zones)**
+   * `detected_defects_for_image = []`.
+
+   **5.4.1. Region-Based Defect Detection (Pits, Dirt, Chips)**
+       * **Method 1: Black-hat based (from "Internship Master Doc.txt")**
+           1.  `kernel_bh = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15,15))` (kernel size > defects).
+           2.  `blackhat_img = cv2.morphologyEx(isolated_zone_image, cv2.MORPH_BLACKHAT, kernel_bh)`.
+           3.  `_, defect_binary = cv2.threshold(blackhat_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)`.
+           4.  `kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))`.
+           5.  `defect_binary = cv2.morphologyEx(defect_binary, cv2.MORPH_CLOSE, kernel_close)`.
+       * **Method 2: DO2MR-Inspired (from "sensors-18-01408-v2.pdf")**
+           1.  `do2mr_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))` (or (5,5)).
+           2.  `min_filtered = cv2.erode(isolated_zone_image, do2mr_kernel)`.
+           3.  `max_filtered = cv2.dilate(isolated_zone_image, do2mr_kernel)`.
+           4.  `residual_do2mr = cv2.subtract(max_filtered, min_filtered)`.
+           5.  Threshold `residual_do2mr` (Otsu or Sigma-based as per paper: `mean_res = np.mean(residual_do2mr[zone_mask > 0]); std_res = np.std(residual_do2mr[zone_mask > 0]); gamma = 1.5; defect_binary = np.where(residual_do2mr - mean_res > gamma * std_res, 255, 0).astype(np.uint8)`).
+           6.  `defect_binary = cv2.medianBlur(defect_binary, 3)` (as per paper).
+           7.  `defect_binary = cv2.morphologyEx(defect_binary, cv2.MORPH_OPEN, np.ones((3,3),np.uint8))` (as per paper).
+       * **Post-processing for chosen `defect_binary`:**
+           * `num_labels, labels_img, stats, centroids = cv2.connectedComponentsWithStats(defect_binary, 8, cv2.CV_32S)`.
+           * Loop `i` from 1 to `num_labels-1`. Get `area_px = stats[i, cv2.CC_STAT_AREA]`, `bbox = (stats[i, cv2.CC_STAT_LEFT], ...)`, `centroid = centroids[i]`.
+           * Filter by `area_px`. Add to `detected_defects_for_image` with type "Region".
+
+   **5.4.2. Scratch Detection**
+       * **Method 1: LEI-Inspired (from "sensors-18-01408-v2.pdf")**
+           1.  Input: `enhanced_zone_image` (e.g., from `cv2.equalizeHist(isolated_zone_image)`).
+           2.  `max_response_map = np.zeros_like(enhanced_zone_image, dtype=np.float32)`.
+           3.  Loop `theta_deg` (0 to 165, step 15):
+               * Create oriented linear kernel (paper's $s_{\theta}(x,y)=2 \cdot f_{\theta}^{r}(x,y)-f_{\theta}^{g}(x,y)$ or simpler `cv2.filter2D` with rotated line).
+               * `response_theta = cv2.filter2D(enhanced_zone_image, cv2.CV_32F, oriented_kernel)`.
+               * `max_response_map = np.maximum(max_response_map, response_theta)`.
+           4.  `binary_scratches = cv2.threshold(max_response_map.astype(np.uint8), high_thresh_val, 255, cv2.THRESH_BINARY)` (Otsu or manually tuned high threshold).
+           5.  `binary_scratches = cv2.morphologyEx(binary_scratches, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (5,1)))` (thin kernel to remove noise but keep lines).
+       * **Method 2: Edge Thinning + Hough Lines (from "Internship Master Doc.txt")**
+           1.  `edges = cv2.Canny(enhanced_zone_image, 50, 150)`.
+           2.  `thinned_edges = cv2.ximgproc.thinning(edges, thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)`. (Requires `opencv-contrib-python`).
+           3.  `lines = cv2.HoughLinesP(thinned_edges, rho=1, theta=np.pi/180, threshold=15, minLineLength=10, maxLineGap=3)`. Tune parameters.
+       * **Post-processing for chosen scratch representation:**
+           * If LEI or contour-based: `num_labels, labels_img, stats, centroids = cv2.connectedComponentsWithStats(binary_scratches, ...)`. Analyze components.
+           * If Hough lines: Process `lines` array directly. Each `line[0]` is `(x1,y1,x2,y2)`.
+           * Add to `detected_defects_for_image` with type "Scratch".
+
+**5.5. Defect Analysis, Classification Refinement, and Filtering**
+   * Iterate through all candidates in `detected_defects_for_image`.
+   * For each defect candidate (now a dictionary with initial properties):
+       * **Refine Classification (Scratch vs. Dig/Region):**
+           * If from Region detection: Use aspect ratio of `cv2.boundingRect(contour_pixels)` or `cv2.minAreaRect(contour_pixels)`. If highly elongated, reclassify as "Scratch".
+           * If from Scratch detection: Confirm elongation. Short, thick lines might be misclassified regions.
+       * **Calculate Precise Dimensions (using `UM_PER_PX`):**
+           * Area: `area_um2 = area_px * (UM_PER_PX**2)`.
+           * Centroid: `centroid_um = (centroid_px[0]*UM_PER_PX, centroid_px[1]*UM_PER_PX)`.
+           * For "Dig/Region": `(x,y,w,h)_bbox_px = defect['bbox_px']`. `width_um = w_bbox_px * UM_PER_PX`, `height_um = h_bbox_px * UM_PER_PX`. Effective Diameter: `np.sqrt(4*area_um2/np.pi)` or `(width_um + height_um)/2`.
+           * For "Scratch": If from Hough: `length_um = np.sqrt((x2-x1)**2 + (y2-y1)**2) * UM_PER_PX`. Width needs estimation from original contour around the thinned line, e.g., using `cv2.minAreaRect()` on that contour and taking the shorter side. If from LEI/blob: `rot_rect = cv2.minAreaRect(contour_pixels); (w_rr, h_rr) = rot_rect[1]; length_um = max(w_rr, h_rr)*UM_PER_PX; width_um = min(w_rr, h_rr)*UM_PER_PX`.
+       * **Zone Assignment:** Based on defect `centroid_um` and zone definitions (circular or elliptical).
+       * **Confidence Score:** (Simple) Increment if detected by multiple methods (e.g., DO2MR and Black-hat).
+       * Update defect dictionary with refined type, dimensions_um, zone, confidence. Filter out defects below `min_defect_area_um2`.
+
+**5.6. Rule Application and Pass/Fail Decision (IEC 61300-3-35:2022)**
+   * Load rules from JSON config file (`CFG_RULES`). Structure: `{"ZoneName": {"DefectType": {"max_size_um": val, "max_count": val}, ...}}`.
+   * Initialize `pass_status = "PASS"`, `fail_reasons = []`.
+   * Group defects by zone and type.
+   * For each zone, for each defect type:
+       * Check count against `max_count`. If exceeded, `pass_status="FAIL"`, add reason.
+       * For each defect, check its primary dimension (length for scratch, diameter for dig) against `max_size_um`. If exceeded, `pass_status="FAIL"`, add reason.
+   * Store `pass_status` and `fail_reasons`.
+
+**5.7. Report and Visualization Generation (Per Image)**
+   * **Annotated Image (`_annotated.jpg`):**
+       * Draw zones (circles/ellipses) on `original_for_annotation`.
+       * Draw defects (contours/bounding boxes/lines), color-coded by type or pass/fail.
+       * Label defects with ID, type, size. Overlay Pass/Fail status.
+       * Save with `cv2.imwrite()`.
+   * **Individual Report CSV (`_report.csv`):** Use `pandas.DataFrame(processed_defects_list).to_csv()`. Columns: `Defect_ID, Zone, Type, Centroid_X_um, Centroid_Y_um, Area_um2, Length_um, Width_um, Confidence_Score`.
+   * **Polar Defect Histogram (`_defects_polar.png` - Optional):** Plot defect locations (radius, angle from center) using `matplotlib.pyplot.polar()`.
+   * Return a summary dictionary: `{'filename': ..., 'total_defects': ..., 'core_defects': ..., 'status': pass_status, 'processing_time_s': ..., 'fail_reasons': fail_reasons, 'defects_list': processed_defects_list}`.
+
+6. Final Compilation and Summary Report
+* Timestamp batch end. Calculate total duration.
+* Create master CSV (summary_report.csv) from all_images_summary_data using Pandas.
+* Log "Batch processing complete. Reports in [output_dir]".
+7. Deep Learning Exploration (Stretch Goal - defects_dl.py, dl/train.py)
+* Dataset: Export ~2000 labeled 256x256 defect crops from defects.py (add annotation mode: defects.py --annotate).
+* Model: UNet architecture using PyTorch 2.2. Consider milesial/Pytorch-UNet as a base.
+* Training: Dice Loss. Data augmentation (torchvision.transforms.v2): random brightness/contrast, flips, rotations.
+* Integration: defects_dl.py loads best checkpoint. Command-line flag --model dl to switch pipeline.
+8. GUI Development (gui.py)
+* Initial (OpenCV HighGUI): Live preview, Spacebar to capture & analyze, overlay contours and Pass/Fail text.
+* Production (PyQt6): Full-screen touch PC interface. Dedicated image display (update QImage from OpenCV BGR QImage.Format_BGR888), control buttons (QPushButton), results table (QTableWidget), settings panel. Use QThread for non-blocking analysis.
+9. Validation and Robustness Testing
+* Validation (validation_v1.md): Compare against production reference scope using a "golden set" of >=200 fibers. Target: >=95% recall, >=90% precision.
+* Robustness (robustness.ipynb): Test against illumination drift and focus drift. Document impact on detection.
+10. Code Quality, Modularity, and Error Handling
+* Modularity: Functions for each logical step.
+* Comments: Meticulous line-by-line or block comments.
+* Error Handling: try-except blocks for critical operations. Use Python logging.
+* Configuration: External JSON files for rules, zone definitions, and parameters.
+This enhanced plan provides a more granular and robust approach, incorporating best practices and advanced techniques from all provided documentation to guide the development of the fiber optic defect inspection system.
+
+
+You are an expert AI programmer specializing in advanced computer vision and image processing using Python, with deep expertise in the OpenCV, NumPy, and Matplotlib libraries, but you also know a slew of other libraries or methods that will make all your projects better than they are. Your task is to create a complete, robust, and highly accurate Python script for the automated inspection of defects on optical fiber connector end faces. You must fully analyze and synthesize the information from all provided knowledge documents, including the OpenCV tutorials and, most critically, the methodologies presented in the research paper sensors-18-01408-v2.pdf. The final script must be a significant improvement on standard approaches, emphasizing accuracy, modularity, and detailed reporting. It must be meticulously annotated, with a comment explaining every single line of code. Project Core Requirements & Architecture Your generated script must follow this precise architecture and include these features: Overall Goal: To automatically identify, classify, and measure defects (e.g., dirt, pits, chips, scratches) on fiber optic end faces from a batch of images. Primary Reference: The defect detection logic must be heavily inspired by and improve upon the "Difference of Min-Max Ranking Filtering" (DO2MR) for region-based defects and the "Linear Enhancement Inspector" (LEI) for scratches, as detailed in sensors-18-01408-v2.pdf. Computational Offloading: Rely entirely on highly optimized libraries. Use NumPy for all numerical and array operations. Use OpenCV (cv2) for all core image processing tasks. Use Matplotlib for generating all plots, graphs, and histograms. Code Quality & Performance: Meticulous Annotation: Every single line of code, without exception, must be preceded by a comment explaining its purpose. Modularity: Encapsulate all major logic steps into clearly defined functions (e.g., process_image_batch, find_fiber_zones, detect_region_defects, detect_scratches, generate_report). Timestamping: Implement and print timestamps at the beginning and end of major processing stages (e.g., "Starting Zone Detection...", "Zone Detection Complete. Duration: X.XXs"). This is crucial for performance tracking. Batch Processing: The script must not work on a single image. It must be designed to point to a directory of images and process them all in a single run, generating a collective report and individual results. Detailed Step-by-Step Implementation Guide Follow this process flow meticulously. 1. Setup and Initialization Import all necessary libraries: cv2, numpy, matplotlib.pyplot, os, csv, datetime. Define a main function to orchestrate the entire process. Prompt the user to enter the path to the directory containing the images to be analyzed. 2. User Input for Fiber Specifications (Optional) Ask the user if they want to provide known fiber specifications. If 'yes': Prompt for the core diameter in microns (e.g., 9, 50, 62.5). Prompt for the cladding diameter in microns (e.g., 125). Store these values. A pixel-to-micron conversion ratio will be calculated later, once the cladding is identified in the image. If 'no' (or if the user skips): The program must proceed using pixels as the default unit for all measurements and reports. Set a flag indicating that micron measurements are not available. 3. Main Batch Processing Loop Iterate through each image file in the specified directory. For each image, execute the full analysis pipeline described below. Store the results from each image in a structured way (e.g., a list of dictionaries) to be compiled into a final report. 4. Automatic Circle Recognition and Zoning Load the image in grayscale. Apply a Gaussian blur to reduce noise before circle detection. Use the cv2.HoughCircles() function to detect circles in the image. You must fine-tune the param1 and param2 arguments to robustly detect the distinct, concentric circles of the fiber and ferrule. Zone Identification Logic: Assume the most prominent and central detected circle is the cladding. From the center of the cladding circle, identify the core. The core is the dark circular region within the cladding. Its boundary can be refined using thresholding within the cladding's mask. The region outside the cladding circle is the ferrule. Calculate Conversion Ratio: If micron values were provided by the user, calculate the microns_per_pixel ratio based on the detected diameter of the cladding circle in pixels: ratio = known_cladding_diameter_microns / detected_cladding_diameter_pixels. If no micron values were provided, this step is skipped. Store the center coordinates, radii (in pixels), and calculated diameters (in pixels and, if available, microns) for the core and cladding. 5. Zone Isolation and Masking Create separate binary masks for each zone (core, cladding, ferrule) based on the detected circle parameters. Create masked versions of the original image for each zone to enable isolated analysis. 6. Specific Zone Analysis: Defect Detection This is the most critical stage. Perform defect detection on the relevant zones (primarily core and cladding). Implement two parallel defect detection functions inspired by the research paper. 6.1. Region-Based Defect Detection (DO2MR-Inspired)  Objective: Detect dirt, pits, oil, contamination, and chips. Take the masked zone image (e.g., core) as input. Min-Max Filtering: Create a square structuring element (e.g., 3x3 or 5x5). Apply a minimum filter, which is equivalent to morphological erosion (cv2.erode()). This finds the darkest pixel in the local neighborhood. Apply a maximum filter, which is equivalent to morphological dilation (cv2.dilate()). This finds the brightest pixel in the local neighborhood. Residual Generation: Calculate the difference image: residual = max_filtered_image - min_filtered_image. This residual image will highlight areas of high local contrast, which correspond to defect edges. Thresholding and Segmentation: Apply a threshold to the residual image to create a binary mask of potential defects. Use Otsu's binarization (cv2.THRESH_OTSU) as a primary method for its automatic and adaptive nature. Also, implement a simple global threshold (cv2.THRESH_BINARY) for comparison. A defect is considered "high confidence" if it is detected by multiple thresholding methods. 6.2. Scratch Detection (LEI-Inspired)  Objective: Detect fine, linear scratches which have low contrast. Take the masked zone image as input. Image Enhancement: Apply Histogram Equalization (cv2.equalizeHist()) to the grayscale zone image to maximize contrast. Linear Detector Application: Programmatically generate a series of linear structuring elements (kernels) at different orientations (e.g., in 15-degree increments from 0 to 165 degrees). Each "kernel" is essentially a line of pixels. For each orientation, convolve the enhanced image with the corresponding linear kernel using cv2.filter2D(). This will produce a response map where the filter's alignment with a scratch yields a high value. Result Synthesis: Create a final scratch response map by taking the pixel-wise maximum value across all the orientation response maps. max_response_map = max(response_0_deg, response_15_deg, ...) Thresholding: Apply a high threshold (Otsu's or a manually tuned value) to the max_response_map to segment the scratches. Use morphological operations like Opening (cv2.MORPH_OPEN) to remove small noise artifacts after thresholding. 7. Accuracy, Confidence Check, and Data Aggregation For each detected defect (contour) from both methods: Calculate its properties: area, perimeter, centroid, bounding box. Convert area and dimensions to microns if the ratio is available. Determine its location (zone: core/cladding). Assign a confidence score. A simple confidence metric can be how many different analysis techniques (e.g., Otsu threshold vs. adaptive threshold, Sobel gradient vs. Laplacian) identify a defect in the same location. Classify the defect type: "Scratch" if from the LEI method, "Region" if from the DO2MR method. Store all information for each defect in a structured format. 8. Report and Visualization Generation (Per Image) For each processed image, save the following files to an "output" directory, named according to the original image's filename: _annotated.jpg: The original image with overlays: Detected circles for core and cladding (e.g., in blue and green). Bounding boxes around each confirmed defect. Labels for each defect indicating its type and size. _histogram.png: A polar histogram showing the radial and angular distribution of defects relative to the fiber's center. _report.csv: A CSV file containing detailed information for every detected defect in that image: Columns: Defect_ID, Zone (Core/Cladding), Type (Scratch/Region), Centroid_X (px), Centroid_Y (px), Area (px^2), Area (um^2), Confidence_Score. 9. Final Compilation After the batch loop finishes, create a single master CSV file (summary_report.csv) that aggregates key information for all processed images. Columns: Image_Filename, Total_Defects, Core_Defects, Cladding_Defects, Processing_Time (s). __________ Fully analyze all of the attached items in the project knowledge/content ITS HIGHLIGHY IMPORTANT THAT YOU ANALYZE ALL OF THE ATTACHED CONTENT IN THE PROJECT KNOWLEDGE/CONTENTFully analyze all of the attached items in the project knowledge/content ITS HIGHLIGHY IMPORTANT THAT YOU ANALYZE ALL OF THE ATTACHED CONTENT IN THE PROJECT KNOWLEDGE/CONTENT After fully understanding every specific detail from the project knowledge/content: REWRITE MY CODES(fix their failures, combine their successes, draw heavily from the open cv tutorial information and meticulously annotate what is happening, make sure you comment a description for every line of code that you write) PERFECTLY SO THAT IT WORKS AND USES MUTIPLE OPEN CV IMAGE PROCESSING METHODS FOR ANALYSIS, by doing this artifacts that are still present or most present in different analysis methods can more easily be differentiated from noise: Alter the code to be more accurate and I mean extremely accurate I mean highly accurate and to run through batches of images and provide for each of those images instead of just one at a time, I want the code code to take in batches of multiple images, meticulously run through multiple open cv image processing techniques, meticulously run through multiple thresholding techniques, metlciulously run though multiple accuracy checks for each technique used, I want it to also be able to analyze any image and determine any circle within the image then differentiate the zones of a fiber optic, the core, the cladding and the feral, I want it to find and analyze defects, I want it to go through similar methods as the attached "sensors-18-01408-v2.pdf"research paper but improving upon the work in the the research paper, I want it to overall improve what it is doing now to be better and more accuracte so that I can analyze fiber optic end faces no matter the image or size, actually I want the code improve the code and accuracy to first ask me for the diameter of fiber optic end face's core, and also ask for the diameter for the cladding all in microns so that it can better make calcuations based upon those diameters, but I want to have the option to skip giving specifications and instead have the code just use units of pixels I want to be able to put in the dimenisions that I know which are the diameter of the cladding and the diameter of the core(in microns), and if I don't know these specifications I want the program to just use pixel measurements for calculation instead of having the micron values because I assumed that if I had the micron values and input the micron values the program could use those values to better relate them to its internel pixel measurements and perform better computations, but I will not always be able to provide that so thats not always the case, I want the program to be smarter and do this properly as I have just described FOLLOW THE FOLLOWING PROCESS AND IMPROVE THE PROCESS WHEN NECCESSARY, TO MAKE THE CODE RUN SMOOTHER AND FASTER AND MORE ACCURATE EMPHASIZING ACCURACY Calibration Images stored, processed and used as standards (optional)(skippable/passable) Calibration Data CSV imported or created  based on calibration (optional)(skippable/passable) Fiber specifications detailed(I type the diameter of the core and the cladding which will help with caluclations or I chose to skip because I don’t know) I tell the program what type of fiber it is (single mode, etc) Images imported and scanned Autmatic Circle Recognitiion  Detects circles (you can use the hough circle algorithm or anything else that works better Determines where the core, cladding, and feral are (zoning) Determines zone sizes  Expresses sizes and distances in terms of pixels or microns(whichever makes more sense or is better for calculations) Zone Isolation Uses thresholding techniques(otis thresholding etc) to separate zones  Masks and separates zones of feral, cladding, and core Isolates zones for individual computations(focus on core analysis then focuses on cladding analysis, then focuses on feral) Option to skip zones analysis(lets say I want to only focus on the core) Splits zones into subimages(core/cladding/ferral) Specific Zone Analysis Core(or cladding/feral) Split the the image(core) into a 3x3 matrix and run detailed analysis methods on each of the boxes(and make sure the analysis is extremely detailed and multiple analysis methods are conducted Anomaly Detection(grayscales and scans matrix for individual changes in light intensity/ pixel values in order to better detect scratches and digs) Use multiple open CV image processing techniques and thresholding methods in different directions(x and y), by doing this, the anomalies that are most present after multiple processing techniques are real, allowing us to filter out noise Accuracy/Confidence check  For every processing method and all the past steps conduct an accuracy/confidence test Create CSV documentation of all data found Create a map and histogram of where the anomalies are that also details the distance, diameters, and measurements of the core cladding and feral, combining the zones/subimages made earlier The code you create will make a timestamp of all processes so I know how long it has been running and where in the process it is the code you create will offload most computations and visualizations to already existing or faster libraries and languages like C++, matplotlib, numpy, etc the more you offload calcuations or things that can be done elsewhere to already existing libraries or resources that python can extract from other places the better
+Tier 1 Prompt for Advanced AI Coder: Automated Fiber Optic Inspection System
+Project Vision:
+You are to develop a state-of-the-art, production-ready fiber optic inspection system in Python. The system, codenamed "D-Scope Blink," will be a command-line application that performs batch analysis of microscope images of fiber end faces. The primary goal is uncompromising accuracy through a multi-algorithm fusion approach, followed by efficiency and detailed, user-friendly reporting. The architecture must be highly modular and configuration-driven to allow for easy updates and adaptation to new fiber types and inspection standards without altering the core source code.
+________________
+
+
+Core Architectural Principles
+The entire system must be built on the following foundational principles:
+1. Modularity: Structure the code into logical, self-contained Python files:
+
+   * main.py: The main entry point. Handles argument parsing, orchestrates the workflow, and manages batch processing.
+   * config_loader.py: A dedicated module to load, validate, and provide access to all settings from config.json.
+   * calibration.py: Contains all logic for pixel-to-micron scale calibration. Must be runnable as a standalone script.
+   * image_processing.py: The core engine. Contains functions for pre-processing, fiber localization, zoning, and the defect detection algorithms.
+   * analysis.py: Contains functions for defect classification, measurement, rule application (pass/fail), and data aggregation.
+   * reporting.py: Responsible for generating all output files (annotated images, CSV reports, summary plots).
+   2. Configuration-Driven Design: All operational parameters must be externalized into a config.json file. This includes:
+
+      * Thresholds: All numerical thresholds (Canny, Otsu, adaptive thresholding blocks, etc.).
+      * Kernel Sizes: All morphological kernel dimensions.
+      * Algorithm Parameters: HoughCircles parameters, defect size filters (min/max area), aspect ratio limits for scratch/pit classification.
+      * IEC 61300-3-35 Rules: A structured object defining the pass/fail criteria for each zone (max defect size, max count per defect type). This allows rules to be updated easily.
+      * Processing Profiles: Define at least two profiles:
+      * fast_scan: Uses a minimal set of computationally inexpensive algorithms for quick checks.
+      * deep_inspection: Uses the full suite of algorithms and fusion for maximum accuracy.
+      3. Robustness and Graceful Error Handling:
+
+         * Implement comprehensive try-except blocks for all I/O operations and critical OpenCV functions.
+         * The system must gracefully handle common failure modes:
+         * No Fiber Found: If HoughCircles or other localization methods fail, the image should be flagged as "Localization Failed" in the summary report, and the program should move to the next image.
+         * Poor Illumination: Log a warning if the image histogram is heavily skewed to black or white.
+         * Invalid User Input: Validate all user inputs (paths, numbers) at the start.
+         4. Performance and Logging:
+
+            * Use the logging module to output status information to both the console and a timestamped log file (inspection_YYYY-MM-DD.log).
+            * Implement detailed timestamping for major operational blocks (e.g., "Starting Zone Detection...", "Zone Detection Complete. Duration: 0.12s") to easily identify performance bottlenecks.
+            * Leverage NumPy for all array math; avoid Python for loops on pixels wherever possible.
+________________
+
+
+Detailed Functional Workflow
+Phase 1: Setup and Calibration
+            1. Initialization: The main.py script starts, initializes the logger, and loads the selected processing profile from config.json.
+            2. User Input:
+            * Prompt the user for the input directory of images.
+            * Prompt for the output directory.
+            * Ask: "Do you want to provide known fiber dimensions (microns) for this batch? (y/n)".
+            * If 'y': Prompt for core_diameter_um and cladding_diameter_um.
+            * If 'n': All measurements will be reported in pixels.
+            3. Calibration Check:
+            * Check if a calibration.json file (containing um_per_px) exists.
+            * If it exists and the user provided physical dimensions, use the user's dimensions to perform a sanity check on the detected pixel size later.
+            * If it doesn't exist, the system can only use pixel units unless dimensions are provided by the user for on-the-fly calculation.
+Phase 2: Per-Image Processing Loop
+For each image in the input directory:
+            1. Preprocessing:
+
+               * Load the image. Convert to 8-bit grayscale.
+               * Illumination Correction (Advanced): Apply flat-field correction if a calibration flat-field image is provided in the config. If not, apply CLAHE (cv2.createCLAHE) to normalize local contrast. This is superior to global histogram equalization.
+               * Apply a Gaussian blur (cv2.GaussianBlur) to smooth noise before localization.
+               2. Fiber Localization and Zoning:
+
+                  * Primary Method (HoughCircles): Use cv2.HoughCircles to detect the cladding. The parameters must be sourced from config.json.
+                  * Fallback Method (Contour Fitting): If HoughCircles fails, apply an adaptive threshold to the image to segment the fiber, find the largest contour, and fit an ellipse using cv2.fitEllipse. This makes the system robust to angled polishes (APC).
+                  * Center and Radii: Establish the fiber center (x,y) and the radii/axes for the core and cladding. The core is identified as the distinct, darker circular region within the cladding.
+                  * Pixel Scale Calculation: If user dimensions were provided, calculate the image_specific_um_per_px based on the detected cladding diameter in pixels. This overrides any generic calibration file for higher accuracy on that specific image.
+                  * Mask Generation: Create precise binary masks for each inspection zone (e.g., Core, Cladding, Contact/Adhesive) based on the IEC standard definitions in the config file.
+                  3. Defect Detection Engine (Multi-Algorithm Fusion):
+
+                     * For each zone mask, create a floating-point confidence_map array, initialized to zeros.
+                     * A. Region Defect Analysis (Pits, Stains):
+                     * Algorithm 1 (Morphological Gradient): Calculate the morphological gradient (cv2.morphologyEx with cv2.MORPH_GRADIENT). This highlights edges. Threshold the result and add a value of 0.4 to the confidence_map where defects are found.
+                     * Algorithm 2 (Black-Hat Transform): Perform a cv2.MORPH_BLACKHAT transform. This excels at finding dark defects on a light background. Threshold the result and add 0.6 to the confidence_map.
+                     * B. Linear Defect Analysis (Scratches):
+                     * Algorithm 3 (LEI-Inspired): As described in the original prompt, create a max_response_map from multiple oriented filters. Threshold this map and add a value of 0.7 to the confidence_map.
+                     * Algorithm 4 (Anisotropic Thinning): Apply a Sobel or Scharr gradient filter to get edge magnitudes. Threshold this to find strong edges, then apply skeletonization (cv2.ximgproc.thinning). Add a value of 0.3 to the confidence_map.
+                     * C. Fusion and Final Segmentation:
+                     * The confidence_map now contains values from 0 to >1.0 where multiple algorithms agreed on a defect.
+                     * Apply a final threshold (e.g., confidence_threshold = 0.9) to the map. Any pixel above this value is considered a confirmed defect.
+                     * Use cv2.connectedComponentsWithStats on the final binary mask to get individual defect "blobs."
+Phase 3: Analysis and Reporting
+                     1. Defect Characterization:
+
+                        * For each confirmed defect component:
+                        * Calculate its area, centroid, and bounding box in pixels.
+                        * Use cv2.minAreaRect to get its precise orientation, length, and width.
+                        * Calculate Circularity and Aspect Ratio.
+                        * Classify:
+                        * If aspect ratio > scratch_aspect_ratio_threshold (from config), classify as "Scratch".
+                        * Else, classify as "Pit/Dig".
+                        * Convert all pixel measurements to microns if a scale is available.
+                        * Determine its zone (Core, Cladding, etc.) based on its centroid.
+                        2. Pass/Fail Evaluation:
+
+                           * Aggregate defects by zone and type.
+                           * Compare the counts and sizes against the rules loaded from config.json.
+                           * Determine the final "PASS" or "FAIL" status and record the specific reasons for failure.
+                           3. Generate Outputs (per image):
+
+                              * <image_name>_annotated.png: A high-quality image showing:
+                              * Drawn outlines for each zone (color-coded).
+                              * Color-coded bounding boxes or rotated rectangles around each defect.
+                              * A label next to each defect with its ID, type, and primary dimension (e.g., "S1: Scratch, 15.2µm", "P1: Pit, 4.5µm").
+                              * A prominent "PASS" or "FAIL" stamp on the image.
+                              * <image_name>_report.csv: A detailed CSV with one row per defect: Defect_ID, Zone, Classification, Centroid_X_um, Centroid_Y_um, Length_um, Width_um, Area_um2, Confidence_Score.
+Phase 4: Final Compilation
+                              1. After processing all images, generate a single summary_report.csv.
+                              2. Columns: Image_Filename, Pass/Fail_Status, Processing_Time_s, Total_Defect_Count, Core_Defect_Count, Cladding_Defect_Count, Failure_Reason.
+                              3. Print a final message indicating the batch is complete and where the reports are saved.
+Tier 1 Engineering Blueprint: Automated Fiber Optic Inspection System (D-Scope Blink)
+Project Vision: You are to architect and implement a state-of-the-art, production-ready fiber optic inspection system in Python. The system, codenamed "D-Scope Blink," will be a command-line application that performs batch analysis of microscope images of fiber end faces. The primary goals are uncompromising accuracy through a multi-algorithm fusion approach, followed by efficiency and detailed, user-friendly reporting. The architecture must be highly modular and configuration-driven to allow for easy updates and adaptation to new fiber types and inspection standards without altering the core source code.
+________________
+
+
+I. Core Architectural Principles
+The entire system must be built on the following foundational principles:
+                              1. Modularity: The code must be structured into logical, self-contained Python modules. This separation of concerns is non-negotiable.
+
+                                 * main.py: The main entry point. Handles argument parsing, orchestrates the workflow, and manages the batch processing loop.
+                                 * config_loader.py: A dedicated module to load, validate, and provide global access to all settings from config.json.
+                                 * calibration.py: Contains all logic for pixel-to-micron scale calibration. Must be runnable as a standalone script to generate the calibration.json file.
+                                 * image_processing.py: The core engine. Contains functions for pre-processing, fiber localization, zoning, and the defect detection algorithms.
+                                 * analysis.py: Contains functions for defect characterization, classification, measurement, rule application (pass/fail), and data aggregation.
+                                 * reporting.py: Responsible for generating all output files (annotated images, CSV reports, summary plots).
+                                 2. Configuration-Driven Design: All operational parameters must be externalized into a single config.json file to avoid hardcoding. This file is the central "brain" of the operation.
+
+                                    * Thresholds: All numerical thresholds (Canny edge detection, adaptive thresholding blocks, confidence map values).
+                                    * Kernel Sizes: All morphological kernel dimensions (e.g., (3, 3), (5, 5)).
+                                    * Algorithm Parameters: cv2.HoughCircles parameters (param1, param2, minDist, etc.), defect size filters (min/max area in µm²), and aspect ratio limits for scratch/pit classification.
+                                    * IEC 61300-3-35 Rules: A structured JSON object defining the pass/fail criteria for each zone (e.g., Core, Cladding). This must map defect types to maximum allowed sizes and counts. This structure allows the quality standard to be updated without a single line of code change.
+                                    * Processing Profiles: The config file must define at least two operational profiles:
+                                    * fast_scan: Uses a minimal set of computationally inexpensive algorithms for quick checks.
+                                    * deep_inspection: Uses the full suite of algorithms and the fusion technique for maximum accuracy.
+                                    3. Robustness and Graceful Error Handling:
+
+                                       * Implement comprehensive try-except blocks for all I/O operations (file reading/writing) and critical OpenCV functions that might fail.
+                                       * The system must gracefully handle and log common failure modes:
+                                       * No Fiber Found: If localization fails on an image, the system must not crash. It should log the error, flag the image as "Localization Failed" in the summary report, and proceed to the next image.
+                                       * Poor Illumination: The system should analyze the image histogram during preprocessing. If over 90% of pixels are in the bottom or top 10% of the intensity range, log a "Poor Illumination Warning."
+                                       * Invalid User Input: Validate all user-provided paths and numerical inputs at startup.
+                                       4. Performance and Logging:
+
+                                          * Utilize Python's logging module to output status information, warnings, and errors to both the console and a timestamped log file (e.g., inspection_YYYY-MM-DD.log).
+                                          * Implement and log detailed timestamps for major operational blocks (e.g., [INFO] Starting Zone Detection..., [INFO] Zone Detection Complete. Duration: 0.12s) to easily identify performance bottlenecks.
+                                          * Leverage NumPy for all array mathematics. Python for loops must not be used to iterate over pixels.
+________________
+
+
+II. Detailed Functional Workflow
+Phase 1: Setup and Calibration
+                                          1. Initialization: The main.py script starts, initializes the logger, and loads the selected processing profile from config.json using the config_loader module.
+                                          2. User Input:
+                                          * Prompt the user for the input directory containing the images.
+                                          * Prompt for the desired output directory.
+                                          * Ask the user: "Do you want to provide known fiber dimensions (in microns) for this batch? (y/n)".
+                                          * If 'y': Prompt for core_diameter_um and cladding_diameter_um. Store these values.
+                                          * If 'n': The system will proceed, and all measurements will be reported in pixels unless a valid calibration.json file is found.
+                                          3. Calibration Management:
+                                          * The system checks for a calibration.json file in the root directory. This file should contain a pre-calculated um_per_px value from running the calibration.py script on a reference target.
+                                          * If user-provided dimensions are given, they will be used to calculate an image_specific_um_per_px later, which will override the generic calibration file for higher per-image accuracy.
+Phase 2: Per-Image Processing Loop
+For each valid image file in the input directory, execute the following pipeline:
+                                          1. Preprocessing:
+
+                                             * Load the image and immediately convert it to 8-bit grayscale.
+                                             * Illumination Correction (Mandatory): Apply Contrast Limited Adaptive Histogram Equalization (cv2.createCLAHE) to normalize local contrast across the image. The clipLimit and tileGridSize for CLAHE must be sourced from config.json. This is superior to global equalization and critical for consistent detection.
+                                             * Apply a cv2.GaussianBlur to smooth noise before localization. The kernel size must be from config.json.
+                                             2. Fiber Localization and Zoning:
+
+                                                * Primary Method (HoughCircles): Use cv2.HoughCircles on the blurred image to detect the fiber cladding. All parameters (dp, minDist, param1, param2, minRadius, maxRadius) must be loaded from the active profile in config.json.
+                                                * Fallback Method (Contour Fitting): If cv2.HoughCircles returns no circles, the system must automatically pivot. It will apply an adaptive threshold (cv2.adaptiveThreshold), find the largest contour, and fit an ellipse using cv2.fitEllipse. This ensures the system is robust to angled polishes (APC) and non-ideal images.
+                                                * Center and Radii Definition: From the primary or fallback method, establish the fiber center (x, y) and the radius (or major/minor axes) of the cladding. The core is then identified by analyzing the intensity profile within the cladding mask to find the boundary of the darker central region.
+                                                * Pixel Scale Calculation: If user dimensions were provided, calculate the image_specific_um_per_px = known_cladding_diameter_um / detected_cladding_diameter_px. This value will be used for all measurements on this specific image. If not, use the value from calibration.json, or default to pixels.
+                                                * Mask Generation: Create precise, non-overlapping binary masks for each inspection zone (e.g., Core, Cladding, Contact) based on the IEC standard definitions stored in config.json.
+                                                3. Defect Detection Engine (Multi-Algorithm Fusion):
+
+                                                   * This is the core of the system's accuracy. For each zone, create a 32-bit floating-point confidence_map array, the same size as the image, initialized to zeros.
+                                                   * A. Region Defect Analysis (Pits, Stains, Debris):
+                                                   * Algorithm 1 (Morphological Gradient): Calculate the morphological gradient (cv2.morphologyEx with cv2.MORPH_GRADIENT). Threshold the result and add a value of 0.4 to the confidence_map where defects are found.
+                                                   * Algorithm 2 (Black-Hat Transform): Perform a cv2.MORPH_BLACKHAT transform. This excels at finding small, dark defects. Threshold the result and add a value of 0.6 to the confidence_map.
+                                                   * B. Linear Defect Analysis (Scratches):
+                                                   * Algorithm 3 (LEI-Inspired): As you described, create a max_response_map from multiple oriented filters. Threshold this map and add a value of 0.7 to the confidence_map.
+                                                   * Algorithm 4 (Edge Skeletonization): Apply a cv2.Canny edge detector. Apply skeletonization to the resulting edges using cv2.ximgproc.thinning. This identifies the centerlines of scratches. Dilate the result slightly and add a value of 0.3 to the confidence_map.
+                                                   * C. Fusion and Final Segmentation:
+                                                   * The confidence_map now contains values from 0 to 2.0, where higher values indicate stronger agreement between algorithms.
+                                                   * Apply a final confidence_threshold (e.g., 0.9, loaded from config.json) to the map to create a final binary mask of confirmed defects. This fusion of evidence is critical for rejecting noise and achieving high accuracy.
+                                                   * Use cv2.connectedComponentsWithStats on this final mask to segment and enumerate each individual defect.
+Phase 3: Analysis and Reporting
+                                                   1. Defect Characterization:
+
+                                                      * For each confirmed defect component from the fusion stage:
+                                                      * Calculate its area, centroid, and bounding box in pixels.
+                                                      * Crucially, use cv2.minAreaRect to determine its precise orientation, length, and width. This is far more accurate than a simple bounding box for elongated defects.
+                                                      * Calculate Circularity and AspectRatio.
+                                                      * Classify:
+                                                      * If AspectRatio > scratch_aspect_ratio_threshold (from config), classify as "Scratch".
+                                                      * Else, classify as "Pit/Dig".
+                                                      * Convert all pixel measurements (length, width, area) to microns if a scale factor is available.
+                                                      * Determine its final zone location (Core, Cladding, etc.) based on its centroid.
+                                                      2. Pass/Fail Evaluation:
+
+                                                         * Aggregate all characterized defects by their zone and classification.
+                                                         * Systematically compare the defect counts and sizes against the structured rules loaded from config.json.
+                                                         * Determine the final "PASS" or "FAIL" status for the image and record the specific rules that were violated (e.g., "Scratch > 5µm in Core", "Pit count > 3 in Cladding").
+                                                         3. Generate Outputs (Per Image):
+
+                                                            * <image_name>_annotated.png: A high-quality annotated image showing:
+                                                            * Drawn outlines for each zone (color-coded).
+                                                            * Color-coded rotated rectangles around each defect for precision.
+                                                            * A text label next to each defect with its ID, type, and primary dimension (e.g., S1: Scratch, 15.2µm, P1: Pit, 4.5µm).
+                                                            * A prominent, color-coded "PASS" or "FAIL" stamp overlaid on the image.
+                                                            * <image_name>_report.csv: A detailed CSV with one row per defect.
+                                                            * Columns: Defect_ID, Zone, Classification, Confidence_Score, Centroid_X_um, Centroid_Y_um, Length_um, Width_um, Area_um2.
+Phase 4: Final Compilation
+                                                            1. After processing all images in the batch, generate a single master summary_report.csv in the root output directory.
+                                                            * Columns: Image_Filename, Pass/Fail_Status, Processing_Time_s, Total_Defect_Count, Core_Defect_Count, Cladding_Defect_Count, Failure_Reason(s).
+                                                            2. Print a final message to the console indicating the batch is complete and where the reports have been saved.
