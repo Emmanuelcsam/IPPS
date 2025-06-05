@@ -8,7 +8,9 @@ This module contains the core logic for processing fiber optic end face images.
 It includes functions for preprocessing, fiber localization (cladding and core),
 zone mask generation, and the multi-algorithm defect detection engine with fusion.
 """
-
+# Missing imports - add these
+from scipy import ndimage
+from skimage import morphology, filters
 import cv2 # OpenCV for all core image processing tasks.
 import numpy as np # NumPy for numerical and array operations.
 from typing import Dict, Any, Optional, List, Tuple # Standard library for type hinting.
@@ -495,6 +497,45 @@ def generate_zone_masks(
 
     return masks # Return dictionary of zone masks.
 
+def _do2mr_detection(masked_zone_image: np.ndarray, kernel_size: int = 5) -> np.ndarray:
+    """
+    Implements the DO2MR (Difference of Min-Max Ranking) algorithm from the paper.
+    
+    Args:
+        masked_zone_image: Input grayscale image
+        kernel_size: Size of the structuring element
+        
+    Returns:
+        Binary defect mask
+    """
+    # Create structuring element as per paper
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+    
+    # Apply min filter (erosion) - finds darkest pixel in neighborhood
+    min_filtered = cv2.erode(masked_zone_image, kernel, iterations=1)
+    
+    # Apply max filter (dilation) - finds brightest pixel in neighborhood
+    max_filtered = cv2.dilate(masked_zone_image, kernel, iterations=1)
+    
+    # Calculate the residual (difference) - highlights areas of high local contrast
+    residual = cv2.subtract(max_filtered, min_filtered)
+    
+    # Apply sigma-based thresholding as per paper
+    mask = masked_zone_image > 0
+    mean_res = np.mean(residual[mask])
+    std_res = np.std(residual[mask])
+    gamma = 1.5  # As per paper
+    
+    # Threshold: pixels where residual - mean > gamma * std
+    thresh_value = mean_res + gamma * std_res
+    _, defect_binary = cv2.threshold(residual, thresh_value, 255, cv2.THRESH_BINARY)
+    
+    # Post-processing as per paper
+    defect_binary = cv2.medianBlur(defect_binary, 3)
+    kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    defect_binary = cv2.morphologyEx(defect_binary, cv2.MORPH_OPEN, kernel_open)
+    
+    return defect_binary
 
 # --- Defect Detection Engine ---
 def detect_defects(
@@ -530,6 +571,12 @@ def detect_defects(
     region_algos = detection_cfg.get("region_algorithms", [])
     linear_algos = detection_cfg.get("linear_algorithms", [])
     algo_weights = detection_cfg.get("algorithm_weights", {})
+
+
+    if "do2mr" in region_algos:  # Add this new algorithm
+        do2mr_result = _do2mr_detection(masked_zone_image, kernel_size=5)
+        confidence_map[do2mr_result > 0] += algo_weights.get("do2mr", 0.8)
+        logging.debug("Applied DO2MR for region defects.")
 
     # A. Region Defect Analysis
     if "morph_gradient" in region_algos: # If morphological gradient algorithm is selected.
@@ -631,6 +678,7 @@ def detect_defects(
     
     logging.debug(f"Defect detection fusion complete. Confidence threshold: {confidence_threshold}.")
     return final_defect_mask_in_zone # Return the final binary defect mask for the zone.
+
 
 # --- Main function for testing this module (optional) ---
 if __name__ == "__main__":

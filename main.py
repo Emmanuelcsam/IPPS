@@ -9,7 +9,7 @@ Inspection System. It handles command-line arguments, orchestrates the batch
 processing workflow, and integrates all other modules (config, calibration,
 image processing, analysis, and reporting).
 """
-
+import cv2 # OpenCV for image processing tasks.
 import argparse # Standard library for parsing command-line arguments.
 import logging # Standard library for logging events.
 import time # Standard library for time-related functions (performance tracking).
