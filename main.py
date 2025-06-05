@@ -22,6 +22,12 @@ from typing import Dict, Any, Optional, List # For type hinting
 # --- D-Scope Blink Modules ---
 # These imports assume the modules are in the same directory or accessible via PYTHONPATH.
 try:
+    from advanced_visualization import InteractiveVisualizer
+    VISUALIZATION_AVAILABLE = True
+except ImportError:
+    VISUALIZATION_AVAILABLE = False
+    
+try:
     from config_loader import load_config, get_processing_profile, get_zone_definitions # Import config loading functions.
     from calibration import load_calibration_data # Import calibration data loading function.
     from image_processing import ( # Import image processing functions.
@@ -33,7 +39,15 @@ try:
     from analysis import characterize_and_classify_defects, apply_pass_fail_rules # Import analysis functions.
     from reporting import generate_annotated_image, generate_defect_csv_report, generate_polar_defect_histogram # Import reporting functions.
 except ImportError as e: # Handle import errors if modules are not found.
-    print(f"[CRITICAL] Failed to import D-Scope Blink modules: {e}. Ensure all modules (config_loader.py, calibration.py, image_processing.py, analysis.py, reporting.py) are in the Python path.", file=sys.stderr)
+    error_msg = (
+        f"[CRITICAL ERROR] D-Scope Blink could not start due to missing or problematic modules.\n"
+        f"Details: {e}\n"
+        f"Please ensure all required Python modules (config_loader.py, calibration.py, "
+        f"image_processing.py, analysis.py, reporting.py, and their dependencies like OpenCV, Pandas, Numpy) "
+        f"are correctly installed and accessible in your Python environment (PYTHONPATH).\n"
+        f"Refer to the installation documentation for troubleshooting."
+    )
+    print(error_msg, file=sys.stderr)
     sys.exit(1) # Exit if essential modules cannot be imported.
 
 # Import numpy for type hinting if not already (it's used in image_processing)
@@ -160,37 +174,48 @@ def process_single_image(
 
     # --- 4. Defect Detection in Each Zone ---
     logging.info("Step 4: Detecting Defects in Zones...")
-    all_zone_defect_masks: Dict[str, np.ndarray] = {} # Initialize dictionary for defect masks per zone.
-    combined_final_defect_mask = np.zeros_like(processed_image, dtype=np.uint8) # Initialize combined mask.
-    global_algo_params = global_config.get("algorithm_parameters", {}) # Get global algorithm parameters.
+    all_zone_defect_masks: Dict[str, np.ndarray] = {}
+    combined_final_defect_mask = np.zeros_like(processed_image, dtype=np.uint8)
+    combined_confidence_map = np.zeros_like(processed_image, dtype=np.float32)
+    global_algo_params = global_config.get("algorithm_parameters", {})
 
-    for zone_name, zone_mask_np in zone_masks.items(): # Iterate through zone masks.
-        if np.sum(zone_mask_np) == 0: # Skip empty zones.
+    for zone_name, zone_mask_np in zone_masks.items():
+        if np.sum(zone_mask_np) == 0:
             logging.debug(f"Zone '{zone_name}' is empty. Skipping defect detection.")
-            all_zone_defect_masks[zone_name] = np.zeros_like(processed_image, dtype=np.uint8) # Store empty mask.
-            continue # Continue to next zone.
+            all_zone_defect_masks[zone_name] = np.zeros_like(processed_image, dtype=np.uint8)
+            continue
         
         logging.debug(f"Detecting defects in zone: '{zone_name}'...")
-        defects_in_zone_mask = detect_defects( # Detect defects in current zone.
+        defects_in_zone_mask, zone_confidence_map = detect_defects(
             processed_image, zone_mask_np, profile_config, global_algo_params
         )
-        all_zone_defect_masks[zone_name] = defects_in_zone_mask # Store defect mask for zone.
-        combined_final_defect_mask = cv2.bitwise_or(combined_final_defect_mask, defects_in_zone_mask) # Combine into global defect mask.
+        all_zone_defect_masks[zone_name] = defects_in_zone_mask
+        combined_final_defect_mask = cv2.bitwise_or(combined_final_defect_mask, defects_in_zone_mask)
+        combined_confidence_map = np.maximum(combined_confidence_map, zone_confidence_map)
     
     # --- 5. Characterize, Classify Defects and Apply Pass/Fail ---
     logging.info("Step 5: Analyzing Defects and Applying Rules...")
-    characterized_defects = characterize_and_classify_defects( # Characterize and classify defects.
-        combined_final_defect_mask, zone_masks, profile_config, current_image_um_per_px, image_path.name
+    # Updated call to characterize_and_classify_defects, expecting three return values:
+    # characterized_defects, overall_status (preliminary), total_defect_count
+    characterized_defects, overall_status, total_defect_count = characterize_and_classify_defects(
+        combined_final_defect_mask, 
+        zone_masks, 
+        profile_config, 
+        current_image_um_per_px, 
+        image_path.name,
+        confidence_map=combined_confidence_map
     )
     
-    overall_status, failure_reasons = apply_pass_fail_rules(characterized_defects, fiber_type_key) # Apply pass/fail rules.
+    # Apply pass/fail rules. This call will update overall_status and provide failure_reasons.
+    # zone_definitions_for_type was fetched in Step 3.
+    overall_status, failure_reasons = apply_pass_fail_rules(characterized_defects, zone_definitions_for_type)
 
     analysis_summary = { # Create analysis summary dictionary.
         "image_filename": image_path.name,
-        "overall_status": overall_status,
-        "failure_reasons": failure_reasons,
-        "total_defect_count": len(characterized_defects),
         "characterized_defects": characterized_defects,
+        "overall_status": overall_status, # Final status from apply_pass_fail_rules
+        "total_defect_count": total_defect_count, # Count from characterize_and_classify_defects
+        "failure_reasons": failure_reasons, # Reasons from apply_pass_fail_rules
         "um_per_px_used": current_image_um_per_px
     }
 
@@ -211,14 +236,28 @@ def process_single_image(
     processing_time_s = time.perf_counter() - image_start_time # Calculate processing time.
     logging.info(f"--- Finished processing {image_path.name}. Duration: {processing_time_s:.2f}s ---")
 
+    # --- 7. Advanced Visualization (Optional) ---
+    if VISUALIZATION_AVAILABLE and global_config.get("general_settings", {}).get("enable_visualization", False):
+        try:
+            visualizer = InteractiveVisualizer()
+            visualizer.show_inspection_results(
+                original_bgr,
+                all_zone_defect_masks,
+                zone_masks,
+                analysis_summary,
+                interactive=False  # Non-blocking for batch processing
+            )
+        except Exception as e:
+            logging.warning(f"Visualization failed for {image_path.name}: {e}")
+            
     summary_for_batch = { # Create summary dictionary for batch.
         "image_filename": image_path.name,
-        "pass_fail_status": overall_status,
+        "pass_fail_status": overall_status, # Use final overall_status from apply_pass_fail_rules
         "processing_time_s": round(processing_time_s, 2),
-        "total_defect_count": len(characterized_defects),
+        "total_defect_count": total_defect_count, # Use total_defect_count from characterize_and_classify_defects
         "core_defect_count": sum(1 for d in characterized_defects if d["zone"] == "Core"),
         "cladding_defect_count": sum(1 for d in characterized_defects if d["zone"] == "Cladding"),
-        "failure_reason_summary": "; ".join(failure_reasons) if failure_reasons else "N/A"
+        "failure_reason_summary": "; ".join(failure_reasons) if failure_reasons else "N/A" # Use final failure_reasons
     }
     return summary_for_batch # Return summary.
 
@@ -325,21 +364,21 @@ def execute_inspection_run(args_namespace: argparse.Namespace) -> None:
                 args_namespace.clad_dia_um,
                 args_namespace.fiber_type
             )
-            if summary: # If summary returned.
-                all_image_summaries.append(summary) # Add summary to list.
+            # Append summary directly, assuming process_single_image always returns a dict
+            all_image_summaries.append(summary) 
         except Exception as e: # Handle unexpected errors during single image processing.
-            logging.error(f"CRITICAL UNHANDLED ERROR processing {image_file_path.name}: {e}", exc_info=True)
-            error_summary = { # Create error summary.
+            # Updated logging message as per the snippet
+            logging.error(f"Unexpected error processing {image_file_path.name}: {e}")
+            # Updated error summary structure as per the snippet
+            failure_summary = { 
                 "image_filename": image_file_path.name,
-                "pass_fail_status": "ERROR_UNHANDLED",
-                "processing_time_s": -1,
-                "total_defect_count": -1,
-                "core_defect_count": -1,
-                "cladding_defect_count": -1,
-                "failure_reason_summary": f"Unhandled exception: {str(e)[:100]}" # Truncate long error messages.
+                "status": "ERROR_PROCESSING", # Key "status"
+                "processing_time_s": 0,
+                "total_defect_count": 0,
+                "failure_reasons": [str(e)] # Key "failure_reasons" as a list
             }
-            all_image_summaries.append(error_summary) # Add error summary to list.
-
+            all_image_summaries.append(failure_summary)
+            
     # --- Final Summary Report ---
     if all_image_summaries: # If summaries exist.
         summary_df = pd.DataFrame(all_image_summaries) # Create DataFrame from summaries.

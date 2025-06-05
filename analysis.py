@@ -55,20 +55,11 @@ def characterize_and_classify_defects(
     profile_config: Dict[str, Any],
     um_per_px: Optional[float],
     image_filename: str,
-    confidence_map: Optional[np.ndarray] = None  # Add this parameter
-) -> List[Dict[str, Any]]:
+    confidence_map: Optional[np.ndarray] = None
+) -> Tuple[List[Dict[str, Any]], str, int]:
     """
-    Analyzes connected components in the final defect mask to characterize and classify each defect.
-
-    Args:
-        final_defect_mask: Binary mask of confirmed defects from the fusion process.
-        zone_masks: Dictionary of binary masks for each inspection zone.
-        profile_config: The specific processing profile sub-dictionary from the main config.
-        um_per_px: The microns-per-pixel scale for the current image, if available.
-        image_filename: The filename of the image being processed.
-
     Returns:
-        A list of dictionaries, where each dictionary represents a characterized defect.
+        characterized_defects, overall_status, total_defect_count
     """
     characterized_defects: List[Dict[str, Any]] = [] # Initialize list to store defect details.
     if np.sum(final_defect_mask) == 0: # Check if there are any defect pixels.
@@ -122,96 +113,73 @@ def characterize_and_classify_defects(
         # --- Precise Dimension Calculation using minAreaRect ---
         # cv2.minAreaRect returns ((center_x, center_y), (width, height), angle_of_rotation)
         # The width and height from minAreaRect are more accurate for oriented defects.
-        rotated_rect = cv2.minAreaRect(defect_contour) # Fit minimum area rotated rectangle.
-        rect_center_px = rotated_rect[0] # Center of the rotated rectangle.
-        rect_dims_px = tuple(sorted(rotated_rect[1])) # (minor_axis_px, major_axis_px) or (width_px, length_px).
-        rect_angle_deg = rotated_rect[2] # Angle of rotation.
+        # --- Precise Dimension Calculation using minAreaRect ---
+        rotated_rect = cv2.minAreaRect(defect_contour)
+        box_points = cv2.boxPoints(rotated_rect)
+        box_points = np.int0(box_points)
 
-        width_oriented_px = rect_dims_px[0] # Shorter side of the rotated rectangle.
-        length_oriented_px = rect_dims_px[1] # Longer side of the rotated rectangle.
+        # Compute dimensions in pixels
+        width_px = rotated_rect[1][0]
+        height_px = rotated_rect[1][1]
+        aspect_ratio = max(width_px, height_px) / (min(width_px, height_px) + 1e-6)
 
-        # --- Classification (Scratch vs. Pit/Dig) ---
-        # Based on aspect ratio of the oriented rectangle.
-        aspect_ratio_oriented = length_oriented_px / (width_oriented_px + 1e-6) # Add epsilon to avoid division by zero.
-        
-        classification: str # Initialize classification string.
-        if aspect_ratio_oriented > scratch_aspect_ratio_threshold: # If aspect ratio indicates a scratch.
-            classification = "Scratch"
-        else: # Otherwise, classify as Pit/Dig.
-            classification = "Pit/Dig"
-        logging.debug(f"Defect {defect_id_str}: Area={area_px}px, OrientedDims=({width_oriented_px:.1f},{length_oriented_px:.1f})px, AR={aspect_ratio_oriented:.2f} -> {classification}")
+        # Classify scratch vs. pit/dig
+        classification = (
+            "Scratch"
+            if aspect_ratio >= scratch_aspect_ratio_threshold
+            else "Pit/Dig"
+        )
 
-        # --- Micron Conversion (if scale is available) ---
-        area_um2: Optional[float] = None # Initialize area in microns.
-        length_um: Optional[float] = None # Initialize length in microns.
-        width_um: Optional[float] = None # Initialize width in microns.
-        effective_diameter_um: Optional[float] = None # Initialize effective diameter in microns.
+        # Compute size in microns if um_per_px provided
+        length_um = None
+        width_um = None
+        if um_per_px:
+            length_um = max(width_px, height_px) * um_per_px
+            width_um = min(width_px, height_px) * um_per_px
 
-        if um_per_px is not None and um_per_px > 0: # If micron scale is available.
-            area_um2 = area_px * (um_per_px ** 2) # Convert area to um^2.
-            length_um = length_oriented_px * um_per_px # Convert length to um.
-            width_um = width_oriented_px * um_per_px # Convert width to um.
-            if classification == "Pit/Dig": # For Pit/Dig, calculate effective diameter.
-                # Effective diameter from area is a common metric.
-                effective_diameter_um = np.sqrt(4 * area_um2 / np.pi) if area_um2 > 0 else 0.0
-        
-        # --- Zone Assignment ---
-        # Determine which zone the defect's centroid falls into.
-        zone_name = "Unknown" # Default zone name.
-        for z_name, z_mask in zone_masks.items(): # Iterate through zone masks.
-            # Ensure centroid coordinates are within image bounds.
-            c_x_int, c_y_int = int(centroid_x_px), int(centroid_y_px) # Convert centroid to int.
-            if 0 <= c_y_int < z_mask.shape[0] and 0 <= c_x_int < z_mask.shape[1]: # Check bounds.
-                if z_mask[c_y_int, c_x_int] > 0: # If centroid is within the zone mask.
-                    zone_name = z_name # Assign zone name.
-                    break # Stop checking once zone is found.
-        logging.debug(f"Defect {defect_id_str} centroid ({centroid_x_px:.0f},{centroid_y_px:.0f}) assigned to zone: {zone_name}")
-
-        # --- Store Defect Information ---
-        # The confidence score would ideally come from the fusion map value at the defect's location,
-        # or be an aggregation of contributing algorithm confidences.
-        if confidence_map is not None:
-            # Sample confidence values at defect location
-            defect_mask_single = (labels_img == i).astype(np.uint8)
-            confidence_values = confidence_map[defect_mask_single > 0]
-            if len(confidence_values) > 0:
-                # Use mean confidence value for the defect
-                confidence_score = float(np.mean(confidence_values))
-            else:
-                confidence_score = 0.5  # Default if no confidence data
-        else:
-            confidence_score = 0.5  # Default if no confidence map provided
-
-        defect_data = { # Create dictionary for defect data.
+        # Build defect dict
+        defect_dict = {
             "defect_id": defect_id_str,
-            "zone": zone_name,
-            "classification": classification,
-            "confidence_score": confidence_score_placeholder, # Placeholder.
-            "centroid_x_px": round(centroid_x_px, 2),
-            "centroid_y_px": round(centroid_y_px, 2),
-            "area_px": round(area_px, 2),
-            "length_px": round(length_oriented_px, 2), # Oriented length.
-            "width_px": round(width_oriented_px, 2),   # Oriented width.
-            "aspect_ratio_oriented": round(aspect_ratio_oriented, 2),
-            "bbox_x_px": x_bbox, # Bounding box (axis-aligned).
+            "contour_points_px": defect_contour.reshape(-1, 2).tolist(),
+            "bbox_x_px": x_bbox,
             "bbox_y_px": y_bbox,
             "bbox_w_px": w_bbox,
             "bbox_h_px": h_bbox,
-            "rotated_rect_center_px": (round(rect_center_px[0],2), round(rect_center_px[1],2)),
-            "rotated_rect_angle_deg": round(rect_angle_deg,2),
-            "contour_points_px": defect_contour.squeeze().tolist() # Store contour points.
+            "centroid_x_px": float(centroid_x_px),
+            "centroid_y_px": float(centroid_y_px),
+            "area_px": int(area_px),
+            "width_px": float(width_px),
+            "height_px": float(height_px),
+            "aspect_ratio": float(aspect_ratio),
+            "classification": classification,
+            "length_um": length_um,
+            "width_um": width_um,
+            "zone": None,  # To be filled next
         }
-        if um_per_px is not None: # If micron scale is available.
-            defect_data["area_um2"] = round(area_um2, 2) if area_um2 is not None else None
-            defect_data["length_um"] = round(length_um, 2) if length_um is not None else None
-            defect_data["width_um"] = round(width_um, 2) if width_um is not None else None
-            if classification == "Pit/Dig" and effective_diameter_um is not None: # If Pit/Dig and diameter calculated.
-                defect_data["effective_diameter_um"] = round(effective_diameter_um, 2)
 
-        characterized_defects.append(defect_data) # Add defect data to list.
+        # Determine zone based on centroid
+        for zone_name, zone_mask in zone_masks.items():
+            if zone_mask[int(centroid_y_px), int(centroid_x_px)] > 0:
+                defect_dict["zone"] = zone_name
+                break
 
-    logging.info(f"Characterized and classified {len(characterized_defects)} defects.")
-    return characterized_defects # Return list of characterized defects.
+        characterized_defects.append(defect_dict)
+
+    # After looping through components:
+    total_defect_count = len(characterized_defects)
+    overall_status = "PASS"
+    # Placeholder default rules: if any defect in core or size too big, FAIL.
+    # In practice, use apply_pass_fail_rules (if implemented).
+    # For now:
+    for d in characterized_defects:
+        if d["zone"] == "Core" or (
+            d.get("length_um", 0) and um_per_px and d["length_um"] > profile_config.get("defect_detection", {}).get("max_defect_size_um", 0)
+        ):
+            overall_status = "FAIL"
+            break
+
+    return characterized_defects, overall_status, total_defect_count
+
 
 def calculate_defect_density(defects: List[Dict[str, Any]], zone_area_px: float) -> float:
     """

@@ -1,0 +1,7 @@
+image_filename,status,processing_time_s,total_defect_count,failure_reasons
+ima12.jpg,ERROR_LOCALIZATION,0.10295120000046154,0,['Localization failed']
+ima18.jpg,ERROR_LOCALIZATION,0.06160409999938565,0,['Localization failed']
+ima19.jpg,ERROR_LOCALIZATION,0.0586263000004692,0,['Localization failed']
+img35.jpg,ERROR_LOCALIZATION,0.06469580000157293,0,['Localization failed']
+img38.jpg,ERROR_LOCALIZATION,0.05987939999977243,0,['Localization failed']
+img63.jpg,ERROR_LOCALIZATION,0.059482000000571134,0,['Localization failed']

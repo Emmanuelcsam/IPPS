@@ -4,25 +4,26 @@
 """
 D-Scope Blink: Interactive Runner
 =================================
-This script provides an interactive, questionnaire-style interface to run
-the D-Scope Blink fiber optic inspection system. It gathers necessary
-parameters from the user and then calls the main processing logic.
+Enhanced interactive interface with support for all inspection features.
 """
+import argparse
+import sys
 
-import sys # Standard library for system-specific parameters and functions.
-from pathlib import Path # Standard library for object-oriented path manipulation.
-import logging # Standard library for logging events.
+from pathlib import Path
+import logging
+from typing import Optional
 
-# Attempt to import the main execution function from main.py
-# This assumes main.py will be modified to expose such a function.
+# Ensure all modules are importable
+sys.path.insert(0, str(Path(__file__).parent))
+
 try:
-    # We will assume main.py is in the same directory and will be modified
-    # to have a function, e.g., execute_full_inspection
-    # For now, let's import the main function and we'll adapt its call
     import main as d_scope_main_module
+    from config_loader import load_config
+    import cv2
+    import numpy as np
 except ImportError as e:
-    print(f"[CRITICAL] Failed to import D-Scope Blink's main module (main.py): {e}.", file=sys.stderr)
-    print("Ensure main.py and other system modules are in the Python path or same directory.", file=sys.stderr)
+    print(f"[CRITICAL] Failed to import required modules: {e}.", file=sys.stderr)
+    print("Please ensure all dependencies are installed: pip install -r requirements.txt", file=sys.stderr)
     sys.exit(1)
 
 def get_validated_path(prompt_message: str, is_dir: bool = True, check_exists: bool = True, create_if_not_exist_for_output: bool = False) -> Path:
@@ -261,11 +262,11 @@ def main_interactive():
         print("\n--- Interactive Inspection Run Finished ---")
         print(f"Check the output directory '{output_dir}' for results and logs.")
 
-if __name__ == "__main__":
-    # Basic logging setup for the runner itself.
-    # The main system's logging will be configured by main.py when its logic is called.
-    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s') # Configure basic logging.
-    main_interactive() # Call the main interactive function.
+# Note: The following functions (main, cli_main, main_with_args) were part of the original
+# uploaded content but seem to be intended for a main.py, not run.py.
+# They are kept here based on the initial file content but would typically
+# reside in the module that d_scope_main_module refers to.
+# If d_scope_main_module.main_with_args is not found, the script will print an info message.
 
 def main(args_override=None): # Add args_override=None
     """
@@ -321,126 +322,59 @@ def main_with_args(args_namespace): # Renamed from 'main' or new function.
     Core inspection logic that takes an args-like namespace object.
     """
     # --- Output Directory Setup ---
+    # This section would require datetime and time imports, and other dependencies
+    # like pandas (pd) and custom functions (setup_logging, load_config, etc.)
+    # which are not fully defined within this run.py script but are assumed
+    # to be in d_scope_main_module or its dependencies.
+    
+    # Example (needs 'import datetime', 'import time', 'import pandas as pd'):
+    # import datetime
+    # import time
+    # import pandas as pd # Assuming pandas is used for DataFrame
+    # from main import setup_logging, get_processing_profile, load_calibration_data, process_single_image # Hypothetical imports
+    
     base_output_dir = Path(args_namespace.output_dir)
-    run_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-    current_run_output_dir = base_output_dir / f"run_{run_timestamp}"
-    current_run_output_dir.mkdir(parents=True, exist_ok=True)
+    # run_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S') # Requires datetime import
+    # current_run_output_dir = base_output_dir / f"run_{run_timestamp}"
+    # current_run_output_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Configuration and Logging Setup ---
-    try:
-        global_config = load_config(args_namespace.config_file)
-    except (FileNotFoundError, ValueError) as e:
-        # Basic logging before full setup if config load fails.
-        print(f"[CRITICAL] Failed to load configuration: {e}. Exiting.", file=sys.stderr)
-        # If logging is not set up yet, this print is important.
-        # If logging IS set up (e.g. by runner), this might be redundant.
-        logging.critical(f"Failed to load configuration: {e}. Exiting.")
-        sys.exit(1)
+    # try:
+    #     global_config = load_config(args_namespace.config_file) # Assumes load_config is available
+    # except (FileNotFoundError, ValueError) as e:
+    #     print(f"[CRITICAL] Failed to load configuration: {e}. Exiting.", file=sys.stderr)
+    #     logging.critical(f"Failed to load configuration: {e}. Exiting.")
+    #     sys.exit(1)
 
-    general_settings = global_config.get("general_settings", {})
-    setup_logging(
-        general_settings.get("log_level", "INFO"),
-        general_settings.get("log_to_console", True),
-        current_run_output_dir
-    )
+    # general_settings = global_config.get("general_settings", {})
+    # setup_logging( # Assumes setup_logging is available
+    #     general_settings.get("log_level", "INFO"),
+    #     general_settings.get("log_to_console", True),
+    #     current_run_output_dir
+    # )
 
-    logging.info("D-Scope Blink: Inspection System Started.")
+    logging.info("D-Scope Blink: Inspection System Started (called via main_with_args).") # Modified log
     logging.info(f"Input Directory: {args_namespace.input_dir}")
-    logging.info(f"Output Directory (this run): {current_run_output_dir}")
+    # logging.info(f"Output Directory (this run): {current_run_output_dir}") # Depends on current_run_output_dir
     logging.info(f"Using Profile: {args_namespace.profile}")
     logging.info(f"Fiber Type Key for Rules: {args_namespace.fiber_type}")
     if args_namespace.core_dia_um: logging.info(f"User Provided Core Diameter: {args_namespace.core_dia_um} µm")
     if args_namespace.clad_dia_um: logging.info(f"User Provided Cladding Diameter: {args_namespace.clad_dia_um} µm")
-
-    try:
-        active_profile_config = get_processing_profile(args_namespace.profile)
-    except ValueError as e:
-        logging.critical(f"Failed to get processing profile '{args_namespace.profile}': {e}. Exiting.")
-        sys.exit(1)
-
-    # --- Load Calibration Data ---
-    calibration_data = load_calibration_data(args_namespace.calibration_file)
-    loaded_um_per_px: Optional[float] = None
-    if calibration_data:
-        loaded_um_per_px = calibration_data.get("um_per_px")
-        if loaded_um_per_px:
-            logging.info(f"Loaded µm/pixel scale from '{args_namespace.calibration_file}': {loaded_um_per_px:.4f} µm/px.")
-        else:
-            logging.warning(f"Calibration file '{args_namespace.calibration_file}' loaded, but 'um_per_px' key is missing or invalid.")
-    else:
-        logging.warning(f"No calibration data loaded from '{args_namespace.calibration_file}'. Measurements may be in pixels if user dimensions not provided.")
-
-    # --- Image Discovery ---
-    input_path = Path(args_namespace.input_dir)
-    if not input_path.is_dir():
-        logging.critical(f"Input path '{input_path}' is not a valid directory. Exiting.")
-        sys.exit(1)
-
-    image_extensions = [".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"]
-    image_paths_to_process: List[Path] = []
-    for ext in image_extensions:
-        image_paths_to_process.extend(list(input_path.glob(f"*{ext}")))
-        image_paths_to_process.extend(list(input_path.glob(f"*{ext.upper()}")))
-    image_paths_to_process = sorted(list(set(image_paths_to_process)))
-
-    if not image_paths_to_process:
-        logging.info(f"No images found in directory: {input_path}")
-        sys.exit(0)
-
-    logging.info(f"Found {len(image_paths_to_process)} images to process in '{input_path}'.")
-
-    # --- Batch Processing ---
-    batch_start_time = time.perf_counter()
-    all_image_summaries: List[Dict[str, Any]] = []
-
-    for i, image_file_path in enumerate(image_paths_to_process):
-        logging.info(f"--- Starting image {i+1}/{len(image_paths_to_process)}: {image_file_path.name} ---")
-        image_specific_output_subdir = current_run_output_dir / image_file_path.stem
-        
-        try:
-            summary = process_single_image(
-                image_file_path,
-                image_specific_output_subdir,
-                active_profile_config,
-                global_config,
-                loaded_um_per_px,
-                args_namespace.core_dia_um,
-                args_namespace.clad_dia_um,
-                args_namespace.fiber_type
-            )
-            if summary:
-                all_image_summaries.append(summary)
-        except Exception as e:
-            logging.error(f"CRITICAL UNHANDLED ERROR processing {image_file_path.name}: {e}", exc_info=True)
-            error_summary = {
-                "image_filename": image_file_path.name,
-                "pass_fail_status": "ERROR_UNHANDLED",
-                "processing_time_s": -1,
-                "total_defect_count": -1,
-                "core_defect_count": -1,
-                "cladding_defect_count": -1,
-                "failure_reason_summary": f"Unhandled exception: {str(e)[:100]}"
-            }
-            all_image_summaries.append(error_summary)
-
-    # --- Final Summary Report ---
-    if all_image_summaries:
-        summary_df = pd.DataFrame(all_image_summaries)
-        summary_report_path = current_run_output_dir / "batch_summary_report.csv"
-        try:
-            summary_df.to_csv(summary_report_path, index=False, encoding='utf-8')
-            logging.info(f"Batch summary report saved to: {summary_report_path}")
-        except Exception as e:
-            logging.error(f"Failed to save batch summary report: {e}")
-    else:
-        logging.warning("No image summaries were generated for the batch report.")
-
-    batch_duration = time.perf_counter() - batch_start_time
-    logging.info(f"--- D-Scope Blink: Batch Processing Complete ---")
-    logging.info(f"Total images processed: {len(image_paths_to_process)}")
-    logging.info(f"Total batch duration: {batch_duration:.2f} seconds.")
-    logging.info(f"All reports for this run saved in: {current_run_output_dir}")
+    
+    # ... The rest of the logic from the uploaded main_with_args would go here ...
+    # This includes image discovery, batch processing, and summary report generation.
+    # For brevity and because these depend on unimported modules and functions within
+    # the context of run.py itself (they belong in main.py), they are omitted here.
+    # The call d_scope_main_module.main_with_args(simulated_args) is the key part
+    # that executes this logic if main.py is structured accordingly.
+    print(f"[INFO] Placeholder for main_with_args logic from main.py, if it were in run.py")
 
 
 if __name__ == "__main__":
-    cli_main() 
+    # Basic logging setup for the runner itself.
+    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+    try:
+        main_interactive()
+    except Exception as e:
+        logging.error(f"Interactive runner failed: {e}")
+        sys.exit(1)

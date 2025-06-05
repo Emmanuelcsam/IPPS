@@ -1,9 +1,15 @@
-opencv-python>=4.9.0.80
-opencv-contrib-python>=4.9.0.80
-numpy>=1.26.0
-pandas>=2.2.0
-matplotlib==3.7.1
-scipy>=1.13.0
-scikit-image==0.21.0
-PyWavelets>=1.5.0
-# pypylon==2.2.0 # Still an issue for Python 3.12, handle as previously discussed
+opencv-python>=4.8.0
+opencv-contrib-python>=4.8.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+pandas>=2.0.0
+scipy>=1.10.0
+Pillow>=10.0.0
+PyWavelets>=1.4.0
+scikit-image>=0.21.0
+circle-fit>=0.2.0
+napari[all]>=0.4.18
+pypylon>=3.0.0
+anomalib>=0.7.0
+torch>=2.0.0
+torchvision>=0.15.0
