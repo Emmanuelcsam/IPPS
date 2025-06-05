@@ -1,0 +1,25 @@
+[2025-06-05 11:45:06] [INFO] [main:89] Logging configured. Level: INFO. Log file: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250605_114506\logs\d_scope_blink_inspection_20250605_114506.log
+[2025-06-05 11:45:06] [INFO] [main:306] D-Scope Blink: Inspection System Started.
+[2025-06-05 11:45:06] [INFO] [main:307] Input Directory: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples
+[2025-06-05 11:45:06] [INFO] [main:308] Output Directory (this run): C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250605_114506
+[2025-06-05 11:45:06] [INFO] [main:309] Using Profile: deep_inspection
+[2025-06-05 11:45:06] [INFO] [main:310] Fiber Type Key for Rules: sinlge_mode_pc
+[2025-06-05 11:45:06] [WARNING] [calibration:247] Calibration file 'calibration.json' not found.
+[2025-06-05 11:45:06] [WARNING] [main:332] No calibration data loaded from 'calibration.json'. Measurements may be in pixels if user dimensions not provided.
+[2025-06-05 11:45:06] [INFO] [main:352] Found 6 images to process in 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples'.
+[2025-06-05 11:45:06] [INFO] [main:359] --- Starting image 1/6: ima12.jpg ---
+[2025-06-05 11:45:06] [INFO] [main:119] --- Processing image: ima12.jpg ---
+[2025-06-05 11:45:06] [INFO] [main:123] Step 1: Loading and Preprocessing...
+[2025-06-05 11:45:06] [INFO] [image_processing:197] Image 'ima12.jpg' loaded successfully.
+[2025-06-05 11:45:06] [INFO] [main:135] Step 2: Locating Fiber Structure...
+[2025-06-05 11:45:06] [WARNING] [image_processing:354] HoughCircles found no circles initially.
+[2025-06-05 11:45:06] [WARNING] [image_processing:361] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-05 11:45:06] [INFO] [image_processing:436] Selected largest valid contour (Area: 87153.5px, Circularity: 0.60) for fitting.
+[2025-06-05 11:45:06] [INFO] [image_processing:454] Cladding (ContourFitEllipse): Center=(586,421), Axes=(322.2,367.9)px, Angle=112.8deg
+[2025-06-05 11:45:06] [WARNING] [image_processing:634] No core contours found using Otsu within cladding mask.
+[2025-06-05 11:45:06] [WARNING] [image_processing:637] Core detection defaulting to 0.4 * cladding radius.
+[2025-06-05 11:45:06] [INFO] [main:162] No µm/px scale available for ima12.jpg. Measurements will be in pixels.
+[2025-06-05 11:45:06] [INFO] [main:166] Step 3: Generating Zone Masks...
+[2025-06-05 11:45:06] [ERROR] [config_loader:267] Zone definitions for fiber type 'sinlge_mode_pc' not found.
+[2025-06-05 11:45:06] [WARNING] [config_loader:271] Falling back to first available zone definition: 'single_mode_pc'.
+[2025-06-05 11:45:06] [INFO] [main:182] Step 4: Detecting Defects in Zones...

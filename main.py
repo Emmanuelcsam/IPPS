@@ -96,8 +96,9 @@ def process_single_image(
     calibration_um_per_px: Optional[float],
     user_core_dia_um: Optional[float],
     user_clad_dia_um: Optional[float],
-    fiber_type_key: str # e.g. "single_mode_pc"
+    fiber_type_key: str
 ) -> Optional[Dict[str, Any]]:
+    image_start_time = time.perf_counter()
     """
     Orchestrates the full processing pipeline for a single image.
 
@@ -119,16 +120,21 @@ def process_single_image(
     output_dir_image.mkdir(parents=True, exist_ok=True) # Ensure image-specific output directory exists.
 
     # --- 1. Load and Preprocess Image ---
-    logging.info("Step 1: Loading and Preprocessing...")
-    preprocess_results = load_and_preprocess_image(str(image_path), profile_config) # Load and preprocess image.
-    if preprocess_results is None: # If preprocessing failed.
-        logging.error(f"Failed to load/preprocess image {image_path.name}. Skipping.")
+    logging.info("Step 1: Loading and Preprocessing...") # Log current step.
+    preprocess_results = load_and_preprocess_image(str(image_path), profile_config) # Call function to load and preprocess.
+    if preprocess_results is None: # Check if preprocessing failed.
+        logging.error(f"Failed to load/preprocess image {image_path.name}. Skipping.") # Log error.
+        # Ensure image_start_time is defined at the beginning of this function for this return path.
+        # Add this line if not already present at the top of process_single_image:
+        # image_start_time = time.perf_counter() 
         return {"image_filename": image_path.name, "status": "ERROR_LOAD_PREPROCESS", "processing_time_s": time.perf_counter() - image_start_time, "total_defect_count": 0, "failure_reasons": ["Load/preprocess failed"]}
-    original_bgr, original_gray, processed_image = preprocess_results # Unpack preprocessing results.
+    # Unpack results from preprocessing.
+    original_bgr, original_gray, processed_image = preprocess_results
 
     # --- 2. Locate Fiber Structure (Cladding and Core) ---
-    logging.info("Step 2: Locating Fiber Structure...")
-    localization_data = locate_fiber_structure(processed_image, profile_config) # Locate fiber structure.
+    logging.info("Step 2: Locating Fiber Structure...") # Log current step.
+    # Modify this line:
+    localization_data = locate_fiber_structure(processed_image, profile_config, original_gray_image=original_gray)# Locate fiber structure.
     if localization_data is None or "cladding_center_xy" not in localization_data: # If localization failed.
         logging.error(f"Failed to localize fiber structure in {image_path.name}. Skipping.")
         return {"image_filename": image_path.name, "status": "ERROR_LOCALIZATION", "processing_time_s": time.perf_counter() - image_start_time, "total_defect_count": 0, "failure_reasons": ["Localization failed"]}

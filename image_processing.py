@@ -248,306 +248,395 @@ def _correct_illumination(gray_image: np.ndarray) -> np.ndarray:
     
     return corrected
 
-
-# --- Fiber Localization and Zoning ---
 def locate_fiber_structure(
     processed_image: np.ndarray,
-    profile_config: Dict[str, Any]
+    profile_config: Dict[str, Any],
+    original_gray_image: Optional[np.ndarray] = None # Added for core detection
 ) -> Optional[Dict[str, Any]]:
     """
-    Locates the fiber cladding and core using HoughCircles or contour fitting.
+    Locates the fiber cladding and core using HoughCircles, contour fitting, or circle-fit library.
 
     Args:
-        processed_image: The preprocessed grayscale image.
+        processed_image: The preprocessed grayscale image (e.g., after CLAHE and Gaussian blur).
         profile_config: The specific processing profile sub-dictionary from the main config.
+        original_gray_image: The original grayscale image, primarily for core detection if available.
 
     Returns:
-        A dictionary containing localization data:
-            'cladding_center_xy': (cx, cy) for cladding.
-            'cladding_radius_px': Radius in pixels for cladding.
-            'cladding_ellipse_params': Ellipse parameters if contour fitting was used.
-            'core_center_xy': (cx, cy) for core.
-            'core_radius_px': Radius in pixels for core.
-            'localization_method': 'HoughCircles' or 'ContourFit'.
-        Returns None if localization fails.
+        A dictionary containing localization data or None if localization fails.
     """
-    loc_params = profile_config.get("localization", {}) # Get localization parameters from profile.
-    h, w = processed_image.shape[:2] # Get image height and width.
-    min_img_dim = min(h, w) # Get the smaller dimension of the image.
+    # Get localization parameters from the profile configuration.
+    loc_params = profile_config.get("localization", {})
+    # Get image height (h) and width (w).
+    h, w = processed_image.shape[:2]
+    # Determine the smaller dimension of the image.
+    min_img_dim = min(h, w)
 
-    # --- Primary Method: HoughCircles for Cladding Detection ---
-    # Parameters for HoughCircles, sourced from config.
+    # --- Initialize Parameters for HoughCircles ---
+    # dp: Inverse ratio of accumulator resolution.
     dp = loc_params.get("hough_dp", 1.2)
+    # minDist: Minimum distance between centers of detected circles (factor of min_img_dim).
     min_dist_circles = int(min_img_dim * loc_params.get("hough_min_dist_factor", 0.15))
-    param1 = loc_params.get("hough_param1", 70) # Upper Canny threshold for internal edge detection.
-    param2 = loc_params.get("hough_param2", 35) # Accumulator threshold for circle centers.
-    min_radius = int(min_img_dim * loc_params.get("hough_min_radius_factor", 0.08))
-    max_radius = int(min_img_dim * loc_params.get("hough_max_radius_factor", 0.45))
+    # param1: Upper Canny threshold for internal edge detection in HoughCircles.
+    param1 = loc_params.get("hough_param1", 70)
+    # param2: Accumulator threshold for circle centers at the detection stage.
+    param2 = loc_params.get("hough_param2", 35)
+    # minRadius: Minimum circle radius to detect (factor of min_img_dim).
+    min_radius_hough = int(min_img_dim * loc_params.get("hough_min_radius_factor", 0.08))
+    # maxRadius: Maximum circle radius to detect (factor of min_img_dim).
+    max_radius_hough = int(min_img_dim * loc_params.get("hough_max_radius_factor", 0.45))
 
-    logging.debug(f"Attempting HoughCircles with dp={dp}, minDist={min_dist_circles}, p1={param1}, p2={param2}, minR={min_radius}, maxR={max_radius}")
-    circles = cv2.HoughCircles( # Detect circles in the image. [cite: 89]
+    # Initialize dictionary to store localization results.
+    localization_result = {}
+    # Log the parameters being used for HoughCircles.
+    logging.debug(f"Attempting HoughCircles with dp={dp}, minDist={min_dist_circles}, p1={param1}, p2={param2}, minR={min_radius_hough}, maxR={max_radius_hough}")
+    
+    # --- Primary Method: HoughCircles for Cladding Detection ---
+    # Detect circles in the processed image.
+    circles = cv2.HoughCircles(
         processed_image, cv2.HOUGH_GRADIENT, dp=dp, minDist=min_dist_circles,
-        param1=param1, param2=param2, minRadius=min_radius, maxRadius=max_radius
+        param1=param1, param2=param2, minRadius=min_radius_hough, maxRadius=max_radius_hough
     )
 
-    localization_result = {} # Initialize dictionary for localization results.
-
-    if circles is not None: # If HoughCircles found circles.
+    # Check if any circles were found by HoughCircles.
+    if circles is not None:
+        # Log the number of circles detected.
         logging.info(f"HoughCircles detected {circles.shape[1]} circle(s).")
-        # Assume the most prominent (often largest or first detected) is the cladding.
-        # A more robust selection might involve scoring circles based on centrality or expected size.
-        circles = np.uint16(np.around(circles)) # Convert circle parameters to integers.
-        # Select the circle closest to the image center, if multiple, or largest radius.
-        # For simplicity, taking the first one, as minDist should handle multiple concentric detections.
-        # Or, choose the one with the largest radius within expected range.
-        best_circle = None # Initialize variable for the best circle.
-        max_r = 0 # Initialize max radius.
-        img_center_x, img_center_y = w // 2, h // 2 # Calculate image center.
-        min_dist_to_center = float('inf') # Initialize min distance to center.
+        # Convert circle parameters (x, y, radius) to integers.
+        circles_int = np.uint16(np.around(circles))
+        # Initialize variables to select the best circle.
+        best_circle_hough = None
+        # Initialize max radius found so far.
+        max_r_hough_found = 0
+        # Calculate image center coordinates.
+        img_center_x, img_center_y = w // 2, h // 2
+        # Initialize minimum distance to image center.
+        min_dist_to_img_center = float('inf')
 
-        for i in circles[0, :]: # Iterate through detected circles.
-            cx, cy, r = int(i[0]), int(i[1]), int(i[2]) # Extract circle parameters.
-            # Basic scoring: prefer larger circles closer to the image center.
-            dist = np.sqrt((cx - img_center_x)**2 + (cy - img_center_y)**2) # Calculate distance to image center.
-            if r > max_r - 20 and dist < min_dist_to_center + 20 : # Heuristic for "best" circle
-                 if r > max_r or dist < min_dist_to_center: # Prioritize radius then centrality
-                    max_r = r # Update max radius.
-                    min_dist_to_center = dist # Update min distance.
-                    best_circle = i # Update best circle.
+        # Iterate through all detected circles to find the best candidate for cladding.
+        for c_hough in circles_int[0, :]:
+            # Extract center coordinates (cx, cy) and radius (r).
+            cx_h, cy_h, r_h = int(c_hough[0]), int(c_hough[1]), int(c_hough[2])
+            # Calculate distance of circle center from image center.
+            dist_h = np.sqrt((cx_h - img_center_x)**2 + (cy_h - img_center_y)**2)
+            
+            # Heuristic: Prefer larger circles closer to the image center.
+            # This condition checks if the current circle is "better" than previously found ones.
+            if r_h > max_r_hough_found - 20 and dist_h < min_dist_to_img_center + 20 : # Allow some tolerance.
+                 if r_h > max_r_hough_found or dist_h < min_dist_to_img_center: # Prioritize radius then centrality.
+                    max_r_hough_found = r_h # Update max radius.
+                    min_dist_to_img_center = dist_h # Update min distance to center.
+                    best_circle_hough = c_hough # Update best circle.
         
-        if best_circle is None and len(circles[0,:]) > 0: # Fallback if scoring didn't select one.
-            best_circle = circles[0,0] # Select the first detected circle.
-            logging.warning("Multiple circles from Hough; took the first one as cladding.")
+        # If no specific "best" circle was selected through scoring, and circles were found, pick the first one as a fallback.
+        if best_circle_hough is None and len(circles_int[0,:]) > 0:
+            best_circle_hough = circles_int[0,0] # Select the first detected circle.
+            logging.warning("Multiple circles from Hough; heuristic didn't pinpoint one, took the first as cladding.")
 
-
-        if best_circle is not None: # If a best circle was selected.
-            cladding_cx, cladding_cy, cladding_r = int(best_circle[0]), int(best_circle[1]), int(best_circle[2])
+        # If a best circle was determined by Hough method.
+        if best_circle_hough is not None:
+            # Extract parameters of the best circle.
+            cladding_cx, cladding_cy, cladding_r = int(best_circle_hough[0]), int(best_circle_hough[1]), int(best_circle_hough[2])
+            # Store cladding center coordinates.
             localization_result['cladding_center_xy'] = (cladding_cx, cladding_cy)
+            # Store cladding radius in pixels.
             localization_result['cladding_radius_px'] = float(cladding_r)
+            # Store the method used for localization.
             localization_result['localization_method'] = 'HoughCircles'
+            # Log the detected cladding parameters.
             logging.info(f"Cladding (Hough): Center=({cladding_cx},{cladding_cy}), Radius={cladding_r}px")
-        else: # If no best circle could be determined.
-            logging.warning("HoughCircles detected circles, but failed to select a 'best' cladding circle.")
-            circles = None # Force fallback
-    
-    if circles is None: # If HoughCircles failed or no best circle was identified.
-        logging.warning("HoughCircles failed to detect cladding. Attempting contour fitting fallback.")
-        # Fallback Method: Adaptive Thresholding + Contour Fitting + Ellipse Fit
-        # This is more robust for angled polishes (APC) which appear elliptical.
-        # Adaptive thresholding helps segment the fiber from background.
-        adaptive_thresh_block_size = profile_config.get("localization", {}).get("adaptive_thresh_block_size", 31) # Must be odd.
-        adaptive_thresh_C = profile_config.get("localization", {}).get("adaptive_thresh_C", 5)
-        # Ensure block size is odd
+        else:
+            # If HoughCircles detected circles but failed to select a best one (e.g. all too small/off-center).
+            logging.warning("HoughCircles detected circles, but failed to select a suitable cladding circle.")
+            # Ensure circles is None to trigger fallback if this path is taken.
+            circles = None 
+    else:
+        # This log occurs if cv2.HoughCircles itself returns None.
+        logging.warning("HoughCircles found no circles initially.")
+
+
+    # --- Fallback Method 1: Adaptive Thresholding + Contour Fitting ---
+    # This block is executed if the primary HoughCircles method failed to identify a suitable cladding.
+    if 'cladding_center_xy' not in localization_result:
+        # Log that the system is attempting the first fallback method.
+        logging.warning("Attempting adaptive threshold contour fitting fallback for cladding detection.")
+        
+        # Get adaptive thresholding parameters from the profile configuration.
+        adaptive_thresh_block_size = loc_params.get("adaptive_thresh_block_size", 31) # Block size for adaptive threshold.
+        adaptive_thresh_C = loc_params.get("adaptive_thresh_C", 5) # Constant subtracted from the mean.
+        # Ensure block size is odd, as required by OpenCV.
         if adaptive_thresh_block_size % 2 == 0: adaptive_thresh_block_size +=1
 
-        thresh_img = cv2.adaptiveThreshold( # Apply adaptive thresholding.
-            processed_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY_INV, adaptive_thresh_block_size, adaptive_thresh_C # Invert to get fiber as white.
+        # Determine which image to use for thresholding.
+        # 'original_gray_image' (if available and less processed) might be better than 'processed_image'.
+        image_for_thresh = original_gray_image if original_gray_image is not None else processed_image
+
+        # Apply adaptive thresholding. THRESH_BINARY_INV is used if the fiber is darker than background.
+        # If fiber is brighter, THRESH_BINARY should be used.
+        thresh_img_adaptive = cv2.adaptiveThreshold(
+            image_for_thresh, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV, adaptive_thresh_block_size, adaptive_thresh_C
         )
-        # Morphological opening to remove small noise.
-        kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-        thresh_img = cv2.morphologyEx(thresh_img, cv2.MORPH_OPEN, kernel_open)
-
-        contours, _ = cv2.findContours(thresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) # Find external contours.
-        if contours: # If contours are found.
-            # Assume the largest contour is the fiber.
-            fiber_contour = max(contours, key=cv2.contourArea)
-            if len(fiber_contour) >= 5: # fitEllipse requires at least 5 points.
-                ellipse_params = cv2.fitEllipse(fiber_contour) # Fit an ellipse to the contour.
-                # ((center_x, center_y), (minor_axis, major_axis), angle)
-                cladding_cx, cladding_cy = int(ellipse_params[0][0]), int(ellipse_params[0][1])
-                # Use major axis as a proxy for "radius" or diameter.
-                # For a near-circle, major and minor axes will be similar.
-                cladding_major_axis = ellipse_params[1][1]
-                cladding_minor_axis = ellipse_params[1][0]
-
-                localization_result['cladding_center_xy'] = (cladding_cx, cladding_cy)
-                # Effective radius for zoning might be average, min, or max axis.
-                # Using average for now, but for IEC zones, specific diameter interpretation is key.
-                localization_result['cladding_radius_px'] = (cladding_major_axis + cladding_minor_axis) / 4.0 # Average radius
-                localization_result['cladding_ellipse_params'] = ellipse_params
-                localization_result['localization_method'] = 'ContourFitEllipse'
-                logging.info(f"Cladding (ContourFitEllipse): Center=({cladding_cx},{cladding_cy}), Axes=({cladding_minor_axis:.1f},{cladding_major_axis:.1f})px, Angle={ellipse_params[2]:.1f}deg")
-            else: # If largest contour is too small for ellipse fitting.
-                logging.error("Contour fitting failed: Largest contour has < 5 points.")
-                return None # Return None.
-        else: # If no contours are found.
-            logging.error("Contour fitting failed: No contours found after adaptive thresholding.")
-            return None # Return None.
-    # --- Method 3: Circle-fit library (High accuracy) ---
-    if circles is None:
+        logging.debug("Adaptive threshold applied for contour fallback.")
+        
+        # --- Enhanced Morphological Operations for Fallback ---
+        # Close small gaps in the fiber structure.
+        kernel_close_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11,11)) # Kernel for closing.
+        closed_adaptive = cv2.morphologyEx(thresh_img_adaptive, cv2.MORPH_CLOSE, kernel_close_large, iterations=2) # Apply closing.
+        logging.debug("Applied large closing operation to adaptive threshold result.")
+        
+        # Fill holes within the identified fiber structure.
+        # binary_fill_holes expects a binary image (0 or 1).
+        closed_adaptive_binary = (closed_adaptive // 255).astype(np.uint8) # Convert to 0/1.
         try:
-            import circle_fit as cf
-            logging.info("Attempting circle-fit library method...")
-            
-            # Edge detection for circle fitting
-            edges = cv2.Canny(processed_image, 50, 150)
-            
-            # Find contours
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            if contours:
-                # Get the largest contour (likely the cladding)
-                largest_contour = max(contours, key=cv2.contourArea)
-                
-                # Convert contour to points for circle-fit
-                points = largest_contour.reshape(-1, 2)
-                
-                # Try multiple fitting methods
-                fit_methods = [
-                    ('algebraic', cf.least_squares_circle),
-                    ('hyper', cf.hyper_fit),
-                    ('taubin', cf.taubin_svd)
-                ]
-                
-                best_fit = None
-                best_residual = float('inf')
-                
-                for method_name, method_func in fit_methods:
-                    try:
-                        xc, yc, r, residual = method_func(points)
-                        
-                        if min_radius < r < max_radius and residual < best_residual:
-                            best_fit = (xc, yc, r)
-                            best_residual = residual
-                            logging.info(f"Circle-fit {method_name}: Center=({xc:.1f},{yc:.1f}), Radius={r:.1f}px, Residual={residual:.3f}")
-                    except Exception as e:
-                        logging.debug(f"Circle-fit {method_name} failed: {e}")
-                
-                if best_fit:
-                    xc, yc, r = best_fit
-                    localization_result['cladding_center_xy'] = (int(xc), int(yc))
-                    localization_result['cladding_radius_px'] = float(r)
-                    localization_result['localization_method'] = 'CircleFit'
-                    localization_result['fit_residual'] = best_residual
-                    logging.info(f"Best circle-fit result: Center=({xc:.1f},{yc:.1f}), Radius={r:.1f}px")
-                    circles = np.array([[[xc, yc, r]]], dtype=np.float32)  # Set circles for core detection
-        except ImportError:
-            logging.warning("circle-fit library not available")
-        except Exception as e:
-            logging.warning(f"Circle-fit method failed: {e}")    
-            
-    if circles is None and CIRCLE_FIT_AVAILABLE:
-        logging.info("Attempting circle-fit library method...")
+            filled_adaptive = ndimage.binary_fill_holes(closed_adaptive_binary).astype(np.uint8) * 255 # Fill holes.
+            logging.debug("Applied hole filling to adaptive threshold result.")
+        except Exception as e_fill: # Handle potential errors in binary_fill_holes.
+            logging.warning(f"Hole filling failed: {e_fill}. Proceeding with un-filled image.")
+            filled_adaptive = closed_adaptive # Use the image before hole filling.
         
-        # Edge detection for circle fitting
-        edges = cv2.Canny(processed_image, 50, 150)
+        # Open to remove small noise or protrusions after filling.
+        kernel_open_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7,7)) # Smaller kernel for opening.
+        opened_adaptive = cv2.morphologyEx(filled_adaptive, cv2.MORPH_OPEN, kernel_open_small, iterations=1) # Apply opening.
+        logging.debug("Applied small opening operation to adaptive threshold result.")
         
-        # Find contours
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Find contours on the cleaned binary image.
+        contours_adaptive, _ = cv2.findContours(opened_adaptive, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        if contours:
-            # Get the largest contour (likely the cladding)
-            largest_contour = max(contours, key=cv2.contourArea)
-            
-            # Convert contour to points for circle-fit
-            points = largest_contour.reshape(-1, 2)
-            
-            try:
-                # Fit circle using algebraic method
-                xc, yc, r, _ = cf.least_squares_circle(points)
+        # List to store valid fiber contours found by this fallback method.
+        valid_fiber_contours = []
+        if contours_adaptive: # If any contours were found.
+            logging.debug(f"Found {len(contours_adaptive)} contours after adaptive thresholding and morphology.")
+            for c_adap in contours_adaptive: # Iterate through each contour.
+                area = cv2.contourArea(c_adap) # Calculate contour area.
                 
-                if r > min_radius and r < max_radius:
-                    circles = np.array([[[xc, yc, r]]], dtype=np.float32)
-                    logging.info(f"Circle-fit successful: Center=({xc:.1f},{yc:.1f}), Radius={r:.1f}px")
-            except Exception as e:
-                logging.warning(f"Circle-fit failed: {e}")
+                # Filter by area: contour must be reasonably large.
+                # These are relative to min/max radius expected by Hough, providing some bounds.
+                min_area_expected = (np.pi * (min_radius_hough**2)) * 0.3 # Heuristic: e.g. 30% of min Hough area.
+                max_area_expected = (np.pi * (max_radius_hough**2)) * 2.0 # Heuristic: e.g. 200% of max Hough area.
+                if not (min_area_expected < area < max_area_expected): # If area is outside expected range.
+                    logging.debug(f"Contour skipped: Area {area:.1f}px outside range ({min_area_expected:.1f}-{max_area_expected:.1f})px.")
+                    continue # Skip this contour.
+
+                perimeter = cv2.arcLength(c_adap, True) # Calculate contour perimeter.
+                if perimeter == 0: continue # Avoid division by zero if perimeter is zero.
+                circularity = 4 * np.pi * area / (perimeter**2) # Calculate circularity.
                 
-    if 'cladding_center_xy' not in localization_result: # Final check if cladding was found.
+                # Filter by circularity: fiber end face should be somewhat circular.
+                # A perfect circle has circularity 1.0.
+                if circularity < 0.5: # Adjust this threshold based on expected fiber shape.
+                    logging.debug(f"Contour skipped: Circularity {circularity:.2f} < 0.5.")
+                    continue # Skip this contour.
+                
+                valid_fiber_contours.append(c_adap) # Add valid contour to list.
+
+            # If valid fiber contours were found by adaptive thresholding.
+            if valid_fiber_contours:
+                # Select the largest valid contour as the best candidate for the fiber.
+                fiber_contour_adaptive = max(valid_fiber_contours, key=cv2.contourArea)
+                logging.info(f"Selected largest valid contour (Area: {cv2.contourArea(fiber_contour_adaptive):.1f}px, Circularity: {4 * np.pi * cv2.contourArea(fiber_contour_adaptive) / (cv2.arcLength(fiber_contour_adaptive, True)**2):.2f}) for fitting.")
+                
+                # Check if the contour has enough points for ellipse fitting.
+                if len(fiber_contour_adaptive) >= 5:
+                    # Check config if ellipse fitting is preferred for this profile.
+                    if loc_params.get("use_ellipse_detection", True): # Default to True if not specified
+                        # Fit an ellipse to the contour.
+                        ellipse_params = cv2.fitEllipse(fiber_contour_adaptive)
+                        # Extract ellipse parameters: center (cx, cy), axes (minor, major), angle.
+                        cladding_cx, cladding_cy = int(ellipse_params[0][0]), int(ellipse_params[0][1])
+                        cladding_minor_axis = ellipse_params[1][0] # Minor axis.
+                        cladding_major_axis = ellipse_params[1][1] # Major axis.
+                        # Store ellipse parameters in the localization result.
+                        localization_result['cladding_center_xy'] = (cladding_cx, cladding_cy)
+                        # Calculate average radius from major and minor axes.
+                        localization_result['cladding_radius_px'] = (cladding_major_axis + cladding_minor_axis) / 4.0
+                        localization_result['cladding_ellipse_params'] = ellipse_params # Store full ellipse parameters.
+                        localization_result['localization_method'] = 'ContourFitEllipse' # Mark method.
+                        logging.info(f"Cladding (ContourFitEllipse): Center=({cladding_cx},{cladding_cy}), Axes=({cladding_minor_axis:.1f},{cladding_major_axis:.1f})px, Angle={ellipse_params[2]:.1f}deg")
+                    else: # If ellipse detection is disabled, fit a minimum enclosing circle.
+                        (cx_circ, cy_circ), r_circ = cv2.minEnclosingCircle(fiber_contour_adaptive) # Fit circle.
+                        localization_result['cladding_center_xy'] = (int(cx_circ), int(cy_circ)) # Store center.
+                        localization_result['cladding_radius_px'] = float(r_circ) # Store radius.
+                        localization_result['localization_method'] = 'ContourFitCircle' # Mark method.
+                        logging.info(f"Cladding (ContourFitCircle): Center=({int(cx_circ)},{int(cy_circ)}), Radius={r_circ:.1f}px")
+                else:
+                    # Log if the largest contour is too small for fitting.
+                    logging.warning("Adaptive contour found, but too small for robust ellipse/circle fitting (less than 5 points).")
+            else:
+                # Log if no suitable contours were found after filtering.
+                logging.warning("Adaptive thresholding did not yield any suitable fiber contours after filtering.")
+        else:
+            # Log if no contours were found at all by adaptive thresholding.
+            logging.warning("No contours found after adaptive thresholding and initial morphological operations.")
+
+
+    # --- Fallback Method 2: Circle-Fit library (if enabled and previous methods failed) ---
+    # This block is executed if cladding_center_xy is still not found and circle-fit is enabled and available.
+    if 'cladding_center_xy' not in localization_result and loc_params.get("use_circle_fit", True) and CIRCLE_FIT_AVAILABLE:
+        # Log attempt to use circle-fit library.
+        logging.info("Attempting circle-fit library method as a further fallback for cladding detection.")
+        try:
+            # Using 'processed_image' for Canny to get edge points for circle_fit.
+            # Alternative: use 'original_gray_image' if it provides cleaner edges for this specific method.
+            edges_for_circle_fit = cv2.Canny(processed_image, 50, 150) # Standard Canny parameters.
+            
+            # Find contours on these Canny edges.
+            contours_cf, _ = cv2.findContours(edges_for_circle_fit, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            if contours_cf: # If contours are found.
+                # Concatenate points from all reasonably large contours for a more robust fit.
+                # This helps if the fiber edge is broken into multiple segments by Canny.
+                all_points_for_cf = []
+                for c_cf in contours_cf:
+                    if cv2.contourArea(c_cf) > 50: # Heuristic: filter out very small noisy contours.
+                        all_points_for_cf.extend(c_cf.reshape(-1,2))
+                
+                if len(all_points_for_cf) > 20 : # Ensure enough points for a reliable fit.
+                    points_for_cf_np = np.array(all_points_for_cf) # Convert list of points to NumPy array.
+                    
+                    # Define fitting methods from circle_fit library to try.
+                    fit_methods_cf = [
+                        ('algebraic', cf.least_squares_circle), # Fast, but can be sensitive to outliers.
+                        ('hyper', cf.hyper_fit),             # Generally more robust.
+                        ('taubin', cf.taubin_svd)            # Robust, often considered good.
+                    ]
+                    
+                    best_fit_circle_cf = None # Initialize best fit circle.
+                    best_residual_cf = float('inf') # Initialize best residual.
+                    
+                    # Iterate through defined fitting methods.
+                    for method_name_cf, fit_func_cf in fit_methods_cf:
+                        try:
+                            # Perform circle fitting.
+                            xc_cf, yc_cf, r_cf, residual_cf = fit_func_cf(points_for_cf_np)
+                            # Sanity checks for the fitted circle:
+                            # - Radius within expected Hough bounds (loosened slightly).
+                            # - Center within image boundaries.
+                            if min_radius_hough * 0.7 < r_cf < max_radius_hough * 1.3 and \
+                               0 < xc_cf < w and 0 < yc_cf < h:
+                                if residual_cf < best_residual_cf: # If current fit is better.
+                                    best_fit_circle_cf = (xc_cf, yc_cf, r_cf) # Update best fit.
+                                    best_residual_cf = residual_cf # Update best residual.
+                                    logging.debug(f"Circle-fit ({method_name_cf}): Center=({xc_cf:.1f},{yc_cf:.1f}), R={r_cf:.1f}px, Residual={residual_cf:.3f}")
+                        except Exception as e_cf_fit: # Handle errors during fitting.
+                            logging.debug(f"Circle-fit method {method_name_cf} failed: {e_cf_fit}")
+                    
+                    if best_fit_circle_cf: # If a best fit was found.
+                        xc_final_cf, yc_final_cf, r_final_cf = best_fit_circle_cf # Unpack best fit parameters.
+                        # Store results.
+                        localization_result['cladding_center_xy'] = (int(xc_final_cf), int(yc_final_cf))
+                        localization_result['cladding_radius_px'] = float(r_final_cf)
+                        localization_result['localization_method'] = 'CircleFitLib' # Mark method.
+                        localization_result['fit_residual'] = best_residual_cf # Store fit residual.
+                        logging.info(f"Cladding (CircleFitLib best): Center=({int(xc_final_cf)},{int(yc_final_cf)}), Radius={r_final_cf:.1f}px, Residual={best_residual_cf:.3f}")
+                    else: # If no suitable circle found by circle_fit.
+                        logging.warning("Circle-fit library methods did not yield a suitable circle.")
+                else: # If not enough points for fitting.
+                    logging.warning(f"Not enough contour points ({len(all_points_for_cf)}) for robust circle-fit library method.")
+            else: # If no contours found for circle-fit.
+                logging.warning("No contours found from Canny edges for circle-fit library method.")
+        except ImportError: # Handle if circle_fit library is not actually available.
+            logging.error("circle_fit library was marked as available in config but failed to import.")
+            # Ensure CIRCLE_FIT_AVAILABLE is False if it fails here to prevent repeated attempts.
+            # global CIRCLE_FIT_AVAILABLE (if it's a global flag)
+            # CIRCLE_FIT_AVAILABLE = False
+        except Exception as e_circle_fit_main: # Handle other errors during circle-fit process.
+            logging.error(f"An error occurred during the circle-fit library attempt: {e_circle_fit_main}")
+
+    # --- After all attempts, check if cladding was found ---
+    if 'cladding_center_xy' not in localization_result: # If cladding center is still not found.
         logging.error("Failed to localize fiber cladding by any method.")
-        return None # Return None.
+        return None # Critical failure, return None.
 
-    # --- Core Detection ---
-    # The core is a darker region within the identified cladding.
+    # --- Core Detection (Proceeds if cladding was successfully found) ---
+    # Ensure original_gray_image is used for better intensity distinction if available.
+    image_for_core_detect = original_gray_image if original_gray_image is not None else processed_image
+    
     # Create a mask for the cladding area to search for the core.
-    cladding_mask = np.zeros_like(processed_image) # Initialize cladding mask.
-    cl_cx, cl_cy = localization_result['cladding_center_xy'] # Get cladding center.
-    if localization_result['localization_method'] == 'HoughCircles': # If using HoughCircles result.
-        cl_r = int(localization_result['cladding_radius_px'] * 0.95) # Search slightly inside detected cladding.
-        cv2.circle(cladding_mask, (cl_cx, cl_cy), cl_r, 255, -1) # Draw cladding circle on mask.
-    elif localization_result.get('cladding_ellipse_params'): # If using ellipse result.
-        ellipse_p = localization_result['cladding_ellipse_params'] # Get ellipse parameters.
-        # Scale down ellipse slightly for core search.
-        scaled_axes = (ellipse_p[1][0] * 0.9, ellipse_p[1][1] * 0.9)
-        cv2.ellipse(cladding_mask, (ellipse_p[0], scaled_axes, ellipse_p[2]), 255, -1) # Draw ellipse on mask.
-    
-    # Apply the cladding mask to the original grayscale image (not the preprocessed one for edge detection).
-    # Using the original gray for better core/cladding intensity difference.
-    # We need the original gray image passed to this function or re-load/re-convert if only processed_image is available.
-    # For now, assuming 'processed_image' is suitable if it's not overly blurred for intensity analysis.
-    # A better approach would be to use the 'illum_corrected_image' from preprocessing.
-    # For simplicity, this example will use processed_image, but note this caveat.
-    
-    image_for_core_detect = processed_image # Use the preprocessed image for core detection.
-    masked_for_core = cv2.bitwise_and(image_for_core_detect, image_for_core_detect, mask=cladding_mask) # Apply mask.
+    cladding_mask_for_core_det = np.zeros_like(image_for_core_detect, dtype=np.uint8)
+    cl_cx_core, cl_cy_core = localization_result['cladding_center_xy'] # Get cladding center.
 
-    # The core is darker. Invert for Otsu if expecting core to be bright objects after inversion.
-    # Or, directly use THRESH_BINARY with Otsu if core is darker region.
-    # The research paper mentions the core is darker [cite: 28]
-    
-    # Apply Otsu's thresholding within the cladding mask to find the core.
-    # The core is darker, so we look for low intensity values.
-    # cv2.THRESH_BINARY will make pixels below threshold 0, above 255.
-    # We want the core, which is dark.
-    _, core_thresh_otsu = cv2.threshold(masked_for_core, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    # After Otsu, the core (darker region) should be black (0) and cladding (brighter) white (255).
-    # We need to find the black region. Invert if easier.
-    # Or, analyze the histogram from Otsu to pick the lower intensity cluster.
-    # The paper doesn't detail core detection beyond finding cladding center [cite: 87]
-    # My advanced_fiber_inspector.py uses THRESH_BINARY_INV if core is dark.
-    # If Otsu separates background and foreground (core), and core is dark, it will be one class.
-    # Let's assume Otsu correctly puts core as one region and the rest of cladding as another.
-    # We need the dark core.
-    
-    # In the provided code (advanced_fiber_inspector.py), it applies Otsu then looks for contours.
-    # That implies core_thresh_otsu should result in core being white objects.
-    # If core is darker, and Otsu sets dark to 0, bright to 255, we need to invert or find dark contours.
-    # Let's assume `THRESH_BINARY_INV` is more direct if core is the darkest.
+    # Use the determined localization method to create the search mask for the core.
+    # Reduce search radius slightly (e.g., 90-95% of cladding) to avoid cladding edge effects.
+    search_radius_factor = 0.90 
+    if localization_result.get('localization_method') in ['HoughCircles', 'CircleFitLib', 'ContourFitCircle']:
+        cl_r_core_search = int(localization_result['cladding_radius_px'] * search_radius_factor)
+        cv2.circle(cladding_mask_for_core_det, (cl_cx_core, cl_cy_core), cl_r_core_search, 255, -1)
+    elif localization_result.get('cladding_ellipse_params'): # If cladding was an ellipse.
+        ellipse_p_core = localization_result['cladding_ellipse_params']
+        # Scale down ellipse axes for core search.
+        scaled_axes_core = (ellipse_p_core[1][0] * search_radius_factor, ellipse_p_core[1][1] * search_radius_factor)
+        cv2.ellipse(cladding_mask_for_core_det, (ellipse_p_core[0], scaled_axes_core, ellipse_p_core[2]), 255, -1)
+    else: # Should not happen if cladding_center_xy is present, but as a safeguard.
+        logging.error("Cladding localization method unknown for core detection masking. Cannot proceed with core detection.")
+        # Return with at least cladding info, core will be marked as not found or estimated.
+        localization_result['core_center_xy'] = localization_result['cladding_center_xy'] # Default to cladding center.
+        localization_result['core_radius_px'] = localization_result['cladding_radius_px'] * 0.4 # Default typical ratio.
+        logging.warning(f"Core detection failed due to masking issue, defaulting to 0.4 * cladding radius.")
+        return localization_result
+
+    # Apply the cladding mask to the image chosen for core detection.
+    masked_for_core = cv2.bitwise_and(image_for_core_detect, image_for_core_detect, mask=cladding_mask_for_core_det)
+
+    # Otsu's thresholding: Core is darker, so THRESH_BINARY_INV makes core white.
     _, core_thresh_inv_otsu = cv2.threshold(masked_for_core, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    core_thresh_inv_otsu = cv2.bitwise_and(core_thresh_inv_otsu, core_thresh_inv_otsu, mask=cladding_mask) # Re-mask.
+    # Re-mask to ensure it's strictly within the search area.
+    core_thresh_inv_otsu = cv2.bitwise_and(core_thresh_inv_otsu, core_thresh_inv_otsu, mask=cladding_mask_for_core_det)
+    
+    # Morphological opening to remove small noise from core thresholding.
+    kernel_core_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3))
+    core_thresh_inv_otsu_opened = cv2.morphologyEx(core_thresh_inv_otsu, cv2.MORPH_OPEN, kernel_core_open, iterations=1)
 
-    core_contours, _ = cv2.findContours(core_thresh_inv_otsu, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) # Find core contours.
+    # Find contours of potential core regions.
+    core_contours, _ = cv2.findContours(core_thresh_inv_otsu_opened, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if core_contours: # If core contours are found.
-        # Select the largest contour within the cladding, or one closest to cladding center.
         best_core_contour = None # Initialize best core contour.
-        min_core_dist_to_cl_center = float('inf') # Initialize min distance.
-        # Filter by area and circularity as well.
-        for c_contour in core_contours: # Iterate core contours.
-            area = cv2.contourArea(c_contour) # Calculate area.
-            if area < 10: continue # Skip tiny contours.
-            M = cv2.moments(c_contour) # Calculate moments.
-            if M["m00"] == 0: continue # Skip if area is zero.
-            core_cx_cand, core_cy_cand = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]) # Calculate centroid.
-            dist = np.sqrt((core_cx_cand - cl_cx)**2 + (core_cy_cand - cl_cy)**2) # Distance to cladding center.
+        min_core_dist_to_cl_center = float('inf') # Initialize min distance to cladding center.
+        max_core_area = 0 # Initialize max core area (alternative selection criteria).
+
+        # Iterate through found core contours.
+        for c_core_contour in core_contours:
+            area_core = cv2.contourArea(c_core_contour) # Calculate area.
+            # Min area for core (e.g., related to min_radius_hough, but for core which is smaller).
+            if area_core < np.pi * (min_radius_hough * 0.1)**2 : continue 
             
-            # Prefer contours closer to the cladding center.
-            if dist < min_core_dist_to_cl_center: # If current contour is closer.
-                min_core_dist_to_cl_center = dist # Update min distance.
-                best_core_contour = c_contour # Update best core contour.
+            M_core = cv2.moments(c_core_contour) # Calculate moments.
+            if M_core["m00"] == 0: continue # Skip if area is zero.
+            core_cx_cand, core_cy_cand = int(M_core["m10"] / M_core["m00"]), int(M_core["m01"] / M_core["m00"]) # Centroid.
+            
+            # Distance from this candidate core center to the established cladding center.
+            dist_to_cladding_center = np.sqrt((core_cx_cand - cl_cx_core)**2 + (core_cy_cand - cl_cy_core)**2)
+            
+            # Core should be very close to the cladding center.
+            # Max allowed offset could be a small fraction of cladding radius.
+            max_offset_allowed = localization_result['cladding_radius_px'] * 0.2 # e.g., 20% of cladding radius.
+
+            if dist_to_cladding_center < max_offset_allowed: # If core is reasonably centered.
+                # Prefer the largest valid contour that is well-centered.
+                if area_core > max_core_area:
+                    max_core_area = area_core
+                    best_core_contour = c_core_contour
+                    min_core_dist_to_cl_center = dist_to_cladding_center # Also track its distance
         
-        if best_core_contour is not None: # If a best core contour was found.
+        if best_core_contour is not None: # If a best core contour was selected.
             (core_cx_fit, core_cy_fit), core_r_fit = cv2.minEnclosingCircle(best_core_contour) # Fit circle to contour.
+            # Store core parameters.
             localization_result['core_center_xy'] = (int(core_cx_fit), int(core_cy_fit))
             localization_result['core_radius_px'] = float(core_r_fit)
             logging.info(f"Core (ContourFit): Center=({int(core_cx_fit)},{int(core_cy_fit)}), Radius={core_r_fit:.1f}px")
         else: # If no suitable core contour found.
-            logging.warning("Could not identify a distinct core contour within the cladding.")
-            # Fallback: estimate core based on typical ratio to cladding if available.
-            # This is highly dependent on having known fiber type specs.
-            # For now, mark as not found.
+            logging.warning("Could not identify a distinct core contour within the cladding using current criteria.")
+            # Fallback: estimate core based on typical ratio to cladding.
             localization_result['core_center_xy'] = localization_result['cladding_center_xy'] # Default to cladding center.
             localization_result['core_radius_px'] = localization_result['cladding_radius_px'] * 0.4 # Default typical ratio.
             logging.warning(f"Core detection failed, defaulting to 0.4 * cladding radius.")
-
-    else: # If no core contours found.
+    else: # If no core contours found by Otsu.
         logging.warning("No core contours found using Otsu within cladding mask.")
         localization_result['core_center_xy'] = localization_result['cladding_center_xy'] # Default to cladding center.
         localization_result['core_radius_px'] = localization_result['cladding_radius_px'] * 0.4 # Default typical ratio.
-        logging.warning(f"Core detection failed, defaulting to 0.4 * cladding radius.")
+        logging.warning(f"Core detection defaulting to 0.4 * cladding radius.")
 
     return localization_result # Return all localization data.
-
 
 
 def generate_zone_masks(
