@@ -46,7 +46,7 @@ class AnomalyDetector:
                     # use str(model_file_path).
                     self.inferencer = OpenVINOInferencer(
                         path=model_file_path, 
-                        device="CPU"  # Use GPU if available
+                        device="CPU"  # To use GPU, change to "GPU" and ensure OpenVINO is configured for it.
                     )
                     logging.info(f"Loaded anomaly detection model from {model_file_path}")
                 except Exception as e:
@@ -89,44 +89,12 @@ class AnomalyDetector:
                 logging.error("Anomaly detector returned unexpected prediction format.")
                 return None
 
-            # Extract anomaly mask
+            # Extract anomaly map
             anomaly_map = predictions.anomaly_map
-            pred_score = predictions.pred_score # This is often an image-level score
+            # The variable 'pred_score' assignment from original line 93 is removed as it's unused with this logic.
 
-            # Binarize the anomaly_map.
-            # The threshold for binarization can be a fixed value,
-            # or sometimes related to `pred_score` if `pred_score` is a threshold,
-            # or determined by other means (e.g., adaptive thresholding, Otsu's method on anomaly_map).
-            # For Anomalib, often the anomaly_map itself contains scores where higher means more anomalous.
-            # A common approach is to normalize the anomaly_map and apply a threshold.
-            # The original code `(anomaly_map > pred_score)` might be problematic if pred_score is a scalar
-            # image-level score and anomaly_map is a 2D array of pixel-level scores.
-            # Let's assume a simple thresholding for now, e.g., based on a percentile or a fixed value
-            # if `pred_score` isn't a pixel-wise threshold.
-            # If `pred_score` is an image-level abnormality score, it's not directly usable as a pixel threshold.
-            # For demonstration, using a fixed threshold or assuming `pred_score` is an adaptive threshold from model.
-            # A more robust way would be to check the documentation or typical usage for the specific model.
-            # If the model or `predictions` object provides a threshold, use that.
-            # Otherwise, a common practice is to normalize anomaly_map and threshold.
-            # For now, keeping a similar logic to the original but with a note:
-            
-            # If pred_score is an image-level score, it's not suitable for direct pixel-wise thresholding.
-            # You might need a different thresholding strategy, e.g., a fixed value,
-            # Otsu's method on the anomaly_map, or a threshold derived from a validation set.
-            # Assuming `predictions.pred_label` (if available) or `pred_score` can guide if an image is anomalous,
-            # and `anomaly_map` shows where.
-            
-            # Example: Simple binarization (you might need to adjust the threshold)
-            # If the anomaly map values are between 0 and 1.
-            threshold = 0.5 # This is an example, needs to be tuned.
-            if isinstance(predictions.pred_score, (float, np.float32, np.float64)) and predictions.pred_score > threshold : # Check image level score
-                 # if the image is considered anomalous, then use the map
-                 # Normalize anomaly map to 0-1 if it's not already
-                norm_anomaly_map = (anomaly_map - np.min(anomaly_map)) / (np.max(anomaly_map) - np.min(anomaly_map) + 1e-6)
-                anomaly_mask = (norm_anomaly_map > threshold).astype(np.uint8) * 255
-            else: # if image level score is low, or no proper thresholding logic here.
-                anomaly_mask = np.zeros_like(anomaly_map, dtype=np.uint8) # No anomaly or use a default
-
+            # The first binarization block (original lines 95-105, marked with) has been removed
+            # as its logic was superseded by the subsequent block.
 
             # Original binarization was: anomaly_mask = (anomaly_map > pred_score).astype(np.uint8) * 255
             # This is kept if pred_score is meant to be a pixel-wise adaptive threshold,
@@ -138,7 +106,8 @@ class AnomalyDetector:
             
             # Reverting to a structure closer to original for `pred_score` usage, assuming it's a valid threshold
             # The user should verify how `pred_score` is intended to be used with `anomaly_map` for their model
-            if isinstance(predictions.pred_score, (float, np.float32, np.float64)): # if pred_score is scalar
+            # Corrected based on Problem.txt
+            if isinstance(predictions.pred_score, (float, np.floating)): # if pred_score is scalar
                 anomaly_mask = (anomaly_map > predictions.pred_score).astype(np.uint8) * 255
             else: # if pred_score is an array (e.g. pixel-wise thresholds, less common for image-level score)
                 anomaly_mask = (anomaly_map > predictions.pred_score).astype(np.uint8) * 255

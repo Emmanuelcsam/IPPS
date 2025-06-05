@@ -219,8 +219,9 @@ def process_single_image(
             continue
         
         logging.debug(f"Detecting defects in zone: '{zone_name}'...")
+        # CORRECTED CALL to detect_defects: Added zone_name [cite: 109, 317]
         defects_in_zone_mask, zone_confidence_map = detect_defects(
-            processed_image, zone_mask_np, profile_config, global_algo_params
+            processed_image, zone_mask_np, zone_name, profile_config, global_algo_params
         )
         all_zone_defect_masks[zone_name] = defects_in_zone_mask
         combined_final_defect_mask = cv2.bitwise_or(combined_final_defect_mask, defects_in_zone_mask)
@@ -237,7 +238,8 @@ def process_single_image(
         confidence_map=combined_confidence_map
     )
     
-    overall_status, failure_reasons = apply_pass_fail_rules(characterized_defects, zone_definitions_for_type)
+    # CORRECTED CALL to apply_pass_fail_rules: Changed zone_definitions_for_type to fiber_type_key [cite: 113, 321]
+    overall_status, failure_reasons = apply_pass_fail_rules(characterized_defects, fiber_type_key)
 
     analysis_summary = { # Create analysis summary dictionary.
         "image_filename": image_path.name,
@@ -290,7 +292,8 @@ def process_single_image(
     }
     return summary_for_batch # Return summary.
 
-def execute_inspection_run(args_namespace: argparse.Namespace) -> None:
+# CORRECTED Function Definition: Changed args_namespace type hint to Any [cite: 129, 340]
+def execute_inspection_run(args_namespace: Any) -> None:
     """
     Core inspection logic that takes an args-like namespace object.
     This function contains the main processing flow.
@@ -435,7 +438,8 @@ def execute_inspection_run(args_namespace: argparse.Namespace) -> None:
     logging.info(f"Total batch duration: {batch_duration:.2f} seconds.")
     logging.info(f"All reports for this run saved in: {current_run_output_dir}")
 
-def main_with_args(args_namespace: argparse.Namespace) -> None:
+# CORRECTED Function Definition: Changed args_namespace type hint to Any [cite: 129, 340]
+def main_with_args(args_namespace: Any) -> None:
     """
     Entry point that uses a pre-filled args_namespace object.
     This is callable by other scripts.

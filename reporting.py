@@ -12,11 +12,13 @@ distribution histograms.
 import cv2 # OpenCV for drawing on images.
 import numpy as np # NumPy for numerical operations, especially for polar histogram.
 import matplotlib.pyplot as plt # Matplotlib for generating plots, specifically the polar histogram.
+from matplotlib.projections.polar import PolarAxes # <<< ADD THIS LINE
 import pandas as pd # Pandas for easy CSV file generation.
 from pathlib import Path # Standard library for object-oriented path manipulation.
-from typing import Dict, Any, Optional, List, Tuple # Standard library for type hinting.
+from typing import Dict, Any, Optional, List, Tuple, cast # Standard library for type hinting.
 import logging # Standard library for logging events.
 import datetime # Standard library for timestamping or adding dates to reports if needed.
+
 
 # Attempt to import functions from other D-Scope Blink modules.
 try:
@@ -87,9 +89,6 @@ def generate_annotated_image(
     zone_color_map = {z["name"]: tuple(z["color_bgr"]) for z in current_fiber_zone_defs if "color_bgr" in z}
     zone_outline_thickness = report_cfg.get("zone_outline_thickness", 1) # Thickness for zone outlines.
 
-    # cl_center = localization_data.get("cladding_center_xy") # Get cladding center. (Unused in this section)
-    # cl_ellipse_params = localization_data.get("cladding_ellipse_params") # Get cladding ellipse parameters. (Unused in this section)
-
     for zone_name, zone_mask_np in zone_masks.items(): # Iterate through zone masks.
         color = zone_color_map.get(zone_name, (128, 128, 128)) # Default to gray if color not defined.
         # Find contours of the zone mask to draw the boundary.
@@ -128,8 +127,8 @@ def generate_annotated_image(
             if contour_np.shape[0] >= 3: # Check if there are enough points for minAreaRect
                 rot_rect_params = cv2.minAreaRect(contour_np)
                 box_points = cv2.boxPoints(rot_rect_params)
-                box_points_int = np.intp(box_points) # Use np.intp for consistency
-                cv2.drawContours(annotated_image, [box_points_int], 0, defect_color, defect_line_thickness)
+                box_points_int = np.array(box_points, dtype=np.int32) # Use np.int32 for drawContours [cite: 117, 328, 329, 330]
+                cv2.drawContours(annotated_image, [box_points_int], 0, defect_color, defect_line_thickness) # Error here
             elif contour_np.size > 0: # Fallback for contours with < 3 points but > 0 points (e.g., a line)
                                       # Or if contour_np is empty after reshape but contour_pts existed.
                 x, y, w, h = cv2.boundingRect(contour_np) # Use boundingRect for these cases
@@ -282,8 +281,8 @@ def generate_defect_csv_report(
 def generate_polar_defect_histogram(
     analysis_results: Dict[str, Any],
     localization_data: Dict[str, Any],
-    zone_masks: Dict[str, np.ndarray], 
-    fiber_type_key: str, 
+    zone_masks: Dict[str, np.ndarray],
+    fiber_type_key: str,
     output_path: Path
 ) -> bool:
     """
@@ -299,104 +298,110 @@ def generate_polar_defect_histogram(
     Returns:
         True if the histogram was saved successfully, False otherwise.
     """
-    defects_list = analysis_results.get("characterized_defects", []) 
-    fiber_center_xy = localization_data.get("cladding_center_xy") 
+    defects_list = analysis_results.get("characterized_defects", [])
+    fiber_center_xy = localization_data.get("cladding_center_xy")
 
-    if not defects_list: 
+    if not defects_list:
         logging.info(f"No defects to plot for polar histogram for {output_path.name}.")
-        # Create a blank plot with a message if no defects? Or just return True.
-        # For now, just returning True as no action is needed.
-        return True 
-    
-    if fiber_center_xy is None: 
+        return True
+
+    if fiber_center_xy is None:
         logging.error("Cannot generate polar histogram: Fiber center not localized.")
-        return False 
+        return False
 
-    config = get_config() 
+    config = get_config()
     report_cfg = config.get("reporting", {}) # Get reporting config for DPI
-    zone_defs_all_types = config.get("zone_definitions_iec61300_3_35", {}) 
-    current_fiber_zone_defs = zone_defs_all_types.get(fiber_type_key, []) 
-    zone_color_map_bgr = {z["name"]: tuple(z["color_bgr"]) for z in current_fiber_zone_defs if "color_bgr" in z} 
+    zone_defs_all_types = config.get("zone_definitions_iec61300_3_35", {})
+    current_fiber_zone_defs = zone_defs_all_types.get(fiber_type_key, [])
+    zone_color_map_bgr = {z["name"]: tuple(z["color_bgr"]) for z in current_fiber_zone_defs if "color_bgr" in z}
 
-    center_x, center_y = fiber_center_xy 
-    angles_rad: List[float] = [] 
-    radii_px: List[float] = [] 
-    defect_plot_colors_rgb: List[Tuple[float,float,float]] = [] 
+    center_x, center_y = fiber_center_xy
+    angles_rad: List[float] = []
+    radii_px: List[float] = []
+    defect_plot_colors_rgb: List[Tuple[float,float,float]] = []
 
-    for defect in defects_list: 
-        cx_px = defect.get("centroid_x_px") 
-        cy_px = defect.get("centroid_y_px") 
-        
+    for defect in defects_list:
+        cx_px = defect.get("centroid_x_px")
+        cy_px = defect.get("centroid_y_px")
+
         if cx_px is None or cy_px is None: # Skip if centroid is missing
             logging.warning(f"Defect {defect.get('defect_id')} missing centroid, cannot plot in polar histogram.")
             continue
 
-        dx = cx_px - center_x 
-        dy = cy_px - center_y 
+        dx = cx_px - center_x
+        dy = cy_px - center_y
 
-        angle = np.arctan2(dy, dx) 
-        radius = np.sqrt(dx**2 + dy**2) 
+        angle = np.arctan2(dy, dx)
+        radius = np.sqrt(dx**2 + dy**2)
 
-        angles_rad.append(angle) 
-        radii_px.append(radius) 
-        
-        classification = defect.get("classification", "Unknown") 
+        angles_rad.append(angle)
+        radii_px.append(radius)
+
+        classification = defect.get("classification", "Unknown")
         bgr_color = (255, 0, 255) if classification == "Scratch" else (0, 165, 255) # Magenta for Scratch, Orange for Pit/Dig
-        rgb_color_normalized = (bgr_color[2]/255.0, bgr_color[1]/255.0, bgr_color[0]/255.0) 
-        defect_plot_colors_rgb.append(rgb_color_normalized) 
+        rgb_color_normalized = (bgr_color[2]/255.0, bgr_color[1]/255.0, bgr_color[0]/255.0)
+        defect_plot_colors_rgb.append(rgb_color_normalized)
 
+    # --- Start of lines to modify/check ---
+    fig, ax_untyped = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(8, 8))
+    ax: PolarAxes = ax_untyped # Explicitly type hint ax
+    # --- End of lines to modify/check (ax definition) ---
 
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(8, 8)) 
-    
-    if angles_rad and radii_px: 
-        ax.scatter(angles_rad, radii_px, c=defect_plot_colors_rgb, s=50, alpha=0.75, edgecolors='k') 
+    if angles_rad and radii_px:
+        ax.scatter(angles_rad, radii_px, c=defect_plot_colors_rgb, s=50, alpha=0.75, edgecolors='k')
 
-    max_display_radius = 0 
+    max_display_radius = 0
     plotted_zone_labels = set() # To avoid duplicate labels in legend
     for zone_name, zone_mask_np in sorted(zone_masks.items(), key=lambda item: item[0]): # Sort for consistent legend order
-        if np.sum(zone_mask_np) > 0: 
-            y_coords, x_coords = np.where(zone_mask_np > 0) 
-            if y_coords.size > 0: 
-                distances_from_center = np.sqrt((x_coords - center_x)**2 + (y_coords - center_y)**2) 
-                zone_outer_radius_px = np.max(distances_from_center) if distances_from_center.size > 0 else 0 
-                max_display_radius = max(max_display_radius, zone_outer_radius_px) 
+        if np.sum(zone_mask_np) > 0:
+            y_coords, x_coords = np.where(zone_mask_np > 0)
+            if y_coords.size > 0:
+                distances_from_center = np.sqrt((x_coords - center_x)**2 + (y_coords - center_y)**2)
+                zone_outer_radius_px = np.max(distances_from_center) if distances_from_center.size > 0 else 0
+                max_display_radius = max(max_display_radius, zone_outer_radius_px)
 
-                zone_bgr = zone_color_map_bgr.get(zone_name, (128,128,128)) 
-                zone_rgb_normalized = (zone_bgr[2]/255.0, zone_bgr[1]/255.0, zone_bgr[0]/255.0) 
-                
+                zone_bgr = zone_color_map_bgr.get(zone_name, (128,128,128))
+                zone_rgb_normalized = (zone_bgr[2]/255.0, zone_bgr[1]/255.0, zone_bgr[0]/255.0)
+
                 label_to_use = None
                 if zone_name not in plotted_zone_labels and zone_outer_radius_px > 0:
                     label_to_use = zone_name
                     plotted_zone_labels.add(zone_name)
 
-                ax.plot(np.linspace(0, 2 * np.pi, 100), [zone_outer_radius_px] * 100, 
+                ax.plot(np.linspace(0, 2 * np.pi, 100), [zone_outer_radius_px] * 100,
                         color=zone_rgb_normalized, linestyle='--', label=label_to_use)
-    
-    if max_display_radius > 0:
-        ax.set_rmax(max_display_radius * 1.1)
-    elif radii_px: # Check if radii_px is not empty
-        ax.set_rmax(max(radii_px) * 1.2)
-    else: # Default if no zones and no defect radii
-        ax.set_rmax(100) # Default rmax if nothing else to scale by
 
-    ax.set_rticks(np.linspace(0, ax.get_rmax(), 5)) 
-    ax.set_rlabel_position(22.5) 
-    ax.grid(True) 
-    ax.set_title(f"Defect Distribution: {output_path.stem.replace('_histogram','')}", va='bottom', pad=20) 
-    if any(label is not None for label in ax.get_legend_handles_labels()[1]): 
+    current_r_max = 100 # Default r_max if no zones and no defect radii
+    if max_display_radius > 0: #
+        current_r_max = max_display_radius * 1.1
+    elif radii_px: # Check if radii_px is not empty
+        current_r_max = max(radii_px) * 1.2 #
+
+    # --- Check these lines (Pylance error originally here) ---
+    # These method calls are correct Matplotlib API for PolarAxes.
+    # The type hint added above should help Pylance recognize them.
+    ax.set_rlim(0, current_r_max) # Correct usage for PolarAxes
+
+    ax.set_rticks(np.linspace(0, ax.get_ylim()[1], 5))# Correct usage for PolarAxes (both set_rticks and get_rlim)
+    ax.set_rlabel_position(22.5) # Correct usage for PolarAxes
+    # --- End of checked lines ---
+
+    ax.grid(True)
+    ax.set_title(f"Defect Distribution: {output_path.stem.replace('_histogram','')}", va='bottom', pad=20)
+    if any(label is not None for label in ax.get_legend_handles_labels()[1]):
         ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1.0)) # Adjusted legend position slightly
 
 
     try:
-        plt.tight_layout() 
+        plt.tight_layout()
         fig.savefig(output_path, dpi=report_cfg.get("annotated_image_dpi", 150)) # Use DPI from config
-        plt.close(fig) 
+        plt.close(fig)
         logging.info(f"Polar defect histogram saved successfully to '{output_path}'.")
-        return True 
-    except Exception as e: 
+        return True
+    except Exception as e:
         logging.error(f"Failed to save polar defect histogram to '{output_path}': {e}")
-        plt.close(fig) 
-        return False 
+        plt.close(fig)
+        return False
 
 # --- Main function for testing this module (optional) ---
 if __name__ == "__main__":

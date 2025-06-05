@@ -122,12 +122,35 @@ def characterize_and_classify_defects(
         height_px = rotated_rect[1][1]
         aspect_ratio = max(width_px, height_px) / (min(width_px, height_px) + 1e-6) # Add epsilon to prevent div by zero
 
-        # Classify scratch vs. pit/dig
-        classification = (
-            "Scratch"
-            if aspect_ratio >= scratch_aspect_ratio_threshold
-            else "Pit/Dig"
-        )
+        # Enhanced classification based on paper's criteria
+        # Calculate more robust shape features
+        perimeter = cv2.arcLength(defect_contour, True)
+        circularity = 4 * np.pi * area_px / (perimeter ** 2) if perimeter > 0 else 0
+        solidity = area_px / cv2.contourArea(cv2.convexHull(defect_contour)) if cv2.contourArea(cv2.convexHull(defect_contour)) > 0 else 0
+
+        # Get oriented bounding box for better dimension calculation
+        rotated_rect = cv2.minAreaRect(defect_contour)
+        (cx_rr, cy_rr), (width_rr, height_rr), angle = rotated_rect
+
+        # Ensure width is the longer dimension
+        if height_rr > width_rr:
+            width_rr, height_rr = height_rr, width_rr
+
+        aspect_ratio = width_rr / (height_rr + 1e-6)
+
+        # Enhanced classification criteria based on paper
+        # Scratches: high aspect ratio, low circularity, low solidity
+        # Pits: low aspect ratio, high circularity, high solidity
+        if aspect_ratio >= scratch_aspect_ratio_threshold and circularity < 0.4 and solidity < 0.7:
+            classification = "Scratch"
+        elif aspect_ratio < 2.0 and circularity > 0.6 and solidity > 0.8:
+            classification = "Pit/Dig"
+        else:
+            # Ambiguous cases - use additional criteria
+            if aspect_ratio >= 2.5:
+                classification = "Scratch"
+            else:
+                classification = "Pit/Dig"
 
         # Compute size in microns if um_per_px provided
         length_um = None
@@ -348,27 +371,37 @@ if __name__ == "__main__":
     # Create a dummy final_defect_mask (e.g., 100x100 image with two defects)
     dummy_mask = np.zeros((200, 200), dtype=np.uint8) # Initialize dummy mask.
     # Defect 1 (Scratch-like) - CV: (20,30) to (25,100), centroid approx (22.5, 65)
-    cv2.rectangle(dummy_mask, (20, 30), (25, 100), 255, -1) # Draw rectangle for defect 1. Area = 5 * 70 = 350
+    # cv2.rectangle(dummy_mask, (20, 30), (25, 100), (255), -1) # Draw rectangle for defect 1. Area = 5 * 70 = 350
+    cv2.rectangle(dummy_mask, (20, 30), (25, 100), (255,), -1) # Draw rectangle for defect 1. Area = 5 * 70 = 350
     # Defect 2 (Pit/Dig-like) - CV: center (100,100), radius 10. Area approx pi*10^2 = 314
-    cv2.circle(dummy_mask, (100, 100), 10, 255, -1) # Draw circle for defect 2.
+    # cv2.circle(dummy_mask, (100, 100), 10, (255), -1) # Draw circle for defect 2.
+    cv2.circle(dummy_mask, (100, 100), 10, (255,), -1) # Draw circle for defect 2.
     # Defect 3 (Small, should be filtered by area if min_defect_area_px is e.g. 5) Area = 2*2=4
-    cv2.rectangle(dummy_mask, (150,150), (152,152), 255, -1) # Draw small defect.
+    # cv2.rectangle(dummy_mask, (150,150), (152,152), (255), -1) # Draw small defect.
+    cv2.rectangle(dummy_mask, (150,150), (152,152), (255,), -1) # Draw small defect.
 
 
+    # Dummy zone masks (ensure they cover the defect areas for testing)
     # Dummy zone masks (ensure they cover the defect areas for testing)
     dummy_zone_masks = { # Initialize dummy zone masks.
         "Core": np.zeros((200, 200), dtype=np.uint8),
         "Cladding": np.zeros((200, 200), dtype=np.uint8),
         "Adhesive": np.zeros((200,200), dtype=np.uint8) # Adding for completeness
     }
+    
+    
     # Core centered at (100,100) with radius 40. Defect 2 (100,100) should be in Core.
-    cv2.circle(dummy_zone_masks["Core"], (100, 100), 40, 255, -1)
+    # cv2.circle(dummy_zone_masks["Core"], (100, 100), 40, (255), -1)
+    cv2.circle(dummy_zone_masks["Core"], (100, 100), 40, (255,), -1)
     # Cladding as an annulus around Core. Radius 80 for outer, 40 for inner.
     # Defect 1 centroid (22.5, 65) should fall in this Cladding.
-    cv2.circle(dummy_zone_masks["Cladding"], (100, 100), 80, 255, -1) # Outer cladding circle
-    cv2.circle(dummy_zone_masks["Cladding"], (100, 100), 40, 0, -1)   # "Subtract" core area to make it an annulus
+    # cv2.circle(dummy_zone_masks["Cladding"], (100, 100), 80, (255), -1) # Outer cladding circle
+    cv2.circle(dummy_zone_masks["Cladding"], (100, 100), 80, (255,), -1) # Outer cladding circle
+    # cv2.circle(dummy_zone_masks["Cladding"], (100, 100), 40, (0), -1)   # "Subtract" core area to make it an annulus
+    cv2.circle(dummy_zone_masks["Cladding"], (100, 100), 40, (0,), -1)   # "Subtract" core area to make it an annulus
     # Make Adhesive zone cover a different area
-    cv2.rectangle(dummy_zone_masks["Adhesive"], (0,0), (200,20), 255, -1)
+    # cv2.rectangle(dummy_zone_masks["Adhesive"], (0,0), (200,20), (255), -1)
+    cv2.rectangle(dummy_zone_masks["Adhesive"], (0,0), (200,20), (255,), -1)
 
 
     dummy_profile_cfg = get_config()["processing_profiles"]["deep_inspection"] # Get dummy profile config.

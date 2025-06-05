@@ -11,7 +11,7 @@ logic, which is expected to be in 'main.py'.
 import sys
 from pathlib import Path
 import logging
-from typing import Optional
+from typing import Optional, cast, Any # Added cast and Any
 
 # Ensure all modules are importable from the script's directory
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -243,13 +243,15 @@ def main_interactive():
         # Option 1: Prefer 'execute_inspection_run' if available in d_scope_main_module (your main.py)
         if hasattr(d_scope_main_module, 'execute_inspection_run'):
             print("\n[INFO] Calling 'execute_inspection_run' from the imported main module (main.py)...")
-            d_scope_main_module.execute_inspection_run(simulated_args)
+            # Corrected based on Problems.txt [cite: 130]
+            d_scope_main_module.execute_inspection_run(cast(Any, simulated_args))
             inspection_successful = True
         # Option 2: Fallback to 'main_with_args' if 'execute_inspection_run' is not available
         elif hasattr(d_scope_main_module, 'main_with_args'):
             print("\n[INFO] 'execute_inspection_run' not found in main.py.")
             print("       Attempting to call 'main_with_args' from the imported main module as an alternative...")
-            d_scope_main_module.main_with_args(simulated_args)
+            # Corrected based on Problems.txt [cite: 130, 131]
+            d_scope_main_module.main_with_args(cast(Any, simulated_args))
             inspection_successful = True
         # If neither suitable function is available in main.py
         else:

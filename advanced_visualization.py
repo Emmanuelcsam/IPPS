@@ -85,8 +85,9 @@ class InteractiveVisualizer:
                 
                 # Use contour points if available
                 if 'contour_points_px' in defect:
-                    contour = np.array(defect['contour_points_px'])
-                    cv2.fillPoly(defect_mask, [contour], defect_id_counter)
+                    # Ensure contour points are np.int32 and pass color as a tuple [cite: 147, 148]
+                    contour_points = np.array(defect['contour_points_px']).astype(np.int32)
+                    cv2.fillPoly(defect_mask, [contour_points], (defect_id_counter,)) 
                     all_defects[defect_mask > 0] = defect_id_counter
                     defect_id_counter += 1
             
@@ -98,18 +99,19 @@ class InteractiveVisualizer:
                 )
 
             # --- Start of Edit 2: Correct Coordinate Order and Variable Naming for Defect ID Text ---
+            # --- Start of Edit 2: Correct Coordinate Order and Variable Naming for Defect ID Text ---
             for defect in analysis_results.get('characterized_defects', []):
                 cx, cy = defect.get('centroid_x_px', 0), defect.get('centroid_y_px', 0)
                 defect_label_id = defect.get('defect_id', '') # Use a distinct variable name for the defect's string ID
                 self.viewer.add_text(
                     text=f"ID: {defect_label_id}",
                     position=(cy, cx), # Corrected order: (row, column) or (y, x)
-                    color='yellow',
+                    face_color='yellow', # Changed 'color' to 'face_color'
                     size=12,
                     anchor='center',
                     name=f"Defect {defect_label_id}"
                 )
-            # --- End of Edit 2 ---
+
                         
             # Add text annotations (Napari >=0.4)
             status = analysis_results.get('overall_status', 'UNKNOWN')
@@ -119,7 +121,7 @@ class InteractiveVisualizer:
             self.viewer.add_text(
                 text=f"Status: {status}",
                 position=(10, 10), # (row, column) for Napari
-                color=status_color,
+                face_color=status_color,
                 size=20,                   # Font size
                 anchor='upper_left',
                 name='Overall Status'
