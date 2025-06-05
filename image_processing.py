@@ -1477,8 +1477,13 @@ def detect_defects(
         else:
             logging.debug(f"Skipping empty labeled region {i} during size-based filtering.")
 
+
+# In image_processing.py, inside the detect_defects function:
+
+# ... [previous code in the function] ...
+
     # Validate defects to reduce false positives
-    def validate_defect_mask(defect_mask, original_image, zone_name):
+    def validate_defect_mask(defect_mask, original_image_for_validation, zone_name_for_validation): # Renamed args for clarity
         """Validate defects using additional criteria to reduce false positives."""
         validated_mask = np.zeros_like(defect_mask)
         
@@ -1489,16 +1494,41 @@ def detect_defects(
             x, y, w, h, area = stats[i]
             
             # Extract defect region from original image
-            defect_roi = original_image[y:y+h, x:x+w]
-            defect_mask_roi = (labels[y:y+h, x:x+w] == i).astype(np.uint8)
+            # Ensure ROI coordinates are within image bounds
+            y_end, x_end = min(y + h, original_image_for_validation.shape[0]), min(x + w, original_image_for_validation.shape[1])
+            defect_roi = original_image_for_validation[y:y_end, x:x_end]
             
+            # Ensure labels ROI matches defect_roi shape
+            defect_mask_roi = (labels[y:y_end, x:x_end] == i).astype(np.uint8)
+
+
             # Calculate contrast with surrounding area
-            surrounding_mask = cv2.dilate(defect_mask_roi, np.ones((5,5), np.uint8)) - defect_mask_roi
+            # Ensure defect_mask_roi has the same dimensions as defect_roi before using it for indexing
+            if defect_roi.shape[0] != defect_mask_roi.shape[0] or defect_roi.shape[1] != defect_mask_roi.shape[1]:
+                # This case should ideally not happen if stats and labels are consistent.
+                # If it does, skip this defect or log an error.
+                logging.warning(f"Shape mismatch between defect_roi {defect_roi.shape} and defect_mask_roi {defect_mask_roi.shape} for defect component {i}. Skipping contrast check.")
+                if area >= min_area_by_confidence_map_dd.get(defect_mask[labels == i].max() if np.any(labels==i) else default_min_area, default_min_area): # Check area again before adding
+                     validated_mask[labels == i] = 255 # Add defect if area is fine but contrast check failed due to shape
+                continue
+
+
+            surrounding_kernel_size = 5 # Define kernel size for dilation
+            dilated_defect_mask_roi = cv2.dilate(defect_mask_roi, np.ones((surrounding_kernel_size,surrounding_kernel_size), np.uint8))
+            surrounding_mask = dilated_defect_mask_roi - defect_mask_roi
             
             if np.sum(defect_mask_roi) > 0 and np.sum(surrounding_mask) > 0:
-                defect_mean = np.mean(defect_roi[defect_mask_roi > 0])
-                surrounding_mean = np.mean(defect_roi[surrounding_mask > 0])
-                contrast = abs(defect_mean - surrounding_mean)
+                # Ensure defect_roi is not empty before trying to access pixels.
+                # Also ensure defect_mask_roi has some True values to avoid errors with empty slices.
+                defect_pixels = defect_roi[defect_mask_roi > 0]
+                surrounding_pixels = defect_roi[surrounding_mask > 0]
+
+                if defect_pixels.size > 0 and surrounding_pixels.size > 0:
+                    defect_mean = np.mean(defect_pixels)
+                    surrounding_mean = np.mean(surrounding_pixels)
+                    contrast = abs(defect_mean - surrounding_mean)
+                else:
+                    contrast = 0 # Not enough pixels for contrast calculation
                 
                 # Zone-specific validation thresholds
                 min_contrast = {
@@ -1506,18 +1536,39 @@ def detect_defects(
                     "Cladding": 10,  # Cladding moderate contrast
                     "Adhesive": 8,   # Adhesive lower contrast
                     "Contact": 5     # Contact lowest contrast
-                }.get(zone_name, 10)
+                }.get(zone_name_for_validation, 10) # Use renamed arg
+                
+                # Default min_area for validation, can be different from initial filtering
+                min_validation_area = 5 
                 
                 # Validate based on contrast and size
-                if contrast >= min_contrast and area >= 5:
+                if contrast >= min_contrast and area >= min_validation_area :
                     validated_mask[labels == i] = 255
-        
+                elif area >= min_validation_area : # If contrast is low, but area is okay, still consider it if other filters passed
+                    # This is a policy decision: what to do if contrast is low.
+                    # For now, let's assume if it passed other filters, it's a candidate,
+                    # but ideally, contrast should be a strong factor.
+                    # If strict contrast is required, remove this elif.
+                    # Let's keep it for now to be less aggressive in filtering here.
+                    # validated_mask[labels == i] = 255 # (Original logic was to add it)
+                    # Let's be stricter: if contrast fails, it fails validation here.
+                    logging.debug(f"Defect component {i} failed contrast check ({contrast:.1f} < {min_contrast}). Area: {area}")
+                else:
+                    logging.debug(f"Defect component {i} failed area check during validation ({area} < {min_validation_area}) or other issue.")
+
+            elif area >= min_area_by_confidence_map_dd.get(defect_mask[labels == i].max() if np.any(labels == i) else default_min_area, default_min_area): # If area is fine but no surrounding for contrast
+                 validated_mask[labels == i] = 255 # Keep it if area is okay
+
         return validated_mask
 
     # Add validation before returning
-    final_defect_mask_in_zone = validate_defect_mask(final_defect_mask_in_zone, working_image, zone_name)
+    # The error was here: 'working_image' was not defined.
+    # It should be 'working_image_for_processing' which is the most up-to-date image for the current zone.
+    final_defect_mask_in_zone = validate_defect_mask(final_defect_mask_in_zone, working_image_for_processing, zone_name)
 
     final_defect_mask_in_zone = cv2.bitwise_and(final_defect_mask_in_zone, final_defect_mask_in_zone, mask=zone_mask)
+# ... [rest of the function] ...
+
     kernel_clean_final_dd = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3)) # Renamed var
     final_defect_mask_in_zone = cv2.morphologyEx(final_defect_mask_in_zone, cv2.MORPH_OPEN, kernel_clean_final_dd)
     final_defect_mask_in_zone = cv2.morphologyEx(final_defect_mask_in_zone, cv2.MORPH_CLOSE, kernel_clean_final_dd)

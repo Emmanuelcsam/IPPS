@@ -371,20 +371,21 @@ def generate_polar_defect_histogram(
                 ax.plot(np.linspace(0, 2 * np.pi, 100), [zone_outer_radius_px] * 100,
                         color=zone_rgb_normalized, linestyle='--', label=label_to_use)
 
+# ... [previous code in the function] ...
     current_r_max = 100 # Default r_max if no zones and no defect radii
-    if max_display_radius > 0: #
+    if max_display_radius > 0: 
         current_r_max = max_display_radius * 1.1
     elif radii_px: # Check if radii_px is not empty
-        current_r_max = max(radii_px) * 1.2 #
+        current_r_max = max(radii_px) * 1.2 
 
-    # --- Check these lines (Pylance error originally here) ---
-    # These method calls are correct Matplotlib API for PolarAxes.
-    # The type hint added above should help Pylance recognize them.
-    ax.set_rlim(0, current_r_max) # Correct usage for PolarAxes
+    ax.set_rlim(0, current_r_max) 
 
-    ax.set_rticks(np.linspace(0, ax.get_ylim()[1], 5))# Correct usage for PolarAxes (both set_rticks and get_rlim)
-    ax.set_rlabel_position(22.5) # Correct usage for PolarAxes
-    # --- End of checked lines ---
+    # Corrected line:
+    # ax.set_rticks(np.linspace(0, ax.get_rlim()[1], 5)) # Original problematic line
+    ax.set_rticks(np.linspace(0, ax.get_ylim()[1], 5)) # Corrected: Use get_ylim() for PolarAxes
+
+    ax.set_rlabel_position(22.5) 
+# ... [rest of the function] ...
 
     ax.grid(True)
     ax.set_title(f"Defect Distribution: {output_path.stem.replace('_histogram','')}", va='bottom', pad=20)
