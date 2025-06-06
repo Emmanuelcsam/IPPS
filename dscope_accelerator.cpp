@@ -37,8 +37,8 @@ py::array_t<unsigned char> do2mr_detection_cpp(py::array_t<unsigned char> image_
     double threshold_value = mu + gamma * sigma;
     cv::Mat defect_binary;
     cv::threshold(residual_filtered, defect_binary, threshold_value, 255, cv::THRESH_BINARY);
-    cv::Mat kernel_open = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
-    cv::morphologyEx(defect_binary, defect_binary, cv::MORPH_OPEN, kernel_open);
+    cv::Mat kernel_open = cv2.getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
+    cv2.morphologyEx(defect_binary, defect_binary, cv::MORPH_OPEN, kernel_open);
     cv::Mat labels, stats, centroids;
     int num_labels = cv::connectedComponentsWithStats(defect_binary, labels, stats, centroids, 8, CV_32S);
     cv::Mat final_mask = cv::Mat::zeros(image.size(), CV_8U);
@@ -48,7 +48,15 @@ py::array_t<unsigned char> do2mr_detection_cpp(py::array_t<unsigned char> image_
             final_mask.setTo(255, labels == i);
         }
     }
-    return py::array_t<unsigned char>({(py::ssize_t)final_mask.rows, (py::ssize_t)final_mask.cols}, (unsigned char*)final_mask.data).clone();
+    
+    // --- FIX 1 START: Correctly create a copy of the cv::Mat data for Python ---
+    // The original line had a '.clone()' call on the py::array_t object, which is incorrect.
+    // The correct way is to create a py::array_t that owns its own data and copy the cv::Mat content into it.
+    py::array_t<unsigned char> result({(py::ssize_t)final_mask.rows, (py::ssize_t)final_mask.cols});
+    py::buffer_info result_buf = result.request();
+    std::memcpy(result_buf.ptr, final_mask.data, final_mask.total() * final_mask.elemSize());
+    return result;
+    // --- FIX 1 END ---
 }
 
 /**
@@ -146,8 +154,13 @@ py::list characterize_and_classify_defects_cpp(
         defect_dict["zone"] = zone_name;
         defect_dict["aspect_ratio"] = aspect_ratio;
 
-        // Convert contour points for Python
-        py::array_t<int> contour_points_py({(py::ssize_t)defect_contour.size(), 2});
+        // --- FIX 2 START: Explicitly define shape vector for py::array_t constructor ---
+        // The original code used an initializer list `{...}` which the compiler could not resolve.
+        // Creating an explicit std::vector for the shape is more robust.
+        std::vector<py::ssize_t> shape = {(py::ssize_t)defect_contour.size(), 2};
+        py::array_t<int> contour_points_py(shape);
+        // --- FIX 2 END ---
+        
         auto r = contour_points_py.mutable_unchecked<2>();
         for(long j = 0; j < r.shape(0); ++j) {
             r(j, 0) = defect_contour[j].x;
@@ -157,7 +170,7 @@ py::list characterize_and_classify_defects_cpp(
         
         // Add dimensions in pixels
         defect_dict["width_px"] = std::min(width_px, height_px);
-        defect_dict["height_px"] = std::max(width_px, height_px); // Note: height is conventionally the smaller dim, but here using max for clarity
+        defect_dict["height_px"] = std::max(width_px, height_px);
 
         // Add dimensions in microns if scale is available
         if (um_per_px > 0) {
