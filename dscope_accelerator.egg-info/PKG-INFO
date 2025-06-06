@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: dscope_accelerator
+Version: 0.1.0
+Summary: C++ accelerator for D-Scope Blink image processing.
+Author: Gemini
+Author-email: na@example.com
+Requires-Python: >=3.7
+Dynamic: author
+Dynamic: author-email
+Dynamic: description
+Dynamic: requires-python
+Dynamic: summary
+
+Provides high-performance C++ implementations for key functions.

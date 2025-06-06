@@ -37,8 +37,8 @@ py::array_t<unsigned char> do2mr_detection_cpp(py::array_t<unsigned char> image_
     double threshold_value = mu + gamma * sigma;
     cv::Mat defect_binary;
     cv::threshold(residual_filtered, defect_binary, threshold_value, 255, cv::THRESH_BINARY);
-    cv::Mat kernel_open = cv2.getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
-    cv2.morphologyEx(defect_binary, defect_binary, cv::MORPH_OPEN, kernel_open);
+    cv::Mat kernel_open = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
+    cv::morphologyEx(defect_binary, defect_binary, cv::MORPH_OPEN, kernel_open);
     cv::Mat labels, stats, centroids;
     int num_labels = cv::connectedComponentsWithStats(defect_binary, labels, stats, centroids, 8, CV_32S);
     cv::Mat final_mask = cv::Mat::zeros(image.size(), CV_8U);
