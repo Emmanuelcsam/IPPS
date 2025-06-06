@@ -1,0 +1,2 @@
+image_filename,pass_fail_status,processing_time_s,total_defect_count,core_defect_count,cladding_defect_count,failure_reason_summary
+img63.jpg,ERROR_UNHANDLED_EXCEPTION,1.19,0,0,0,Unhandled exception: name 'working_image' is not defined

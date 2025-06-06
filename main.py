@@ -173,6 +173,29 @@ def process_single_image(
         logging.info(f"No µm/px scale available for {image_path.name}. Measurements will be in pixels.")
 
 
+    analysis_summary = {
+        "image_filename": image_path.name,
+        "cladding_diameter_px": None,
+        "core_diameter_px": None,
+        "characterized_defects": [],
+        "overall_status": "UNKNOWN",
+        "total_defect_count": 0,
+        "failure_reasons": [],
+        "um_per_px_used": current_image_um_per_px
+    }
+    
+    # Add detected diameters to analysis summary
+    if localization_data:
+        cladding_diameter_px = localization_data.get("cladding_radius_px", 0) * 2
+        core_diameter_px = localization_data.get("core_radius_px", 0) * 2
+        
+        logging.info(f"Detected diameters for {image_path.name}:")
+        logging.info(f"  - Cladding diameter: {cladding_diameter_px:.1f} pixels")
+        logging.info(f"  - Core diameter: {core_diameter_px:.1f} pixels")
+        
+        analysis_summary['cladding_diameter_px'] = cladding_diameter_px
+        analysis_summary['core_diameter_px'] = core_diameter_px
+
     # --- 3. Generate Zone Masks ---
     logging.info("Step 3: Generating Zone Masks...")
     try:
@@ -331,6 +354,18 @@ def execute_inspection_run(args_namespace: Any) -> None:
     logging.info(f"Output Directory (this run): {current_run_output_dir}")
     logging.info(f"Using Profile: {args_namespace.profile}")
     logging.info(f"Fiber Type Key for Rules: {args_namespace.fiber_type}")
+
+    fiber_type_corrections = {
+        "sinlge_mode_pc": "single_mode_pc",
+        "single_mode": "single_mode_pc",
+        "multi_mode": "multi_mode_pc"
+    }
+    if args_namespace.fiber_type in fiber_type_corrections:
+        corrected_type = fiber_type_corrections[args_namespace.fiber_type]
+        logging.warning(f"Correcting fiber type '{args_namespace.fiber_type}' to '{corrected_type}'")
+        args_namespace.fiber_type = corrected_type
+
+
     if args_namespace.core_dia_um: logging.info(f"User Provided Core Diameter: {args_namespace.core_dia_um} µm")
     if args_namespace.clad_dia_um: logging.info(f"User Provided Cladding Diameter: {args_namespace.clad_dia_um} µm")
 

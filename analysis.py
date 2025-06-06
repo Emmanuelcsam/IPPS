@@ -124,20 +124,22 @@ def characterize_and_classify_defects(
 
         # Enhanced classification based on paper's criteria
         # Calculate more robust shape features
+        # Enhanced classification based on paper's criteria
+        # Calculate more robust shape features
         perimeter = cv2.arcLength(defect_contour, True)
         circularity = 4 * np.pi * area_px / (perimeter ** 2) if perimeter > 0 else 0
         solidity = area_px / cv2.contourArea(cv2.convexHull(defect_contour)) if cv2.contourArea(cv2.convexHull(defect_contour)) > 0 else 0
-
+        
         # Get oriented bounding box for better dimension calculation
         rotated_rect = cv2.minAreaRect(defect_contour)
         (cx_rr, cy_rr), (width_rr, height_rr), angle = rotated_rect
-
+        
         # Ensure width is the longer dimension
         if height_rr > width_rr:
             width_rr, height_rr = height_rr, width_rr
-
+        
         aspect_ratio = width_rr / (height_rr + 1e-6)
-
+        
         # Enhanced classification criteria based on paper
         # Scratches: high aspect ratio, low circularity, low solidity
         # Pits: low aspect ratio, high circularity, high solidity

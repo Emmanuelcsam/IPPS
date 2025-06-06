@@ -1,0 +1,4 @@
+defect_id,zone,classification,centroid_x_px,centroid_y_px,length_um,width_um,width_px,area_px,bbox_x_px,bbox_y_px,bbox_w_px,bbox_h_px
+ima18_D1,Cladding,Scratch,720.2619047619048,416.25925925925924,,,12.519414901733398,378,715,385,16,62
+ima18_D2,Cladding,Pit/Dig,714.1818181818181,456.8787878787879,,,6.957010269165039,99,710,449,9,17
+ima18_D3,Cladding,Scratch,688.5344262295082,509.02950819672134,,,16.900894165039062,610,662,471,49,69

@@ -1,0 +1,30 @@
+[2025-06-05 22:09:22] [INFO] [main:89] Logging configured. Level: INFO. Log file: /home/jarvis/Documents/GitHub/OpenCV-Practice/output/run_20250605_220922/logs/d_scope_blink_inspection_20250605_220922.log
+[2025-06-05 22:09:22] [INFO] [main:352] D-Scope Blink: Inspection System Started.
+[2025-06-05 22:09:22] [INFO] [main:353] Input Directory: /home/jarvis/Documents/GitHub/OpenCV-Practice/samples
+[2025-06-05 22:09:22] [INFO] [main:354] Output Directory (this run): /home/jarvis/Documents/GitHub/OpenCV-Practice/output/run_20250605_220922
+[2025-06-05 22:09:22] [INFO] [main:355] Using Profile: fast_scan
+[2025-06-05 22:09:22] [INFO] [main:356] Fiber Type Key for Rules: single_mode_pc
+[2025-06-05 22:09:22] [WARNING] [calibration:247] Calibration file '/home/jarvis/Documents/GitHub/OpenCV-Practice/calibration.json' not found.
+[2025-06-05 22:09:22] [WARNING] [main:389] No calibration data loaded from '/home/jarvis/Documents/GitHub/OpenCV-Practice/calibration.json'. Measurements may be in pixels if user dimensions not provided.
+[2025-06-05 22:09:22] [INFO] [main:409] Found 1 images to process in '/home/jarvis/Documents/GitHub/OpenCV-Practice/samples'.
+[2025-06-05 22:09:22] [INFO] [main:416] --- Starting image 1/1: ima19.jpg ---
+[2025-06-05 22:09:22] [INFO] [main:118] --- Processing image: ima19.jpg ---
+[2025-06-05 22:09:22] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-05 22:09:22] [INFO] [image_processing:229] Image 'ima19.jpg' loaded successfully.
+[2025-06-05 22:09:22] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-05 22:09:22] [INFO] [image_processing:338] Attempting enhanced multi-method circle detection
+[2025-06-05 22:09:22] [INFO] [image_processing:376] HoughCircles detected 16 circle(s).
+[2025-06-05 22:09:22] [INFO] [image_processing:420] Cladding (Hough): Center=(574,424), Radius=156px
+[2025-06-05 22:09:22] [INFO] [image_processing:772] Core (ContourFit): Center=(574,424), Radius=140.0px
+[2025-06-05 22:09:22] [INFO] [main:173] No µm/px scale available for ima19.jpg. Measurements will be in pixels.
+[2025-06-05 22:09:22] [INFO] [main:192] Detected diameters for ima19.jpg:
+[2025-06-05 22:09:22] [INFO] [main:193]   - Cladding diameter: 312.0 pixels
+[2025-06-05 22:09:22] [INFO] [main:194]   - Core diameter: 280.0 pixels
+[2025-06-05 22:09:22] [INFO] [main:200] Step 3: Generating Zone Masks...
+[2025-06-05 22:09:22] [INFO] [main:232] Step 4: Detecting Defects in Zones...
+[2025-06-05 22:09:22] [INFO] [main:254] Step 5: Analyzing Defects and Applying Rules...
+[2025-06-05 22:09:22] [INFO] [analysis:76] Found 5 potential defect components from fused mask.
+[2025-06-05 22:09:22] [INFO] [analysis:354] Pass/Fail Evaluation for 'single_mode_pc': Overall PASS.
+[2025-06-05 22:09:22] [INFO] [main:277] Step 6: Generating Reports...
+[2025-06-05 22:09:22] [INFO] [reporting:218] Annotated image saved successfully to '/home/jarvis/Documents/GitHub/OpenCV-Practice/output/run_20250605_220922/ima19/ima19_annotated.png'.
+[2025-06-05 22:09:22] [INFO] [reporting:275] Defect CSV report saved successfully to '/home/jarvis/Documents/GitHub/OpenCV-Practice/output/run_20250605_220922/ima19/ima19_report.csv'.

@@ -1,0 +1,4 @@
+defect_id,zone,classification,centroid_x_px,centroid_y_px,length_um,width_um,width_px,area_px,bbox_x_px,bbox_y_px,bbox_w_px,bbox_h_px
+ima19_D1,Cladding,Scratch,721.1470588235294,376.8235294117647,,,28.144268035888672,68,716,364,11,28
+ima19_D2,Cladding,Scratch,440.5,378.0,,,2.213594436645508,32,438,372,6,13
+ima19_D3,Cladding,Scratch,664.6666666666666,549.1666666666666,,,2.5999999046325684,24,661,546,8,7

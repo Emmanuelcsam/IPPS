@@ -1,0 +1,25 @@
+[2025-06-05 22:17:42] [INFO] [main:89] Logging configured. Level: INFO. Log file: /home/jarvis/Documents/GitHub/OpenCV-Practice/output/run_20250605_221742/logs/d_scope_blink_inspection_20250605_221742.log
+[2025-06-05 22:17:42] [INFO] [main:352] D-Scope Blink: Inspection System Started.
+[2025-06-05 22:17:42] [INFO] [main:353] Input Directory: /home/jarvis/Documents/GitHub/OpenCV-Practice/samples
+[2025-06-05 22:17:42] [INFO] [main:354] Output Directory (this run): /home/jarvis/Documents/GitHub/OpenCV-Practice/output/run_20250605_221742
+[2025-06-05 22:17:42] [INFO] [main:355] Using Profile: deep_inspection
+[2025-06-05 22:17:42] [INFO] [main:356] Fiber Type Key for Rules: single_mode_pc
+[2025-06-05 22:17:42] [WARNING] [calibration:247] Calibration file '/home/jarvis/Documents/GitHub/OpenCV-Practice/calibration.json' not found.
+[2025-06-05 22:17:42] [WARNING] [main:389] No calibration data loaded from '/home/jarvis/Documents/GitHub/OpenCV-Practice/calibration.json'. Measurements may be in pixels if user dimensions not provided.
+[2025-06-05 22:17:42] [INFO] [main:409] Found 1 images to process in '/home/jarvis/Documents/GitHub/OpenCV-Practice/samples'.
+[2025-06-05 22:17:42] [INFO] [main:416] --- Starting image 1/1: img38.jpg ---
+[2025-06-05 22:17:42] [INFO] [main:118] --- Processing image: img38.jpg ---
+[2025-06-05 22:17:42] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-05 22:17:42] [INFO] [image_processing:229] Image 'img38.jpg' loaded successfully.
+[2025-06-05 22:17:42] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-05 22:17:42] [INFO] [image_processing:338] Attempting enhanced multi-method circle detection
+[2025-06-05 22:17:42] [INFO] [image_processing:376] HoughCircles detected 1 circle(s).
+[2025-06-05 22:17:42] [INFO] [image_processing:420] Cladding (Hough): Center=(568,420), Radius=141px
+[2025-06-05 22:17:42] [WARNING] [image_processing:780] No core contours found using Otsu within cladding mask.
+[2025-06-05 22:17:42] [WARNING] [image_processing:783] Core detection defaulting to 0.4 * cladding radius.
+[2025-06-05 22:17:42] [INFO] [main:173] No µm/px scale available for img38.jpg. Measurements will be in pixels.
+[2025-06-05 22:17:42] [INFO] [main:192] Detected diameters for img38.jpg:
+[2025-06-05 22:17:42] [INFO] [main:193]   - Cladding diameter: 282.0 pixels
+[2025-06-05 22:17:42] [INFO] [main:194]   - Core diameter: 112.8 pixels
+[2025-06-05 22:17:42] [INFO] [main:200] Step 3: Generating Zone Masks...
+[2025-06-05 22:17:42] [INFO] [main:232] Step 4: Detecting Defects in Zones...

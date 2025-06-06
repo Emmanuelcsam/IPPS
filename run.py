@@ -126,7 +126,7 @@ class ArgsSimulator:
         self.fiber_type = fiber_type
         self.core_dia_um = core_dia_um
         self.clad_dia_um = clad_dia_um
-
+        
     def __repr__(self):
         return (f"ArgsSimulator(input_dir='{self.input_dir}', output_dir='{self.output_dir}', "
                 f"config_file='{self.config_file}', calibration_file='{self.calibration_file}', "

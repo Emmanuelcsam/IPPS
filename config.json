@@ -38,50 +38,49 @@
               }
           }
       },
-      "deep_inspection": {
-          "description": "Uses full suite of algorithms for maximum accuracy",
-          "preprocessing": {
-              "clahe_clip_limit": 2.5,
-              "clahe_tile_grid_size": [8, 8],
-              "gaussian_blur_kernel_size": [5, 5],
-              "enable_illumination_correction": true,
-              "illumination_kernel_size": 50,
-              "bilateral_filter_params": {
-                  "d": 5,
-                  "sigmaColor": 50,
-                  "sigmaSpace": 50
-              }
-          },
-          "localization": {
-              "hough_dp": 1.0,
-              "hough_min_dist_factor": 0.12,
-              "hough_param1": 80,
-              "hough_param2": 30,
-              "hough_min_radius_factor": 0.08,
-              "hough_max_radius_factor": 0.45,
-              "use_circle_fit": true,
-              "use_ellipse_detection": true,
-              "adaptive_thresh_block_size": 31,
-              "adaptive_thresh_C": 5,
-              "enable_template_matching": true,
-              "template_match_threshold": 0.6
-          },
-          "defect_detection": {
-              "region_algorithms": ["do2mr", "multiscale_do2mr", "black_hat"],
-              "linear_algorithms": ["lei_advanced"],
-              "optional_algorithms": ["wavelet"],
-              "confidence_threshold": 0.9,
-              "min_defect_area_px": 5,
-              "scratch_aspect_ratio_threshold": 3.0,
-              "algorithm_weights": {
-                  "do2mr": 0.8,
-                  "multiscale_do2mr": 1.0,
-                  "black_hat": 0.6,
-                  "lei_advanced": 0.9,
-                  "wavelet": 0.4
-              }
-          }
-      }
+    "deep_inspection": {
+        "description": "Uses full suite of algorithms for maximum accuracy",
+        "preprocessing": {
+            "clahe_clip_limit": 2.5,
+            "clahe_tile_grid_size": [8, 8],
+            "gaussian_blur_kernel_size": [5, 5],
+            "enable_illumination_correction": true
+        },
+        "localization": {
+            "hough_dp": 1.0,
+            "hough_min_dist_factor": 0.12,
+            "hough_param1": 80,
+            "hough_param2": 30,
+            "hough_min_radius_factor": 0.08,
+            "hough_max_radius_factor": 0.45,
+            "use_circle_fit": true,
+            "use_ellipse_detection": true,
+            "enable_template_matching": true,
+            "template_match_threshold": 0.6
+        },
+        "defect_detection": {
+            "region_algorithms": ["do2mr", "morph_gradient", "black_hat", "gabor", "multiscale", "lbp"],
+            "linear_algorithms": ["lei_advanced", "skeletonization", "advanced_scratch"],
+            "optional_algorithms": ["anomaly", "wavelet"],
+            "confidence_threshold": 0.85,
+            "min_defect_area_px": 5,
+            "scratch_aspect_ratio_threshold": 3.0,
+            "multi_scale_factors": [0.5, 0.75, 1.0, 1.25, 1.5],
+            "algorithm_weights": {
+                "do2mr": 1.0,
+                "morph_gradient": 0.4,
+                "black_hat": 0.6,
+                "lei_advanced": 0.9,
+                "skeletonization": 0.3,
+                "gabor": 0.5,
+                "multiscale": 0.7,
+                "advanced_scratch": 0.8,
+                "anomaly": 0.5,
+                "wavelet": 0.4,
+                "lbp": 0.3
+            }
+        }
+    }
   },
   "algorithm_parameters": {
       "flat_field_image_path": null,
