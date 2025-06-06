@@ -1,18 +1,3 @@
-Metadata-Version: 2.4
-Name: dscope-accelerator
-Version: 0.1.0
-Summary: C++ accelerator for D-Scope Blink image processing.
-Author-email: Gemini <na@example.com>
-Requires-Python: >=3.7
-Description-Content-Type: text/markdown
-Requires-Dist: numpy
-Requires-Dist: opencv-python
-Requires-Dist: pandas
-Requires-Dist: scipy
-Requires-Dist: scikit-image
-Requires-Dist: pywavelets
-Requires-Dist: circle-fit
-
 
 """
 D-Scope Blink: C++ Extension Build Script
