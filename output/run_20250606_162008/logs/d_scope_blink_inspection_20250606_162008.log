@@ -1,0 +1,41 @@
+[2025-06-06 16:20:08] [INFO] [main:89] Logging configured. Level: INFO. Log file: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_162008\logs\d_scope_blink_inspection_20250606_162008.log
+[2025-06-06 16:20:08] [INFO] [main:356] D-Scope Blink: Inspection System Started.
+[2025-06-06 16:20:08] [INFO] [main:357] Input Directory: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples
+[2025-06-06 16:20:08] [INFO] [main:358] Output Directory (this run): C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_162008
+[2025-06-06 16:20:08] [INFO] [main:359] Using Profile: fast_scan
+[2025-06-06 16:20:08] [INFO] [main:360] Fiber Type Key for Rules: single_mode_pc
+[2025-06-06 16:20:08] [WARNING] [calibration:254] Calibration file 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json' not found.
+[2025-06-06 16:20:08] [WARNING] [main:398] No calibration data loaded from 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json'. Measurements may be in pixels if user dimensions not provided.
+[2025-06-06 16:20:08] [INFO] [main:418] Found 1 images to process in 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples'.
+[2025-06-06 16:20:08] [INFO] [main:425] --- Starting image 1/1: img63.jpg ---
+[2025-06-06 16:20:08] [INFO] [main:118] --- Processing image: img63.jpg ---
+[2025-06-06 16:20:08] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:20:09] [INFO] [image_processing:79] Image 'img63.jpg' loaded successfully.
+[2025-06-06 16:20:09] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:20:09] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:20:09] [INFO] [image_processing:226] HoughCircles detected 1 circle(s).
+[2025-06-06 16:20:09] [INFO] [image_processing:270] Cladding (Hough): Center=(583,423), Radius=141px
+[2025-06-06 16:20:09] [WARNING] [image_processing:630] No core contours found using Otsu within cladding mask.
+[2025-06-06 16:20:09] [WARNING] [image_processing:633] Core detection defaulting to 0.4 * cladding radius.
+[2025-06-06 16:20:09] [INFO] [main:173] No µm/px scale available for img63.jpg. Measurements will be in pixels.
+[2025-06-06 16:20:09] [INFO] [main:192] Detected diameters for img63.jpg:
+[2025-06-06 16:20:09] [INFO] [main:193]   - Cladding diameter: 282.0 pixels
+[2025-06-06 16:20:09] [INFO] [main:194]   - Core diameter: 112.8 pixels
+[2025-06-06 16:20:09] [INFO] [main:201] Step 3: Generating Zone Masks...
+[2025-06-06 16:20:09] [INFO] [main:236] Step 4: Detecting Defects in Zones...
+[2025-06-06 16:20:09] [INFO] [main:258] Step 5: Analyzing Defects and Applying Rules...
+[2025-06-06 16:20:09] [INFO] [analysis:96] Performing defect characterization using pure Python implementation.
+[2025-06-06 16:20:09] [WARNING] [analysis:277] FAIL Rule (Scratch Count): Zone 'Core', Count=1, Allowed=0
+[2025-06-06 16:20:09] [WARNING] [analysis:285] FAIL Rule (Pit/Dig Count): Zone 'Core', Count=1, Allowed=0
+[2025-06-06 16:20:09] [WARNING] [analysis:332] Pass/Fail Evaluation for 'single_mode_pc': Overall FAIL. Reasons: Zone 'Core': Too many scratches (1 > 0).; Zone 'Core': Too many Pits/Digs (1 > 0).
+[2025-06-06 16:20:09] [INFO] [main:281] Step 6: Generating Reports...
+[2025-06-06 16:20:09] [INFO] [reporting:218] Annotated image saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_162008\img63\img63_annotated.png'.
+[2025-06-06 16:20:09] [INFO] [reporting:275] Defect CSV report saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_162008\img63\img63_report.csv'.
+[2025-06-06 16:20:09] [INFO] [reporting:400] Polar defect histogram saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_162008\img63\img63_histogram.png'.
+[2025-06-06 16:20:09] [INFO] [main:295] --- Finished processing img63.jpg. Duration: 0.97s ---
+[2025-06-06 16:20:09] [WARNING] [advanced_visualization:41] Napari not available. Skipping interactive visualization.
+[2025-06-06 16:20:09] [INFO] [main:473] Batch summary report saved to: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_162008\batch_summary_report.csv
+[2025-06-06 16:20:09] [INFO] [main:480] --- D-Scope Blink: Batch Processing Complete ---
+[2025-06-06 16:20:09] [INFO] [main:481] Total images processed: 1
+[2025-06-06 16:20:09] [INFO] [main:482] Total batch duration: 0.98 seconds.
+[2025-06-06 16:20:09] [INFO] [main:483] All reports for this run saved in: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_162008
