@@ -404,6 +404,47 @@ def generate_polar_defect_histogram(
         plt.close(fig)
         return False
 
+def add_diameter_annotations(image: np.ndarray, localization_data: Dict[str, Any], 
+                           um_per_px: Optional[float] = None) -> np.ndarray:
+    """
+    Add diameter measurements to the image for core and cladding.
+    
+    Args:
+        image: Image to annotate
+        localization_data: Dictionary with fiber localization info
+        um_per_px: Microns per pixel conversion factor
+        
+    Returns:
+        Annotated image
+    """
+    annotated = image.copy()
+    
+    # Core diameter
+    if 'core_radius_px' in localization_data and localization_data['core_radius_px'] > 0:
+        core_diameter_px = localization_data['core_radius_px'] * 2
+        core_text = f"Core: {core_diameter_px:.1f}px"
+        
+        if um_per_px:
+            core_diameter_um = core_diameter_px * um_per_px
+            core_text += f" ({core_diameter_um:.1f}µm)"
+        
+        cv2.putText(annotated, core_text, (10, 30), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    
+    # Cladding diameter
+    if 'cladding_radius_px' in localization_data and localization_data['cladding_radius_px'] > 0:
+        clad_diameter_px = localization_data['cladding_radius_px'] * 2
+        clad_text = f"Cladding: {clad_diameter_px:.1f}px"
+        
+        if um_per_px:
+            clad_diameter_um = clad_diameter_px * um_per_px
+            clad_text += f" ({clad_diameter_um:.1f}µm)"
+        
+        cv2.putText(annotated, clad_text, (10, 60), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    
+    return annotated
+
 # --- Main function for testing this module (optional) ---
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [%(module)s] %(message)s') 

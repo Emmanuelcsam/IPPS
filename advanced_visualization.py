@@ -98,14 +98,13 @@ class InteractiveVisualizer:
                     opacity=0.7
                 )
 
-            # --- Start of Edit 2: Correct Coordinate Order and Variable Naming for Defect ID Text ---
-            # --- Start of Edit 2: Correct Coordinate Order and Variable Naming for Defect ID Text ---
+            # Add text annotations for defects
             for defect in analysis_results.get('characterized_defects', []):
                 cx, cy = defect.get('centroid_x_px', 0), defect.get('centroid_y_px', 0)
-                defect_label_id = defect.get('defect_id', '') # Use a distinct variable name for the defect's string ID
+                defect_label_id = defect.get('defect_id', '') # Use distinct variable name
                 self.viewer.add_text(
                     text=f"ID: {defect_label_id}",
-                    position=(cy, cx), # Corrected order: (row, column) or (y, x)
+                    position=(cy, cx), # Corrected order: (row, column) or (y, x) for Napari
                     face_color='yellow', # Changed 'color' to 'face_color'
                     size=12,
                     anchor='center',

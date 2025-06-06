@@ -85,32 +85,32 @@ class AnomalyDetector:
 
             # Run inference
             predictions = self.inferencer.predict(image=inp)
-            if not hasattr(predictions, "anomaly_map") or not hasattr(predictions, "pred_score"):
-                logging.error("Anomaly detector returned unexpected prediction format.")
+            if not hasattr(predictions, "anomaly_map"):
+                logging.error("Anomaly detector returned unexpected prediction format - missing anomaly_map.")
                 return None
-
+            
             # Extract anomaly map
             anomaly_map = predictions.anomaly_map
-            # The variable 'pred_score' assignment from original line 93 is removed as it's unused with this logic.
-
-            # The first binarization block (original lines 95-105, marked with) has been removed
-            # as its logic was superseded by the subsequent block.
-
-            # Original binarization was: anomaly_mask = (anomaly_map > pred_score).astype(np.uint8) * 255
-            # This is kept if pred_score is meant to be a pixel-wise adaptive threshold,
-            # but it's more often an image-level score.
-            # If `pred_score` is indeed an image-level score (scalar),
-            # comparing it directly with `anomaly_map` (2D array) will use broadcasting,
-            # effectively thresholding each pixel in `anomaly_map` against this single `pred_score`.
-            # This might be intended by some models like Padim where `pred_score` is derived from `anomaly_map`.
             
-            # Reverting to a structure closer to original for `pred_score` usage, assuming it's a valid threshold
-            # The user should verify how `pred_score` is intended to be used with `anomaly_map` for their model
-            # Corrected based on Problem.txt
-            if isinstance(predictions.pred_score, (float, np.floating)): # if pred_score is scalar
-                anomaly_mask = (anomaly_map > predictions.pred_score).astype(np.uint8) * 255
-            else: # if pred_score is an array (e.g. pixel-wise thresholds, less common for image-level score)
-                anomaly_mask = (anomaly_map > predictions.pred_score).astype(np.uint8) * 255
+            # Handle different threshold scenarios
+            if hasattr(predictions, "pred_score"):
+                # Use model's prediction score as threshold
+                threshold = predictions.pred_score
+            else:
+                # Use Otsu's method for automatic threshold
+                if anomaly_map.dtype != np.uint8:
+                    anomaly_map_uint8 = cv2.normalize(anomaly_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                else:
+                    anomaly_map_uint8 = anomaly_map
+                threshold, _ = cv2.threshold(anomaly_map_uint8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                threshold = threshold / 255.0  # Normalize back to [0,1] if anomaly_map is normalized
+            
+            # Apply threshold
+            if isinstance(threshold, (float, np.floating)):
+                anomaly_mask = (anomaly_map > threshold).astype(np.uint8) * 255
+            else:
+                # If threshold is an array, use element-wise comparison
+                anomaly_mask = (anomaly_map > threshold).astype(np.uint8) * 255
                 # if pred_score is not a threshold, this logic needs to be replaced.
                 # logging.warning("pred_score is not a scalar, default thresholding strategy might be needed.")
                 # As a fallback or if the above is not desired:

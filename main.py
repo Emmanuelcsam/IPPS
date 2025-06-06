@@ -197,6 +197,7 @@ def process_single_image(
         analysis_summary['core_diameter_px'] = core_diameter_px
 
     # --- 3. Generate Zone Masks ---
+    zone_start_time = time.perf_counter()
     logging.info("Step 3: Generating Zone Masks...")
     try:
         zone_definitions_for_type = get_zone_definitions(fiber_type_key)
@@ -216,6 +217,9 @@ def process_single_image(
         processed_image.shape, localization_data, zone_definitions_for_type,
         current_image_um_per_px, user_core_dia_um, user_clad_dia_um
     )
+    zone_duration = time.perf_counter() - zone_start_time
+    logging.debug(f"Zone mask generation took {zone_duration:.3f}s")
+    
     if not zone_masks: # If zone mask generation failed.
         logging.error(f"Failed to generate zone masks for {image_path.name}. Skipping.")
         return {
@@ -354,12 +358,17 @@ def execute_inspection_run(args_namespace: Any) -> None:
     logging.info(f"Output Directory (this run): {current_run_output_dir}")
     logging.info(f"Using Profile: {args_namespace.profile}")
     logging.info(f"Fiber Type Key for Rules: {args_namespace.fiber_type}")
-
+    
+    # Add fiber type validation and correction
     fiber_type_corrections = {
-        "sinlge_mode_pc": "single_mode_pc",
         "single_mode": "single_mode_pc",
-        "multi_mode": "multi_mode_pc"
+        "multi_mode": "multi_mode_pc",
+        "sm": "single_mode_pc",
+        "mm": "multi_mode_pc",
+        "singlemode": "single_mode_pc",
+        "multimode": "multi_mode_pc"
     }
+    
     if args_namespace.fiber_type in fiber_type_corrections:
         corrected_type = fiber_type_corrections[args_namespace.fiber_type]
         logging.warning(f"Correcting fiber type '{args_namespace.fiber_type}' to '{corrected_type}'")

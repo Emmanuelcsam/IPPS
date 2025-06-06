@@ -9,14 +9,14 @@ It includes functions for preprocessing, fiber localization (cladding and core),
 zone mask generation, and the multi-algorithm defect detection engine with fusion.
 """
 # Missing imports - add these
-import pywt  # For wavelet transform
-from scipy import ndimage # For ndimage.binary_fill_holes
-from skimage.feature import local_binary_pattern # For LBP
 import cv2 # OpenCV for all core image processing tasks.
 import numpy as np # NumPy for numerical and array operations.
 from typing import Dict, Any, Optional, List, Tuple # Standard library for type hinting.
 import logging # Standard library for logging events.
 from pathlib import Path # Standard library for object-oriented path manipulation.
+import pywt  # For wavelet transform
+from scipy import ndimage # For ndimage.binary_fill_holes
+from skimage.feature import local_binary_pattern # For LBP
 
 
 # Attempt to import functions from other D-Scope Blink modules.
@@ -247,15 +247,28 @@ def load_and_preprocess_image(image_path_str: str, profile_config: Dict[str, Any
         illum_corrected_image = _correct_illumination(illum_corrected_image, original_dtype=gray_image.dtype) # Pass original dtype
         logging.debug("Applied advanced illumination correction.")
 
-    # --- Noise Reduction (Gaussian Blur) ---
+    # --- Noise Reduction (Gaussian Blur) - Critical for minimizing false detections ---
     # Get Gaussian blur parameters from the profile config.
     blur_kernel_list = profile_config.get("preprocessing", {}).get("gaussian_blur_kernel_size", [5, 5])
     gaussian_blur_kernel_size = tuple(blur_kernel_list) if isinstance(blur_kernel_list, list) and len(blur_kernel_list) == 2 else (5,5)
-    # Ensure kernel dimensions are odd.
-    tmp = []
-    for k_val in gaussian_blur_kernel_size: # Renamed k to k_val
-        tmp.append(k_val if (k_val % 2 == 1) else (k_val + 1))
-    gaussian_blur_kernel_size = tuple(tmp)
+    
+    # Ensure kernel dimensions are odd as required by OpenCV
+    gaussian_blur_kernel_size = tuple(
+        k if k % 2 == 1 else k + 1 for k in gaussian_blur_kernel_size
+    )
+    
+    # Apply Gaussian blur for denoising - paper specifies this before DO2MR
+    # Sigma=0 means OpenCV will calculate it as: sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8
+    denoised_image = cv2.GaussianBlur(illum_corrected_image, gaussian_blur_kernel_size, 0)
+    
+    # Optional: Apply additional median blur for salt-and-pepper noise if configured
+    if profile_config.get("preprocessing", {}).get("apply_median_blur", False):
+        median_kernel_size = profile_config.get("preprocessing", {}).get("median_blur_kernel_size", 3)
+        denoised_image = cv2.medianBlur(denoised_image, median_kernel_size)
+        logging.debug(f"Additional median blur applied with kernel size {median_kernel_size}.")
+    
+    processed_image = denoised_image
+    logging.debug(f"Denoising completed. Gaussian blur kernel size: {gaussian_blur_kernel_size}.")
 
 
     # The paper uses Gaussian filtering before DO2MR
@@ -325,11 +338,26 @@ def locate_fiber_structure(
     # Log the parameters being used for HoughCircles.
     logging.debug(f"Attempting HoughCircles with dp={dp}, minDist={min_dist_circles}, p1={param1}, p2={param2}, minR={min_radius_hough}, maxR={max_radius_hough}")
     
-    # --- Primary Method: HoughCircles for Cladding Detection ---
-    # Detect circles in the processed image.
+# --- Primary Method: HoughCircles for Cladding Detection ---
+    # Parameters fine-tuned for fiber optic end face detection:
+    # - dp: Inverse ratio of accumulator resolution to image resolution (1.0 = same, 2.0 = half)
+    # - minDist: Minimum distance between detected circle centers (prevents multiple detections of same fiber)
+    # - param1: Upper threshold for Canny edge detector (higher = fewer edges)
+    # - param2: Accumulator threshold for circle centers (lower = more circles detected)
+    # - minRadius/maxRadius: Expected fiber size range in pixels
+    
+    logging.debug(f"HoughCircles parameters: dp={dp}, minDist={min_dist_circles}, "
+                  f"param1={param1}, param2={param2}, minRadius={min_radius_hough}, maxRadius={max_radius_hough}")
+    
     circles = cv2.HoughCircles(
-        processed_image, cv2.HOUGH_GRADIENT, dp=dp, minDist=min_dist_circles,
-        param1=param1, param2=param2, minRadius=min_radius_hough, maxRadius=max_radius_hough
+        processed_image, 
+        cv2.HOUGH_GRADIENT, 
+        dp=dp,                    # Typical range: 1.0-2.0
+        minDist=min_dist_circles, # Typical: 0.1-0.3 * image dimension
+        param1=param1,            # Typical range: 50-150
+        param2=param2,            # Typical range: 20-50
+        minRadius=min_radius_hough,
+        maxRadius=max_radius_hough
     )
 
 # Enhanced multi-method circle detection
@@ -976,6 +1004,7 @@ def _lei_scratch_detection(enhanced_image: np.ndarray, kernel_lengths: List[int]
     """
     Complete LEI implementation following paper Section 3.2 exactly.
     Uses dual-branch linear detector with proper response calculation.
+    Optimized using vectorized operations for better performance.
     """
     h, w = enhanced_image.shape[:2]
     max_response_map = np.zeros((h, w), dtype=np.float32)
@@ -983,56 +1012,54 @@ def _lei_scratch_detection(enhanced_image: np.ndarray, kernel_lengths: List[int]
     # Paper specifies 12 orientations (0° to 165° in 15° steps)
     angles_deg = np.arange(0, 180, angle_step)
     
+    # Pre-compute coordinate grids for vectorization
+    Y, X = np.ogrid[:h, :w]
+    
     for length in kernel_lengths:
         # Paper specifies branch offset of 2 pixels
         branch_offset = 2
+        half_length = length // 2
         
         for angle_deg in angles_deg:
             angle_rad = np.deg2rad(angle_deg)
             cos_a, sin_a = np.cos(angle_rad), np.sin(angle_rad)
             
-            # Create response map for this orientation
-            response_at_angle = np.zeros((h, w), dtype=np.float32)
+            # Create kernels for red and gray branches
+            red_kernel = np.zeros((length, length), dtype=np.float32)
+            gray_kernel = np.zeros((length, length), dtype=np.float32)
             
-            # Implement the dual-branch detector as per paper
-            for y in range(h):
-                for x in range(w):
-                    # Red branch (center line)
-                    red_sum = 0.0
-                    red_count = 0
-                    
-                    # Gray branches (parallel lines)
-                    gray_sum = 0.0
-                    gray_count = 0
-                    
-                    # Sample along the detector length
-                    for t in range(-length//2, length//2 + 1):
-                        # Red branch point
-                        rx = int(round(x + t * cos_a))
-                        ry = int(round(y + t * sin_a))
-                        
-                        if 0 <= rx < w and 0 <= ry < h:
-                            red_sum += enhanced_image[ry, rx]
-                            red_count += 1
-                        
-                        # Gray branches (both sides)
-                        for side in [-1, 1]:
-                            gx = int(round(x + t * cos_a + side * branch_offset * (-sin_a)))
-                            gy = int(round(y + t * sin_a + side * branch_offset * cos_a))
-                            
-                            if 0 <= gx < w and 0 <= gy < h:
-                                gray_sum += enhanced_image[gy, gx]
-                                gray_count += 1
-                    
-                    # Calculate response as per paper equation
-                    if red_count > 0 and gray_count > 0:
-                        f_r = red_sum / red_count
-                        f_g = gray_sum / gray_count
-                        # Paper's formula: s_θ(x,y) = 2*f_r - f_g
-                        response_at_angle[y, x] = max(0, 2 * f_r - f_g)
+            # Fill kernels based on paper's dual-branch design
+            for t in range(-half_length, half_length + 1):
+                # Red branch (center line)
+                cx = half_length + int(round(t * cos_a))
+                cy = half_length + int(round(t * sin_a))
+                if 0 <= cx < length and 0 <= cy < length:
+                    red_kernel[cy, cx] = 1.0
+                
+                # Gray branches (parallel lines)
+                for side in [-1, 1]:
+                    gx = half_length + int(round(t * cos_a + side * branch_offset * (-sin_a)))
+                    gy = half_length + int(round(t * sin_a + side * branch_offset * cos_a))
+                    if 0 <= gx < length and 0 <= gy < length:
+                        gray_kernel[gy, gy] = 1.0
             
-            # Update max response map
-            max_response_map = np.maximum(max_response_map, response_at_angle)
+            # Normalize kernels
+            red_sum = np.sum(red_kernel)
+            gray_sum = np.sum(gray_kernel)
+            
+            if red_sum > 0:
+                red_kernel /= red_sum
+            if gray_sum > 0:
+                gray_kernel /= gray_sum
+            
+            # Apply filters using convolution
+            if red_sum > 0 and gray_sum > 0:
+                red_response = cv2.filter2D(enhanced_image.astype(np.float32), cv2.CV_32F, red_kernel)
+                gray_response = cv2.filter2D(enhanced_image.astype(np.float32), cv2.CV_32F, gray_kernel)
+                
+                # Paper's formula: s_θ(x,y) = 2*f_r - f_g
+                response = np.maximum(0, 2 * red_response - gray_response)
+                max_response_map = np.maximum(max_response_map, response)
     
     # Apply Gaussian smoothing as per paper
     max_response_map = cv2.GaussianBlur(max_response_map, (3, 3), 0.5)
@@ -1089,56 +1116,67 @@ def _wavelet_defect_detection(image: np.ndarray) -> np.ndarray:
 def _do2mr_detection(masked_zone_image: np.ndarray, kernel_size: int = 5, gamma: float = 1.5) -> np.ndarray:
     """
     Enhanced DO2MR implementation following the research paper exactly.
-    Paper Section 3.1 specifies the exact methodology.
+    Paper Section 3.1 specifies the exact methodology:
+    1. Maximum filtering (dilation)
+    2. Minimum filtering (erosion)  
+    3. Residual generation
+    4. Sigma-based thresholding
+    5. Morphological opening for noise removal
     """
-    # Ensure input is uint8
+    # Ensure input is uint8 for morphological operations
     if masked_zone_image.dtype != np.uint8:
-        normalized_masked_zone_image = cv2.normalize(masked_zone_image, None, 0, 255, cv2.NORM_MINMAX)
-        masked_zone_image = normalized_masked_zone_image.astype(np.uint8)
-
-    # Paper specifies using square structuring element
+        normalized = cv2.normalize(masked_zone_image, None, 0, 255, cv2.NORM_MINMAX)
+        masked_zone_image = normalized.astype(np.uint8)
+    
+    # Step 1 & 2: Min-Max Filtering as specified in paper
+    # Paper uses square structuring element
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
     
-    # Paper's DO2MR: Min-Max Ranking Filtering
-    min_filtered = cv2.erode(masked_zone_image, kernel, iterations=1)
-    max_filtered = cv2.dilate(masked_zone_image, kernel, iterations=1)
+    # Maximum filtering: Find brightest pixel in neighborhood (morphological dilation)
+    I_max = cv2.dilate(masked_zone_image, kernel, iterations=1)
     
-    # Compute residual as per paper equation
-    residual = cv2.subtract(max_filtered.astype(np.float32), min_filtered.astype(np.float32))
+    # Minimum filtering: Find darkest pixel in neighborhood (morphological erosion)
+    I_min = cv2.erode(masked_zone_image, kernel, iterations=1)
+    
+    # Step 3: Generate residual map - highlights areas with high local contrast
+    # Paper equation: I_r(x,y) = I_max(x,y) - I_min(x,y)
+    I_residual = cv2.subtract(I_max, I_min)
     
     # Apply median filter as specified in paper (3x3)
-    residual_median = cv2.medianBlur(residual.astype(np.uint8), 3)
+    I_residual_filtered = cv2.medianBlur(I_residual, 3)
     
-    # Calculate adaptive threshold based on zone statistics
+    # Step 4: Sigma-based thresholding
+    # Calculate statistics only on non-zero pixels (active zone area)
     active_pixels_mask = masked_zone_image > 0
     if np.sum(active_pixels_mask) == 0:
         return np.zeros_like(masked_zone_image, dtype=np.uint8)
     
-    # Paper specifies using mean and std of residual in the zone
-    zone_residual_values = residual_median[active_pixels_mask]
-    mean_res = np.mean(zone_residual_values)
-    std_res = np.std(zone_residual_values)
+    # Paper specifies using mean (μ) and standard deviation (σ) of residual in the zone
+    zone_residual_values = I_residual_filtered[active_pixels_mask].astype(np.float32)
+    mu = np.mean(zone_residual_values)
+    sigma = np.std(zone_residual_values)
     
-    # Paper's threshold: T = μ + γ*σ (equation in section 3.1)
-    threshold_value = mean_res + gamma * std_res
+    # Paper's threshold equation: T = μ + γ*σ 
+    threshold_value = mu + gamma * sigma
     
-    # Apply threshold
-    _, defect_binary = cv2.threshold(residual_median, threshold_value, 255, cv2.THRESH_BINARY)
+    # Apply threshold to create binary defect mask
+    _, defect_binary = cv2.threshold(I_residual_filtered, threshold_value, 255, cv2.THRESH_BINARY)
     
-    # Paper specifies morphological opening to remove small noise (3x3 kernel)
+    # Step 5: Morphological opening to remove small noise (paper specifies 3x3 kernel)
     kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    defect_binary = cv2.morphologyEx(defect_binary, cv2.MORPH_OPEN, kernel_open)
+    defect_binary_cleaned = cv2.morphologyEx(defect_binary, cv2.MORPH_OPEN, kernel_open)
     
-    # Filter by minimum area (paper suggests 5 pixels minimum)
-    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(defect_binary, connectivity=8)
-    filtered_mask = np.zeros_like(defect_binary)
+    # Filter by minimum area as per paper (5 pixels minimum)
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(defect_binary_cleaned, connectivity=8)
+    final_mask = np.zeros_like(defect_binary_cleaned)
     
+    min_defect_area_px = 5  # Paper's minimum defect area
     for i in range(1, num_labels):
         area = stats[i, cv2.CC_STAT_AREA]
-        if area >= 5:  # Paper's minimum defect area
-            filtered_mask[labels == i] = 255
+        if area >= min_defect_area_px:
+            final_mask[labels == i] = 255
     
-    return filtered_mask
+    return final_mask
 
 def _multiscale_do2mr_detection(image: np.ndarray, scales: List[float] = [0.5, 0.75, 1.0, 1.25, 1.5]) -> np.ndarray:
     """
@@ -1286,6 +1324,7 @@ def detect_defects(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Enhanced defect detection using multi-algorithm fusion approach.
+    Uses zone-specific parameters for better accuracy as per research paper.
     """
     if np.sum(zone_mask) == 0:
         logging.debug(f"Defect detection skipped for empty zone mask in zone '{zone_name}'.")
@@ -1393,37 +1432,54 @@ def detect_defects(
             logging.debug("Applied LBP texture analysis for defects.")
     
     if "lei_advanced" in linear_algos:
-        # LEI expects uint8 for equalizeHist, or handles normalization
-        enhanced_for_lei = working_image_for_processing
-        if working_image_for_processing.dtype == np.uint8:
-            # equalizeHist works directly on uint8
-            enhanced_for_lei_eq = cv2.equalizeHist(working_image_for_processing)
-            # _lei_scratch_detection expects uint8 or float32, its internal processing uses astype(np.float32)
-            # but the paper implies it works on an enhanced image.
-            # The original code did enhance_for_lei = cv2.equalizeHist(working_image) when working_image was uint8.
-            # The detailed _lei_scratch_detection uses enhanced_image[cy, cx] directly assuming it's numeric.
-            # Let's keep it uint8 after equalization.
-            enhanced_for_lei = enhanced_for_lei_eq
-
-        else: 
-            logging.warning("LEI enhancement: working_image_for_processing not uint8, normalizing for equalizeHist.")
-            norm_for_lei_eq = cv2.normalize(working_image_for_processing, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U) #
-            enhanced_for_lei = cv2.equalizeHist(norm_for_lei_eq)
-
-
-        lei_kernels = global_algo_params.get("lei_kernel_lengths", [11, 17, 23])
-        angle_step_lei_dd = global_algo_params.get("lei_angle_step_deg", 15) # Renamed var
-        # _lei_scratch_detection takes enhanced_image, internally casts to float32 for filter2D
-        lei_response_float = _lei_scratch_detection(enhanced_for_lei, lei_kernels, angle_step_lei_dd) 
-        
-        # The _lei_scratch_detection already normalizes its output to float32 [0,1]
-        # So, directly use it or scale to uint8 for thresholding
-        lei_response_uint8_thresh = (lei_response_float * 255).astype(np.uint8) # Convert 0-1 float to 0-255 uint8 for Otsu
-        _, thresh_lei = cv2.threshold(lei_response_uint8_thresh, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        kernel_open_lei = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 1)) 
-        thresh_lei = cv2.morphologyEx(thresh_lei, cv2.MORPH_OPEN, kernel_open_lei)
-        confidence_map[thresh_lei > 0] += algo_weights.get("lei_advanced", 0.8)
-        logging.debug("Applied LEI-advanced method for linear defects.")
+            # Step 1: Image Enhancement using histogram equalization (Paper Section 3.2)
+            enhanced_for_lei = cv2.equalizeHist(working_image_for_processing)
+            logging.debug("Applied histogram equalization for LEI scratch detection")
+            
+            # Step 2: Scratch Searching with linear detectors at multiple orientations
+            lei_kernel_lengths = global_algo_params.get("lei_kernel_lengths", [11, 17, 23])
+            angle_step_deg = global_algo_params.get("lei_angle_step_deg", 15)
+            
+            # Create response maps for each orientation
+            max_response_map = np.zeros_like(enhanced_for_lei, dtype=np.float32)
+            
+            for kernel_length in lei_kernel_lengths:
+                for angle_deg in range(0, 180, angle_step_deg):
+                    # Create linear kernel for current orientation
+                    angle_rad = np.radians(angle_deg)
+                    
+                    # Create a line kernel
+                    kernel = np.zeros((kernel_length, kernel_length), dtype=np.float32)
+                    center = kernel_length // 2
+                    
+                    # Draw line through center at specified angle
+                    for i in range(kernel_length):
+                        x = int(center + (i - center) * np.cos(angle_rad))
+                        y = int(center + (i - center) * np.sin(angle_rad))
+                        if 0 <= x < kernel_length and 0 <= y < kernel_length:
+                            kernel[y, x] = 1.0
+                    
+                    # Normalize kernel
+                    kernel_sum = np.sum(kernel)
+                    if kernel_sum > 0:
+                        kernel /= kernel_sum
+                    
+                    # Apply filter to get response for this orientation
+                    response = cv2.filter2D(enhanced_for_lei.astype(np.float32), cv2.CV_32F, kernel)
+                    max_response_map = np.maximum(max_response_map, response)
+            
+            # Step 3: Scratch Segmentation - threshold the response map
+            # Normalize response map to 0-255 range for thresholding
+            max_response_uint8 = cv2.normalize(max_response_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            _, scratch_binary = cv2.threshold(max_response_uint8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            
+            # Step 4: Result Synthesis is handled by the confidence map
+            # Clean up the result with morphological operations
+            kernel_clean = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 1))  # Horizontal kernel for scratches
+            scratch_binary_cleaned = cv2.morphologyEx(scratch_binary, cv2.MORPH_CLOSE, kernel_clean)
+            
+            confidence_map[scratch_binary_cleaned > 0] += algo_weights.get("lei_advanced", 0.8)
+            logging.debug("Completed LEI scratch detection")
     
     if "advanced_scratch" in linear_algos:
         # _advanced_scratch_detection handles internal normalization if not uint8
@@ -1524,12 +1580,6 @@ def detect_defects(
         else:
             logging.debug(f"Skipping empty labeled region {i} during size-based filtering.")
 
-
-# In image_processing.py, inside the detect_defects function:
-
-# ... [previous code in the function] ...
-
-    # Validate defects to reduce false positives
     def validate_defect_mask(defect_mask, original_image_for_validation, zone_name_for_validation): # Renamed args for clarity
         """Validate defects using additional criteria to reduce false positives."""
         validated_mask = np.zeros_like(defect_mask)
@@ -1607,7 +1657,29 @@ def detect_defects(
                  validated_mask[labels == i] = 255 # Keep it if area is okay
 
         return validated_mask
-
+    
+    def validate_defect_by_size(defect_mask: np.ndarray, zone_name: str, um_per_px: Optional[float] = None) -> np.ndarray:
+        """Additional size-based validation specific to zones."""
+        validated_mask = defect_mask.copy()
+        
+        # Zone-specific minimum sizes (in pixels if no um_per_px, otherwise in um²)
+        min_sizes = {
+            "Core": 3 if um_per_px is None else (2.0 / (um_per_px ** 2)),  # 2 µm²
+            "Cladding": 5 if um_per_px is None else (5.0 / (um_per_px ** 2)),  # 5 µm²
+            "Adhesive": 10 if um_per_px is None else (20.0 / (um_per_px ** 2)),  # 20 µm²
+            "Contact": 20 if um_per_px is None else (50.0 / (um_per_px ** 2))  # 50 µm²
+        }
+        
+        min_area = min_sizes.get(zone_name, 5)
+        
+        # Remove components smaller than zone-specific minimum
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(validated_mask, connectivity=8)
+        
+        for i in range(1, num_labels):
+            if stats[i, cv2.CC_STAT_AREA] < min_area:
+                validated_mask[labels == i] = 0
+        
+        return validated_mask
     # Add validation before returning
     # The error was here: 'working_image' was not defined.
     # It should be 'working_image_for_processing' which is the most up-to-date image for the current zone.

@@ -122,13 +122,18 @@ def characterize_and_classify_defects(
         height_px = rotated_rect[1][1]
         aspect_ratio = max(width_px, height_px) / (min(width_px, height_px) + 1e-6) # Add epsilon to prevent div by zero
 
-        # Enhanced classification based on paper's criteria
-        # Calculate more robust shape features
-        # Enhanced classification based on paper's criteria
-        # Calculate more robust shape features
+
         perimeter = cv2.arcLength(defect_contour, True)
         circularity = 4 * np.pi * area_px / (perimeter ** 2) if perimeter > 0 else 0
-        solidity = area_px / cv2.contourArea(cv2.convexHull(defect_contour)) if cv2.contourArea(cv2.convexHull(defect_contour)) > 0 else 0
+        
+        # Calculate solidity (ratio of contour area to convex hull area)
+        hull = cv2.convexHull(defect_contour)
+        hull_area = cv2.contourArea(hull)
+        solidity = area_px / hull_area if hull_area > 0 else 0
+        
+        # Calculate extent (ratio of contour area to bounding rectangle area)
+        rect_area = w_bbox * h_bbox
+        extent = area_px / rect_area if rect_area > 0 else 0
         
         # Get oriented bounding box for better dimension calculation
         rotated_rect = cv2.minAreaRect(defect_contour)
@@ -141,15 +146,18 @@ def characterize_and_classify_defects(
         aspect_ratio = width_rr / (height_rr + 1e-6)
         
         # Enhanced classification criteria based on paper
-        # Scratches: high aspect ratio, low circularity, low solidity
-        # Pits: low aspect ratio, high circularity, high solidity
-        if aspect_ratio >= scratch_aspect_ratio_threshold and circularity < 0.4 and solidity < 0.7:
+        # Scratches: high aspect ratio, low circularity, low solidity, low extent
+        # Pits: low aspect ratio, high circularity, high solidity, high extent
+        if aspect_ratio >= scratch_aspect_ratio_threshold and circularity < 0.4 and solidity < 0.7 and extent < 0.5:
             classification = "Scratch"
-        elif aspect_ratio < 2.0 and circularity > 0.6 and solidity > 0.8:
+        elif aspect_ratio < 2.0 and circularity > 0.6 and solidity > 0.8 and extent > 0.7:
             classification = "Pit/Dig"
         else:
-            # Ambiguous cases - use additional criteria
-            if aspect_ratio >= 2.5:
+            # Ambiguous cases - use weighted scoring
+            scratch_score = (aspect_ratio / 10.0) + (1 - circularity) + (1 - solidity) + (1 - extent)
+            pit_score = (1 / (aspect_ratio + 0.1)) + circularity + solidity + extent
+            
+            if scratch_score > pit_score:
                 classification = "Scratch"
             else:
                 classification = "Pit/Dig"
@@ -227,6 +235,56 @@ def calculate_defect_density(defects: List[Dict[str, Any]], zone_area_px: float)
     """
     total_defect_area = sum(d.get('area_px', 0) for d in defects)
     return total_defect_area / zone_area_px if zone_area_px > 0 else 0
+
+def analyze_defects_by_zone(characterized_defects: List[Dict[str, Any]], 
+                           zone_masks: Dict[str, np.ndarray]) -> Dict[str, Dict[str, Any]]:
+    """
+    Perform detailed region-specific analysis of defects.
+    
+    Args:
+        characterized_defects: List of characterized defect dictionaries
+        zone_masks: Dictionary of zone masks
+        
+    Returns:
+        Dictionary with zone-specific statistics
+    """
+    zone_stats = {}
+    
+    for zone_name, zone_mask in zone_masks.items():
+        # Use bitwise_and to isolate defects in this zone
+        zone_defects = [d for d in characterized_defects if d.get('zone') == zone_name]
+        
+        # Calculate zone area for density calculations
+        zone_area_px = np.sum(zone_mask > 0)
+        
+        # Separate by type
+        scratches = [d for d in zone_defects if d['classification'] == 'Scratch']
+        pits_digs = [d for d in zone_defects if d['classification'] == 'Pit/Dig']
+        
+        # Calculate statistics
+        total_defect_area = sum(d.get('area_px', 0) for d in zone_defects)
+        defect_density = total_defect_area / zone_area_px if zone_area_px > 0 else 0
+        
+        # Size statistics
+        defect_sizes = [d.get('length_um', d.get('length_px', 0)) for d in zone_defects]
+        
+        zone_stats[zone_name] = {
+            'total_defects': len(zone_defects),
+            'scratch_count': len(scratches),
+            'pit_dig_count': len(pits_digs),
+            'total_area_px': total_defect_area,
+            'defect_density': defect_density,
+            'zone_area_px': zone_area_px,
+            'max_defect_size': max(defect_sizes) if defect_sizes else 0,
+            'avg_defect_size': np.mean(defect_sizes) if defect_sizes else 0,
+            'defects': zone_defects
+        }
+        
+        logging.info(f"Zone '{zone_name}': {len(zone_defects)} defects "
+                     f"({len(scratches)} scratches, {len(pits_digs)} pits/digs), "
+                     f"density: {defect_density:.4f}")
+    
+    return zone_stats
 
 # --- Pass/Fail Evaluation ---
 def apply_pass_fail_rules(

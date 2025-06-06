@@ -203,6 +203,13 @@ def calculate_um_per_px(
         return None # Return None.
 
     um_per_px_calc = known_spacing_um / characteristic_distance_px # Calculate um/px.
+    
+    # Validate the calculated scale is reasonable
+    # Typical microscope scales range from 0.1 to 10 µm/pixel
+    if um_per_px_calc < 0.05 or um_per_px_calc > 20.0:
+        logging.warning(f"Calculated scale {um_per_px_calc:.6f} µm/pixel seems unreasonable. Typical range is 0.1-10 µm/pixel.")
+        logging.warning("Please verify your calibration target and known spacing value.")
+    
     logging.info(f"Calculated scale: {um_per_px_calc:.6f} µm/pixel, based on known spacing {known_spacing_um} µm and characteristic distance {characteristic_distance_px:.2f} px.")
     return um_per_px_calc # Return the calculated scale.
 
