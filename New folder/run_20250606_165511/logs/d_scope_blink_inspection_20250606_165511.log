@@ -1,0 +1,809 @@
+[2025-06-06 16:55:11] [INFO] [main:89] Logging configured. Level: INFO. Log file: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511\logs\d_scope_blink_inspection_20250606_165511.log
+[2025-06-06 16:55:11] [INFO] [main:356] D-Scope Blink: Inspection System Started.
+[2025-06-06 16:55:11] [INFO] [main:357] Input Directory: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\scratchdateset
+[2025-06-06 16:55:11] [INFO] [main:358] Output Directory (this run): C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511
+[2025-06-06 16:55:11] [INFO] [main:359] Using Profile: deep_inspection
+[2025-06-06 16:55:11] [INFO] [main:360] Fiber Type Key for Rules: single_mode_pc
+[2025-06-06 16:55:11] [WARNING] [calibration:254] Calibration file 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json' not found.
+[2025-06-06 16:55:11] [WARNING] [main:398] No calibration data loaded from 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json'. Measurements may be in pixels if user dimensions not provided.
+[2025-06-06 16:55:11] [INFO] [main:418] Found 57 images to process in 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\scratchdateset'.
+[2025-06-06 16:55:11] [INFO] [main:425] --- Starting image 1/57: 04_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:118] --- Processing image: 04_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:11] [INFO] [image_processing:79] Image '04_s.bmp' loaded successfully.
+[2025-06-06 16:55:11] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:11] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:11] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:11] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:11] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:11] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:11] [ERROR] [main:142] Failed to localize fiber structure in 04_s.bmp. Skipping.
+[2025-06-06 16:55:11] [INFO] [main:425] --- Starting image 2/57: 05_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:118] --- Processing image: 05_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:11] [INFO] [image_processing:79] Image '05_s.bmp' loaded successfully.
+[2025-06-06 16:55:11] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:11] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:11] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:11] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:11] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:468] Not enough contour points (20) for robust circle-fit library method.
+[2025-06-06 16:55:11] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:11] [ERROR] [main:142] Failed to localize fiber structure in 05_s.bmp. Skipping.
+[2025-06-06 16:55:11] [INFO] [main:425] --- Starting image 3/57: 06_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:118] --- Processing image: 06_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:11] [INFO] [image_processing:79] Image '06_s.bmp' loaded successfully.
+[2025-06-06 16:55:11] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:11] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:11] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:11] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:11] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:11] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:11] [ERROR] [main:142] Failed to localize fiber structure in 06_s.bmp. Skipping.
+[2025-06-06 16:55:11] [INFO] [main:425] --- Starting image 4/57: 07_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:118] --- Processing image: 07_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:11] [INFO] [image_processing:79] Image '07_s.bmp' loaded successfully.
+[2025-06-06 16:55:11] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:11] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:11] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:11] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:11] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:11] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:11] [ERROR] [main:142] Failed to localize fiber structure in 07_s.bmp. Skipping.
+[2025-06-06 16:55:11] [INFO] [main:425] --- Starting image 5/57: 08_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:118] --- Processing image: 08_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:11] [INFO] [image_processing:79] Image '08_s.bmp' loaded successfully.
+[2025-06-06 16:55:11] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:11] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:11] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:11] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:11] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:11] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:11] [ERROR] [main:142] Failed to localize fiber structure in 08_s.bmp. Skipping.
+[2025-06-06 16:55:11] [INFO] [main:425] --- Starting image 6/57: 09_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:118] --- Processing image: 09_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:11] [INFO] [image_processing:79] Image '09_s.bmp' loaded successfully.
+[2025-06-06 16:55:11] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:11] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:11] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:11] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:11] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:11] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:11] [ERROR] [main:142] Failed to localize fiber structure in 09_s.bmp. Skipping.
+[2025-06-06 16:55:11] [INFO] [main:425] --- Starting image 7/57: 10_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:118] --- Processing image: 10_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:11] [INFO] [image_processing:79] Image '10_s.bmp' loaded successfully.
+[2025-06-06 16:55:11] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:11] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:11] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:11] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:11] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:11] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:11] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:11] [ERROR] [main:142] Failed to localize fiber structure in 10_s.bmp. Skipping.
+[2025-06-06 16:55:11] [INFO] [main:425] --- Starting image 8/57: 11_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:118] --- Processing image: 11_s.bmp ---
+[2025-06-06 16:55:11] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:11] [INFO] [image_processing:79] Image '11_s.bmp' loaded successfully.
+[2025-06-06 16:55:11] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:11] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:11] [INFO] [image_processing:222] Cladding detected via template matching: Center=(229, 229), Radius=229px
+[2025-06-06 16:55:11] [WARNING] [image_processing:630] No core contours found using Otsu within cladding mask.
+[2025-06-06 16:55:11] [WARNING] [image_processing:633] Core detection defaulting to 0.4 * cladding radius.
+[2025-06-06 16:55:11] [INFO] [main:173] No µm/px scale available for 11_s.bmp. Measurements will be in pixels.
+[2025-06-06 16:55:11] [INFO] [main:192] Detected diameters for 11_s.bmp:
+[2025-06-06 16:55:11] [INFO] [main:193]   - Cladding diameter: 458.0 pixels
+[2025-06-06 16:55:11] [INFO] [main:194]   - Core diameter: 183.2 pixels
+[2025-06-06 16:55:11] [INFO] [main:201] Step 3: Generating Zone Masks...
+[2025-06-06 16:55:11] [INFO] [main:236] Step 4: Detecting Defects in Zones...
+[2025-06-06 16:55:14] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:17] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:20] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:23] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:23] [INFO] [main:258] Step 5: Analyzing Defects and Applying Rules...
+[2025-06-06 16:55:23] [INFO] [analysis:96] Performing defect characterization using pure Python implementation.
+[2025-06-06 16:55:23] [WARNING] [analysis:285] FAIL Rule (Pit/Dig Count): Zone 'Core', Count=1, Allowed=0
+[2025-06-06 16:55:23] [WARNING] [analysis:332] Pass/Fail Evaluation for 'single_mode_pc': Overall FAIL. Reasons: Zone 'Core': Too many Pits/Digs (1 > 0).
+[2025-06-06 16:55:23] [INFO] [main:281] Step 6: Generating Reports...
+[2025-06-06 16:55:23] [INFO] [reporting:218] Annotated image saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511\11_s\11_s_annotated.png'.
+[2025-06-06 16:55:23] [INFO] [reporting:275] Defect CSV report saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511\11_s\11_s_report.csv'.
+[2025-06-06 16:55:23] [INFO] [reporting:400] Polar defect histogram saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511\11_s\11_s_histogram.png'.
+[2025-06-06 16:55:23] [INFO] [main:295] --- Finished processing 11_s.bmp. Duration: 11.73s ---
+[2025-06-06 16:55:23] [WARNING] [advanced_visualization:41] Napari not available. Skipping interactive visualization.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 9/57: 12_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 12_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '12_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 12_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 10/57: 13_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 13_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '13_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 13_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 11/57: 14_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 14_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '14_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 14_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 12/57: 15_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 15_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '15_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 15_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 13/57: 16_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 16_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '16_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 16_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 14/57: 17_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 17_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '17_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:466] Circle-fit library methods did not yield a suitable circle.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 17_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 15/57: 18_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 18_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '18_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 18_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 16/57: 19_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 19_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '19_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 19_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 17/57: 20_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 20_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '20_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 20_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 18/57: 21_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 21_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '21_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 21_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 19/57: 22_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 22_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '22_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 22_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 20/57: 23_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 23_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '23_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:23] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:23] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:23] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:23] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:23] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:23] [ERROR] [main:142] Failed to localize fiber structure in 23_s.bmp. Skipping.
+[2025-06-06 16:55:23] [INFO] [main:425] --- Starting image 21/57: 24_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:118] --- Processing image: 24_s.bmp ---
+[2025-06-06 16:55:23] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:23] [INFO] [image_processing:79] Image '24_s.bmp' loaded successfully.
+[2025-06-06 16:55:23] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:23] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 24_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 22/57: 25_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 25_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '25_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 25_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 23/57: 26_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 26_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '26_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 26_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 24/57: 27_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 27_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '27_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:466] Circle-fit library methods did not yield a suitable circle.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 27_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 25/57: 28_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 28_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '28_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 28_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 26/57: 29_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 29_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '29_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 29_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 27/57: 30_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 30_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '30_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 30_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 28/57: 31_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 31_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '31_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 31_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 29/57: 32_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 32_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '32_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 32_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 30/57: 33_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 33_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '33_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 33_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 31/57: 34_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 34_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '34_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 34_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 32/57: 35_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 35_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '35_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:24] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:24] [ERROR] [main:142] Failed to localize fiber structure in 35_s.bmp. Skipping.
+[2025-06-06 16:55:24] [INFO] [main:425] --- Starting image 33/57: 36_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:118] --- Processing image: 36_s.bmp ---
+[2025-06-06 16:55:24] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:24] [INFO] [image_processing:79] Image '36_s.bmp' loaded successfully.
+[2025-06-06 16:55:24] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:24] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:24] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:24] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:24] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:24] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:24] [INFO] [image_processing:464] Cladding (CircleFitLib best): Center=(219,269), Radius=186.6px, Residual=4.700
+[2025-06-06 16:55:24] [WARNING] [image_processing:630] No core contours found using Otsu within cladding mask.
+[2025-06-06 16:55:24] [WARNING] [image_processing:633] Core detection defaulting to 0.4 * cladding radius.
+[2025-06-06 16:55:24] [INFO] [main:173] No µm/px scale available for 36_s.bmp. Measurements will be in pixels.
+[2025-06-06 16:55:24] [INFO] [main:192] Detected diameters for 36_s.bmp:
+[2025-06-06 16:55:24] [INFO] [main:193]   - Cladding diameter: 373.1 pixels
+[2025-06-06 16:55:24] [INFO] [main:194]   - Core diameter: 149.2 pixels
+[2025-06-06 16:55:24] [INFO] [main:201] Step 3: Generating Zone Masks...
+[2025-06-06 16:55:24] [INFO] [main:236] Step 4: Detecting Defects in Zones...
+[2025-06-06 16:55:27] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:30] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:32] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:35] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:35] [INFO] [main:258] Step 5: Analyzing Defects and Applying Rules...
+[2025-06-06 16:55:35] [INFO] [analysis:96] Performing defect characterization using pure Python implementation.
+[2025-06-06 16:55:35] [WARNING] [analysis:285] FAIL Rule (Pit/Dig Count): Zone 'Core', Count=1, Allowed=0
+[2025-06-06 16:55:35] [WARNING] [analysis:332] Pass/Fail Evaluation for 'single_mode_pc': Overall FAIL. Reasons: Zone 'Core': Too many Pits/Digs (1 > 0).
+[2025-06-06 16:55:35] [INFO] [main:281] Step 6: Generating Reports...
+[2025-06-06 16:55:35] [INFO] [reporting:218] Annotated image saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511\36_s\36_s_annotated.png'.
+[2025-06-06 16:55:35] [INFO] [reporting:275] Defect CSV report saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511\36_s\36_s_report.csv'.
+[2025-06-06 16:55:36] [INFO] [reporting:400] Polar defect histogram saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511\36_s\36_s_histogram.png'.
+[2025-06-06 16:55:36] [INFO] [main:295] --- Finished processing 36_s.bmp. Duration: 11.45s ---
+[2025-06-06 16:55:36] [WARNING] [advanced_visualization:41] Napari not available. Skipping interactive visualization.
+[2025-06-06 16:55:36] [INFO] [main:425] --- Starting image 34/57: 37_s.bmp ---
+[2025-06-06 16:55:36] [INFO] [main:118] --- Processing image: 37_s.bmp ---
+[2025-06-06 16:55:36] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:36] [INFO] [image_processing:79] Image '37_s.bmp' loaded successfully.
+[2025-06-06 16:55:36] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:36] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:36] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:36] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:36] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:36] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:36] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:36] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:36] [ERROR] [main:142] Failed to localize fiber structure in 37_s.bmp. Skipping.
+[2025-06-06 16:55:36] [INFO] [main:425] --- Starting image 35/57: 38_s.bmp ---
+[2025-06-06 16:55:36] [INFO] [main:118] --- Processing image: 38_s.bmp ---
+[2025-06-06 16:55:36] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:36] [INFO] [image_processing:79] Image '38_s.bmp' loaded successfully.
+[2025-06-06 16:55:36] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:36] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:36] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:36] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:36] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:36] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:36] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:36] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:36] [ERROR] [main:142] Failed to localize fiber structure in 38_s.bmp. Skipping.
+[2025-06-06 16:55:36] [INFO] [main:425] --- Starting image 36/57: 39_s.bmp ---
+[2025-06-06 16:55:36] [INFO] [main:118] --- Processing image: 39_s.bmp ---
+[2025-06-06 16:55:36] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:36] [INFO] [image_processing:79] Image '39_s.bmp' loaded successfully.
+[2025-06-06 16:55:36] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:36] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:36] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:36] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:36] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:36] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:36] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:36] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:36] [ERROR] [main:142] Failed to localize fiber structure in 39_s.bmp. Skipping.
+[2025-06-06 16:55:36] [INFO] [main:425] --- Starting image 37/57: 40_s.bmp ---
+[2025-06-06 16:55:36] [INFO] [main:118] --- Processing image: 40_s.bmp ---
+[2025-06-06 16:55:36] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:36] [INFO] [image_processing:79] Image '40_s.bmp' loaded successfully.
+[2025-06-06 16:55:36] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:36] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:36] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:36] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:36] [INFO] [image_processing:369] Selected largest valid contour (Area: 3169.0px, Circularity: 0.53) for fitting.
+[2025-06-06 16:55:36] [INFO] [image_processing:388] Cladding (ContourFitEllipse): Center=(108,495), Axes=(68.7,98.8)px, Angle=10.9deg
+[2025-06-06 16:55:36] [WARNING] [image_processing:624] Could not identify a distinct core contour within the cladding using current criteria.
+[2025-06-06 16:55:36] [WARNING] [image_processing:628] Core detection failed, defaulting to 0.4 * cladding radius.
+[2025-06-06 16:55:36] [INFO] [main:173] No µm/px scale available for 40_s.bmp. Measurements will be in pixels.
+[2025-06-06 16:55:36] [INFO] [main:192] Detected diameters for 40_s.bmp:
+[2025-06-06 16:55:36] [INFO] [main:193]   - Cladding diameter: 83.8 pixels
+[2025-06-06 16:55:36] [INFO] [main:194]   - Core diameter: 33.5 pixels
+[2025-06-06 16:55:36] [INFO] [main:201] Step 3: Generating Zone Masks...
+[2025-06-06 16:55:36] [INFO] [main:236] Step 4: Detecting Defects in Zones...
+[2025-06-06 16:55:38] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:41] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:45] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:47] [WARNING] [anomaly_detection:37] Anomalib not installed. Anomaly detection disabled.
+[2025-06-06 16:55:47] [INFO] [main:258] Step 5: Analyzing Defects and Applying Rules...
+[2025-06-06 16:55:47] [INFO] [analysis:96] Performing defect characterization using pure Python implementation.
+[2025-06-06 16:55:47] [INFO] [analysis:330] Pass/Fail Evaluation for 'single_mode_pc': Overall PASS.
+[2025-06-06 16:55:47] [INFO] [main:281] Step 6: Generating Reports...
+[2025-06-06 16:55:47] [INFO] [reporting:218] Annotated image saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511\40_s\40_s_annotated.png'.
+[2025-06-06 16:55:47] [INFO] [reporting:275] Defect CSV report saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511\40_s\40_s_report.csv'.
+[2025-06-06 16:55:48] [INFO] [reporting:400] Polar defect histogram saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511\40_s\40_s_histogram.png'.
+[2025-06-06 16:55:48] [INFO] [main:295] --- Finished processing 40_s.bmp. Duration: 12.00s ---
+[2025-06-06 16:55:48] [WARNING] [advanced_visualization:41] Napari not available. Skipping interactive visualization.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 38/57: 41_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 41_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '41_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:48] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:48] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:48] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:48] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:48] [ERROR] [main:142] Failed to localize fiber structure in 41_s.bmp. Skipping.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 39/57: 42_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 42_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '42_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:48] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:48] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:48] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:48] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:48] [ERROR] [main:142] Failed to localize fiber structure in 42_s.bmp. Skipping.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 40/57: 43_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 43_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '43_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:48] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:48] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:48] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:48] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:48] [ERROR] [main:142] Failed to localize fiber structure in 43_s.bmp. Skipping.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 41/57: 44_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 44_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '44_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:48] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:48] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:48] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:48] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:48] [ERROR] [main:142] Failed to localize fiber structure in 44_s.bmp. Skipping.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 42/57: 45_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 45_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '45_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:48] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:48] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:48] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:48] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:48] [ERROR] [main:142] Failed to localize fiber structure in 45_s.bmp. Skipping.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 43/57: 46_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 46_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '46_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:48] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:48] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:48] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:48] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:48] [ERROR] [main:142] Failed to localize fiber structure in 46_s.bmp. Skipping.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 44/57: 47_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 47_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '47_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:48] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:48] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:48] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:48] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:48] [ERROR] [main:142] Failed to localize fiber structure in 47_s.bmp. Skipping.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 45/57: 48_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 48_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '48_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:48] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:48] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:48] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:48] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:48] [ERROR] [main:142] Failed to localize fiber structure in 48_s.bmp. Skipping.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 46/57: 49_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 49_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '49_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:48] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:48] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:48] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:48] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:48] [ERROR] [main:142] Failed to localize fiber structure in 49_s.bmp. Skipping.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 47/57: 50_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 50_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '50_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:48] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:48] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:48] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:48] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:48] [ERROR] [main:142] Failed to localize fiber structure in 50_s.bmp. Skipping.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 48/57: 51_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 51_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '51_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:48] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:48] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:48] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:48] [WARNING] [image_processing:470] No contours found from Canny edges for circle-fit library method.
+[2025-06-06 16:55:48] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:48] [ERROR] [main:142] Failed to localize fiber structure in 51_s.bmp. Skipping.
+[2025-06-06 16:55:48] [INFO] [main:425] --- Starting image 49/57: 52_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:118] --- Processing image: 52_s.bmp ---
+[2025-06-06 16:55:48] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:48] [INFO] [image_processing:79] Image '52_s.bmp' loaded successfully.
+[2025-06-06 16:55:48] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:48] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:49] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:49] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:49] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:49] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:49] [ERROR] [main:142] Failed to localize fiber structure in 52_s.bmp. Skipping.
+[2025-06-06 16:55:49] [INFO] [main:425] --- Starting image 50/57: 53_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:118] --- Processing image: 53_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:49] [INFO] [image_processing:79] Image '53_s.bmp' loaded successfully.
+[2025-06-06 16:55:49] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:49] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:49] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:49] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:49] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:49] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:49] [ERROR] [main:142] Failed to localize fiber structure in 53_s.bmp. Skipping.
+[2025-06-06 16:55:49] [INFO] [main:425] --- Starting image 51/57: 54_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:118] --- Processing image: 54_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:49] [INFO] [image_processing:79] Image '54_s.bmp' loaded successfully.
+[2025-06-06 16:55:49] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:49] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:49] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:49] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:49] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:49] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:49] [ERROR] [main:142] Failed to localize fiber structure in 54_s.bmp. Skipping.
+[2025-06-06 16:55:49] [INFO] [main:425] --- Starting image 52/57: 55_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:118] --- Processing image: 55_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:49] [INFO] [image_processing:79] Image '55_s.bmp' loaded successfully.
+[2025-06-06 16:55:49] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:49] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:49] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:49] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:49] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:49] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:49] [ERROR] [main:142] Failed to localize fiber structure in 55_s.bmp. Skipping.
+[2025-06-06 16:55:49] [INFO] [main:425] --- Starting image 53/57: 56_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:118] --- Processing image: 56_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:49] [INFO] [image_processing:79] Image '56_s.bmp' loaded successfully.
+[2025-06-06 16:55:49] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:49] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:49] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:49] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:49] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:49] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:49] [ERROR] [main:142] Failed to localize fiber structure in 56_s.bmp. Skipping.
+[2025-06-06 16:55:49] [INFO] [main:425] --- Starting image 54/57: 57_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:118] --- Processing image: 57_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:49] [INFO] [image_processing:79] Image '57_s.bmp' loaded successfully.
+[2025-06-06 16:55:49] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:49] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:49] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:49] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:49] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:49] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:49] [ERROR] [main:142] Failed to localize fiber structure in 57_s.bmp. Skipping.
+[2025-06-06 16:55:49] [INFO] [main:425] --- Starting image 55/57: 58_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:118] --- Processing image: 58_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:49] [INFO] [image_processing:79] Image '58_s.bmp' loaded successfully.
+[2025-06-06 16:55:49] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:49] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:49] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:49] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:49] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:49] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:49] [ERROR] [main:142] Failed to localize fiber structure in 58_s.bmp. Skipping.
+[2025-06-06 16:55:49] [INFO] [main:425] --- Starting image 56/57: 59_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:118] --- Processing image: 59_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:49] [INFO] [image_processing:79] Image '59_s.bmp' loaded successfully.
+[2025-06-06 16:55:49] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:49] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:49] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:49] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:49] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:49] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:49] [ERROR] [main:142] Failed to localize fiber structure in 59_s.bmp. Skipping.
+[2025-06-06 16:55:49] [INFO] [main:425] --- Starting image 57/57: 60_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:118] --- Processing image: 60_s.bmp ---
+[2025-06-06 16:55:49] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 16:55:49] [INFO] [image_processing:79] Image '60_s.bmp' loaded successfully.
+[2025-06-06 16:55:49] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 16:55:49] [INFO] [image_processing:188] Attempting enhanced multi-method circle detection
+[2025-06-06 16:55:49] [WARNING] [image_processing:279] HoughCircles found no circles initially (and template matching did not yield a result).
+[2025-06-06 16:55:49] [WARNING] [image_processing:286] Attempting adaptive threshold contour fitting fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:400] Adaptive thresholding did not yield any suitable fiber contours after filtering.
+[2025-06-06 16:55:49] [INFO] [image_processing:410] Attempting circle-fit library method as a further fallback for cladding detection.
+[2025-06-06 16:55:49] [WARNING] [image_processing:468] Not enough contour points (0) for robust circle-fit library method.
+[2025-06-06 16:55:49] [ERROR] [image_processing:481] Failed to localize fiber cladding by any method.
+[2025-06-06 16:55:49] [ERROR] [main:142] Failed to localize fiber structure in 60_s.bmp. Skipping.
+[2025-06-06 16:55:49] [INFO] [main:473] Batch summary report saved to: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511\batch_summary_report.csv
+[2025-06-06 16:55:49] [INFO] [main:480] --- D-Scope Blink: Batch Processing Complete ---
+[2025-06-06 16:55:49] [INFO] [main:481] Total images processed: 57
+[2025-06-06 16:55:49] [INFO] [main:482] Total batch duration: 38.17 seconds.
+[2025-06-06 16:55:49] [INFO] [main:483] All reports for this run saved in: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\New folder\run_20250606_165511

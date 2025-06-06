@@ -1,0 +1,22 @@
+image_filename,pass_fail_status,processing_time_s,total_defect_count,core_defect_count,cladding_defect_count,failure_reason_summary
+19700101000654-J65548-FT49.jpg,FAIL,49.13,38,1,37,Zone 'Core': Too many Pits/Digs (1 > 0).; Zone 'Cladding': Too many Pits/Digs (37 > 5).
+19700101000835-J65539-FT53.jpg,FAIL,50.1,44,1,43,Zone 'Core': Too many Pits/Digs (1 > 0).; Zone 'Cladding': Too many Pits/Digs (42 > 5).
+19700101000835-J65539-FTSPARE.jpg,FAIL,49.06,44,1,43,Zone 'Core': Too many Pits/Digs (1 > 0).; Zone 'Cladding': Too many Pits/Digs (42 > 5).
+19700101000906-J65548-FT50.jpg,FAIL,50.77,1,1,0,Zone 'Core': Too many Pits/Digs (1 > 0).
+19700101001118-J65539-FT55.jpg,FAIL,44.46,62,1,60,Zone 'Core': Too many Pits/Digs (1 > 0).; Zone 'Cladding': Too many Pits/Digs (60 > 5).
+19700101001136-J65548-FT51.jpg,FAIL,47.91,99,2,97,Zone 'Core': Too many Pits/Digs (2 > 0).; Zone 'Cladding': Too many Pits/Digs (95 > 5).
+19700101001249-J65539-FT54.jpg,FAIL,47.77,2,1,1,Zone 'Core': Too many Pits/Digs (1 > 0).
+19700101001420-J65548-FT52.jpg,FAIL,50.15,41,1,40,Zone 'Core': Too many Pits/Digs (1 > 0).; Zone 'Cladding': Too many Pits/Digs (39 > 5).
+19700101001628-J65535FT20.jpg,FAIL,51.65,15,2,13,Zone 'Core': Too many Pits/Digs (2 > 0).; Zone 'Cladding': Too many Pits/Digs (13 > 5).
+19700101001933-J65535FT22.jpg,FAIL,51.23,27,1,26,Zone 'Core': Too many Pits/Digs (1 > 0).; Zone 'Cladding': Too many Pits/Digs (26 > 5).
+19700101002156-J65535FT24.jpg,FAIL,50.75,21,1,20,Zone 'Core': Too many Pits/Digs (1 > 0).; Zone 'Cladding': Too many Pits/Digs (20 > 5).
+19700101024045-J67691-FT53.jpg,FAIL,49.89,1,1,0,Zone 'Core': Too many Pits/Digs (1 > 0).
+19700101024404-J67691-FT54.jpg,FAIL,51.93,21,1,20,Zone 'Core': Too many Pits/Digs (1 > 0).; Zone 'Cladding': Too many Pits/Digs (20 > 5).
+19700101024904-J67691-FT55.jpg,FAIL,48.65,1,1,0,Zone 'Core': Too many Pits/Digs (1 > 0).
+19700101025314-J67691-SPARE.jpg,FAIL,51.51,27,1,23,Zone 'Core': Too many Pits/Digs (1 > 0).; Zone 'Cladding': Too many Pits/Digs (23 > 5).
+19700101030921-J65535FT21.jpg,FAIL,48.79,25,1,24,Zone 'Core': Too many Pits/Digs (1 > 0).; Zone 'Cladding': Too many Pits/Digs (24 > 5).
+19700101031204-J65535FT23.jpg,FAIL,50.38,6,1,5,Zone 'Core': Too many Pits/Digs (1 > 0).
+19700101041536-J67696-FT49.jpg,FAIL,54.69,2,1,0,Zone 'Core': Too many Pits/Digs (1 > 0).
+19700101041739-J67696-FT52.jpg,FAIL,71.25,1,1,0,Zone 'Core': Too many Pits/Digs (1 > 0).
+19700101042057-J67696-FT51.jpg,FAIL,63.27,2,1,0,Zone 'Core': Too many Pits/Digs (1 > 0).
+19700101042239-J67696-FT50.jpg,FAIL,48.49,2,1,0,Zone 'Core': Too many Pits/Digs (1 > 0).
