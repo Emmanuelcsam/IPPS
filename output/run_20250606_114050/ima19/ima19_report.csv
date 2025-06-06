@@ -1,0 +1,1 @@
+defect_id,zone,classification,confidence_score,centroid_x_px,centroid_y_px,area_px,length_px,width_px,aspect_ratio_oriented,bbox_x_px,bbox_y_px,bbox_w_px,bbox_h_px,area_um2,length_um,width_um,effective_diameter_um,rotated_rect_center_px,rotated_rect_angle_deg

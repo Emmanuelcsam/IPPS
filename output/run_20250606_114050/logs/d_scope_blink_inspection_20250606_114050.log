@@ -1,0 +1,39 @@
+[2025-06-06 11:40:50] [INFO] [main:89] Logging configured. Level: INFO. Log file: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_114050\logs\d_scope_blink_inspection_20250606_114050.log
+[2025-06-06 11:40:50] [INFO] [main:356] D-Scope Blink: Inspection System Started.
+[2025-06-06 11:40:50] [INFO] [main:357] Input Directory: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples
+[2025-06-06 11:40:50] [INFO] [main:358] Output Directory (this run): C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_114050
+[2025-06-06 11:40:50] [INFO] [main:359] Using Profile: fast_scan
+[2025-06-06 11:40:50] [INFO] [main:360] Fiber Type Key for Rules: single_mode_pc
+[2025-06-06 11:40:50] [WARNING] [calibration:254] Calibration file 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json' not found.
+[2025-06-06 11:40:50] [WARNING] [main:398] No calibration data loaded from 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json'. Measurements may be in pixels if user dimensions not provided.
+[2025-06-06 11:40:50] [INFO] [main:418] Found 1 images to process in 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples'.
+[2025-06-06 11:40:50] [INFO] [main:425] --- Starting image 1/1: ima19.jpg ---
+[2025-06-06 11:40:50] [INFO] [main:118] --- Processing image: ima19.jpg ---
+[2025-06-06 11:40:50] [INFO] [main:122] Step 1: Loading and Preprocessing...
+[2025-06-06 11:40:50] [INFO] [image_processing:229] Image 'ima19.jpg' loaded successfully.
+[2025-06-06 11:40:50] [INFO] [main:139] Step 2: Locating Fiber Structure...
+[2025-06-06 11:40:50] [INFO] [image_processing:366] Attempting enhanced multi-method circle detection
+[2025-06-06 11:40:51] [INFO] [image_processing:404] HoughCircles detected 5 circle(s).
+[2025-06-06 11:40:51] [INFO] [image_processing:448] Cladding (Hough): Center=(575,425), Radius=158px
+[2025-06-06 11:40:51] [INFO] [image_processing:800] Core (ContourFit): Center=(575,425), Radius=142.0px
+[2025-06-06 11:40:51] [INFO] [main:173] No µm/px scale available for ima19.jpg. Measurements will be in pixels.
+[2025-06-06 11:40:51] [INFO] [main:192] Detected diameters for ima19.jpg:
+[2025-06-06 11:40:51] [INFO] [main:193]   - Cladding diameter: 316.0 pixels
+[2025-06-06 11:40:51] [INFO] [main:194]   - Core diameter: 284.0 pixels
+[2025-06-06 11:40:51] [INFO] [main:201] Step 3: Generating Zone Masks...
+[2025-06-06 11:40:51] [INFO] [main:236] Step 4: Detecting Defects in Zones...
+[2025-06-06 11:40:51] [INFO] [main:258] Step 5: Analyzing Defects and Applying Rules...
+[2025-06-06 11:40:51] [INFO] [analysis:76] Found 1 potential defect components from fused mask.
+[2025-06-06 11:40:51] [INFO] [analysis:412] Pass/Fail Evaluation for 'single_mode_pc': Overall PASS.
+[2025-06-06 11:40:51] [INFO] [main:281] Step 6: Generating Reports...
+[2025-06-06 11:40:51] [INFO] [reporting:218] Annotated image saved successfully to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_114050\ima19\ima19_annotated.png'.
+[2025-06-06 11:40:51] [INFO] [reporting:240] No defects to report for ima19_report.csv. CSV not generated.
+[2025-06-06 11:40:51] [INFO] [reporting:250] Empty defect report CSV (with headers) saved to 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_114050\ima19\ima19_report.csv'.
+[2025-06-06 11:40:51] [INFO] [reporting:305] No defects to plot for polar histogram for ima19_histogram.png.
+[2025-06-06 11:40:51] [INFO] [main:295] --- Finished processing ima19.jpg. Duration: 0.35s ---
+[2025-06-06 11:40:51] [WARNING] [advanced_visualization:41] Napari not available. Skipping interactive visualization.
+[2025-06-06 11:40:51] [INFO] [main:473] Batch summary report saved to: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_114050\batch_summary_report.csv
+[2025-06-06 11:40:51] [INFO] [main:480] --- D-Scope Blink: Batch Processing Complete ---
+[2025-06-06 11:40:51] [INFO] [main:481] Total images processed: 1
+[2025-06-06 11:40:51] [INFO] [main:482] Total batch duration: 0.35 seconds.
+[2025-06-06 11:40:51] [INFO] [main:483] All reports for this run saved in: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250606_114050
