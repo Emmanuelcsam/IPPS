@@ -118,6 +118,7 @@ def process_single_image(
     logging.info(f"--- Processing image: {image_path.name} ---")
     output_dir_image.mkdir(parents=True, exist_ok=True) # Ensure image-specific output directory exists.
 
+
     # --- 1. Load and Preprocess Image ---
     logging.info("Step 1: Loading and Preprocessing...") # Log current step.
     preprocess_results = load_and_preprocess_image(str(image_path), profile_config) # Call function to load and preprocess.
@@ -417,12 +418,142 @@ def execute_inspection_run(args_namespace: Any) -> None:
 
     logging.info(f"Found {len(image_paths_to_process)} images to process in '{input_path}'.")
 
+
+    # Add this after loading configuration and before the batch processing loop
+
+    # Initialize advanced models if enabled
+    advanced_models_initialized = False
+
+    if global_config.get("algorithm_parameters", {}).get("enable_advanced_models", True):
+        logging.info("Initializing advanced detection models...")
+        
+        # Initialize Anomalib
+        if ANOMALIB_FULL_AVAILABLE:
+            try:
+                anomalib_config_path = global_config["algorithm_parameters"].get("anomalib_config_path")
+                anomalib_detector = AnomalibDefectDetector(anomalib_config_path)
+                
+                # Load pre-trained models
+                model_paths = {
+                    "padim": Path("models/anomalib/padim/openvino"),
+                    "patchcore": Path("models/anomalib/patchcore/openvino")
+                }
+                
+                existing_models = {k: v for k, v in model_paths.items() if v.exists()}
+                if existing_models:
+                    anomalib_detector.create_ensemble_detector(existing_models)
+                    global_config["algorithm_parameters"]["anomalib_detector_instance"] = anomalib_detector
+                    logging.info(f"Anomalib ensemble initialized with models: {list(existing_models.keys())}")
+            except Exception as e:
+                logging.warning(f"Failed to initialize Anomalib: {e}")
+        
+        # Initialize PaDiM Specific
+        if PADIM_SPECIFIC_AVAILABLE:
+            try:
+                padim_model = FiberPaDiM(backbone='resnet18', device='cuda' if torch.cuda.is_available() else 'cpu')
+                
+                # Load pre-trained model if available
+                padim_model_path = global_config["algorithm_parameters"].get("padim_model_path")
+                if padim_model_path and Path(padim_model_path).exists():
+                    checkpoint = torch.load(padim_model_path)
+                    padim_model.patch_means = checkpoint['patch_means']
+                    padim_model.C = checkpoint['C']
+                    padim_model.C_inv = checkpoint['C_inv']
+                    padim_model.R = checkpoint['R']
+                    padim_model.fitted = True
+                    logging.info("Loaded pre-trained PaDiM model")
+                
+                global_config["algorithm_parameters"]["padim_specific_instance"] = padim_model
+            except Exception as e:
+                logging.warning(f"Failed to initialize PaDiM specific: {e}")
+        
+        # Initialize SegDecNet
+        if SEGDECNET_AVAILABLE:
+            try:
+                segdecnet_model_path = global_config["algorithm_parameters"].get("segdecnet_model_path")
+                segdecnet = FiberSegDecNet(
+                    model_path=segdecnet_model_path if Path(segdecnet_model_path).exists() else None,
+                    device='cuda' if torch.cuda.is_available() else 'cpu'
+                )
+                global_config["algorithm_parameters"]["segdecnet_instance"] = segdecnet
+                logging.info("SegDecNet initialized")
+            except Exception as e:
+                logging.warning(f"Failed to initialize SegDecNet: {e}")
+        
+        advanced_models_initialized = True
+        logging.info("Advanced model initialization complete")
+
     # --- Batch Processing ---
     batch_start_time = time.perf_counter() # Start timer for batch processing.
     all_image_summaries: List[Dict[str, Any]] = [] # Initialize list for summaries of all images.
 
-    for i, image_file_path in enumerate(image_paths_to_process): # Iterate through image paths.
-        logging.info(f"--- Starting image {i+1}/{len(image_paths_to_process)}: {image_file_path.name} ---")
+    # Parallel processing setup
+    from multiprocessing import Pool, cpu_count
+    from functools import partial
+
+    def process_image_wrapper(args):
+        """Wrapper for multiprocessing"""
+        image_path, output_dir, profile_config, global_config, um_per_px, core_dia, clad_dia, fiber_type = args
+        try:
+            return process_single_image(
+                image_path, output_dir, profile_config, global_config,
+                um_per_px, core_dia, clad_dia, fiber_type
+            )
+        except Exception as e:
+            logging.error(f"Error processing {image_path.name}: {e}")
+            return {
+                "image_filename": image_path.name,
+                "pass_fail_status": "ERROR_PROCESSING",
+                "processing_time_s": 0,
+                "total_defect_count": 0,
+                "core_defect_count": 0,
+                "cladding_defect_count": 0,
+                "failure_reason_summary": str(e)
+            }
+
+    # Determine number of processes
+    num_processes = min(cpu_count() - 1, len(image_paths_to_process))
+    num_processes = max(1, num_processes)  # At least 1 process
+
+    if num_processes > 1 and len(image_paths_to_process) > 1:
+        logging.info(f"Using parallel processing with {num_processes} processes")
+        
+        # Prepare arguments for each image
+        process_args = [
+            (
+                image_path,
+                current_run_output_dir / image_path.stem,
+                active_profile_config,
+                global_config,
+                loaded_um_per_px,
+                args_namespace.core_dia_um,
+                args_namespace.clad_dia_um,
+                args_namespace.fiber_type
+            )
+            for image_path in image_paths_to_process
+        ]
+        
+        # Process in parallel
+        with Pool(processes=num_processes) as pool:
+            all_image_summaries = pool.map(process_image_wrapper, process_args)
+    else:
+        # Fall back to sequential processing for single image or if parallel not beneficial
+        logging.info("Using sequential processing")
+        all_image_summaries = []
+        for i, image_file_path in enumerate(image_paths_to_process):
+            logging.info(f"--- Starting image {i+1}/{len(image_paths_to_process)}: {image_file_path.name} ---")
+            image_specific_output_subdir = current_run_output_dir / image_file_path.stem
+            summary = process_image_wrapper((
+                image_file_path,
+                image_specific_output_subdir,
+                active_profile_config,
+                global_config,
+                loaded_um_per_px,
+                args_namespace.core_dia_um,
+                args_namespace.clad_dia_um,
+                args_namespace.fiber_type
+            ))
+            all_image_summaries.append(summary)
         image_specific_output_subdir = current_run_output_dir / image_file_path.stem
         current_image_processing_start_time = time.perf_counter() # Timer for this specific image processing attempt
         

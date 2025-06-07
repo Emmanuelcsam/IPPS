@@ -33,7 +33,32 @@ except ImportError:
                     "Falling back to pure Python implementations. "
                     "For a significant performance increase, compile the C++ module using setup.py.")
 
-# D-Scope Blink module imports
+
+# Import all advanced detection modules
+try:
+    from anomalib_integration import AnomalibDefectDetector
+    ANOMALIB_FULL_AVAILABLE = True
+except ImportError:
+    ANOMALIB_FULL_AVAILABLE = False
+
+try:
+    from padim_specific import FiberPaDiM
+    PADIM_SPECIFIC_AVAILABLE = True
+except ImportError:
+    PADIM_SPECIFIC_AVAILABLE = False
+
+try:
+    from segdecnet_integration import FiberSegDecNet
+    SEGDECNET_AVAILABLE = True
+except ImportError:
+    SEGDECNET_AVAILABLE = False
+
+try:
+    from advanced_scratch_detection import AdvancedScratchDetector
+    ADVANCED_SCRATCH_AVAILABLE = True
+except ImportError:
+    ADVANCED_SCRATCH_AVAILABLE = False
+
 try:
     from anomaly_detection import AnomalyDetector
     ANOMALY_DETECTION_AVAILABLE = True
@@ -45,7 +70,14 @@ try:
     CIRCLE_FIT_AVAILABLE = True
 except ImportError:
     CIRCLE_FIT_AVAILABLE = False
-    
+
+try:
+    from padim_integration import PaDiMDetector, integrate_padim_detection
+    PADIM_AVAILABLE = True
+except ImportError:
+    PADIM_AVAILABLE = False
+    logging.warning("PaDiM integration not available")
+
 try:
     from config_loader import get_config
 except ImportError:
@@ -689,7 +721,19 @@ def generate_zone_masks(
         # Mode determination: Micron-based or Pixel-based
         # Prefer micron mode if all necessary info is present
         micron_mode_possible = um_per_px is not None and um_per_px > 0 and reference_cladding_diameter_um is not None
-        
+
+        # Add validation for zone overlap
+        def validate_zone_boundaries(r_min: float, r_max: float, zone_name: str, prev_zone_max: float = 0) -> Tuple[float, float]:
+            """Ensure zones don't overlap and have proper boundaries"""
+            if r_min < prev_zone_max:
+                r_min = prev_zone_max
+                logging.debug(f"Adjusted {zone_name} r_min to {r_min} to prevent overlap")
+            if r_max <= r_min:
+                r_max = r_min * 1.1  # Ensure some width
+                logging.warning(f"Adjusted {zone_name} r_max to {r_max} to ensure valid zone")
+            return r_min, r_max
+
+        prev_zone_max_radius = 0.0
         if micron_mode_possible:
             logging.debug(f"Zone '{name}': Using micron mode for definitions.")
             # All calculations in microns first, then convert to pixels
@@ -863,7 +907,7 @@ def _lei_scratch_detection(enhanced_image: np.ndarray, kernel_lengths: List[int]
                     gx = half_length + int(round(t * cos_a + side * branch_offset * (-sin_a)))
                     gy = half_length + int(round(t * sin_a + side * branch_offset * cos_a))
                     if 0 <= gx < length and 0 <= gy < length:
-                        gray_kernel[gy, gy] = 1.0
+                        gray_kernel[gy, gX] = 1.0
             
             # Normalize kernels
             red_sum = np.sum(red_kernel)
@@ -1198,6 +1242,101 @@ def detect_defects(
     # Some algorithms might prefer float input, others uint8. Adjust as necessary.
     # For now, most stubs and detailed implementations expect uint8 or handle conversion.
 
+    # === ADVANCED DEEP LEARNING METHODS ===
+
+    # Anomalib Full Library Integration
+    if "anomalib_full" in optional_algos and ANOMALIB_FULL_AVAILABLE:
+        try:
+            anomalib_detector = global_algo_params.get("anomalib_detector_instance")
+            if anomalib_detector and hasattr(anomalib_detector, 'ensemble_models'):
+                anomaly_map, anomaly_score, individual_maps = anomalib_detector.detect_with_ensemble(
+                    working_image_for_processing,
+                    zone_mask,
+                    weights={'padim': 0.4, 'patchcore': 0.6}
+                )
+                
+                # Add to confidence map
+                confidence_map += anomaly_map * algo_weights.get("anomalib_full", 0.8)
+                
+                # Log individual model scores
+                for model_name, model_map in individual_maps.items():
+                    logging.debug(f"Anomalib {model_name} max score: {np.max(model_map):.3f}")
+                    
+        except Exception as e:
+            logging.warning(f"Anomalib full detection failed: {e}")
+
+    # PaDiM Specific Implementation
+    if "padim_specific" in optional_algos and PADIM_SPECIFIC_AVAILABLE:
+        try:
+            padim_model = global_algo_params.get("padim_specific_instance")
+            if padim_model and hasattr(padim_model, 'fitted') and padim_model.fitted:
+                anomaly_map, anomaly_score = padim_model.predict(
+                    working_image_for_processing,
+                    zone_mask
+                )
+                
+                # Convert to uint8
+                anomaly_map_uint8 = (anomaly_map * 255).astype(np.uint8)
+                
+                # Add to confidence map
+                confidence_map[anomaly_map_uint8 > 127] += algo_weights.get("padim_specific", 0.7)
+                
+                logging.debug(f"PaDiM specific anomaly score: {anomaly_score:.3f}")
+                
+        except Exception as e:
+            logging.warning(f"PaDiM specific detection failed: {e}")
+
+    # SegDecNet Integration
+    if "segdecnet" in optional_algos and SEGDECNET_AVAILABLE:
+        try:
+            segdecnet_model = global_algo_params.get("segdecnet_instance")
+            if segdecnet_model:
+                defect_mask, seg_confidence, decision_score = segdecnet_model.detect_defects(
+                    working_image_for_processing,
+                    zone_mask
+                )
+                
+                # Use decision score to weight contribution
+                weight = algo_weights.get("segdecnet", 0.85) * decision_score
+                confidence_map[defect_mask > 0] += weight
+                
+                logging.debug(f"SegDecNet: seg_confidence={seg_confidence:.3f}, decision={decision_score:.3f}")
+                
+        except Exception as e:
+            logging.warning(f"SegDecNet detection failed: {e}")
+
+    # Advanced Scratch Detection
+    if "advanced_scratch" in linear_algos and ADVANCED_SCRATCH_AVAILABLE:
+        try:
+            scratch_detector = AdvancedScratchDetector()
+            
+            # Use multiple methods for scratch detection
+            scratch_methods = ['gradient', 'gabor', 'hessian', 'morphological']
+            scratch_weights = {
+                'gradient': 0.3,
+                'gabor': 0.3,
+                'hessian': 0.2,
+                'morphological': 0.2
+            }
+            
+            scratch_mask, individual_scratch_results = scratch_detector.detect_scratches(
+                working_image_for_processing,
+                zone_mask,
+                methods=scratch_methods,
+                fusion_weights=scratch_weights
+            )
+            
+            # Add to confidence map
+            confidence_map[scratch_mask > 0] += algo_weights.get("advanced_scratch", 0.75)
+            
+            # Log individual method performance
+            for method, result in individual_scratch_results.items():
+                scratch_pixels = np.sum(result > 0)
+                logging.debug(f"Advanced scratch {method}: {scratch_pixels} pixels detected")
+                
+        except Exception as e:
+            logging.warning(f"Advanced scratch detection failed: {e}")
+
     if "do2mr" in region_algos:
         # Use zone-specific gamma values as per paper
         current_do2mr_gamma = global_algo_params.get("do2mr_gamma_default", 1.5)
@@ -1367,13 +1506,54 @@ def detect_defects(
     elif "anomaly" in optional_algos and not ANOMALY_DETECTION_AVAILABLE:
         logging.warning("Anomaly detection algorithm specified, but AnomalyDetector module is not available.")
 
-    confidence_threshold_from_config = detection_cfg.get("confidence_threshold", 0.9) 
-    zone_adaptive_threshold_map_dd = { # Renamed var
-        "Core": 0.7,      
-        "Cladding": 0.9,  
-        "Adhesive": 1.1,  
+    # PaDiM anomaly detection integration
+    if "padim" in optional_algos and PADIM_AVAILABLE:
+        try:
+            # Load or get PaDiM model (should be initialized elsewhere)
+            padim_model = global_algo_params.get("padim_model_instance")
+            if padim_model and padim_model.fitted:
+                padim_mask = integrate_padim_detection(
+                    working_image_for_processing, 
+                    zone_mask, 
+                    padim_model,
+                    threshold=0.5
+                )
+                confidence_map[padim_mask > 0] += algo_weights.get("padim", 0.7)
+                logging.debug("Applied PaDiM anomaly detection")
+            else:
+                logging.warning("PaDiM model not available or not fitted")
+        except Exception as e:
+            logging.warning(f"PaDiM detection failed: {e}")
+
+    # Enhanced adaptive thresholding based on zone and image statistics
+    confidence_threshold_from_config = detection_cfg.get("confidence_threshold", 0.9)
+
+    # Calculate image statistics for adaptive thresholding
+    image_mean = np.mean(working_image_for_processing[zone_mask > 0])
+    image_std = np.std(working_image_for_processing[zone_mask > 0])
+    normalized_std = image_std / (image_mean + 1e-6)
+
+    # Adaptive thresholds based on zone and image characteristics
+    base_thresholds = {
+        "Core": 0.7,
+        "Cladding": 0.9,
+        "Adhesive": 1.1,
         "Contact": 1.2
     }
+
+    # Adjust threshold based on image quality
+    quality_factor = 1.0
+    if normalized_std < 0.1:  # Low contrast image
+        quality_factor = 0.8
+    elif normalized_std > 0.3:  # High contrast/noisy image
+        quality_factor = 1.2
+
+    zone_adaptive_threshold_map_dd = {
+        zone: threshold * quality_factor 
+        for zone, threshold in base_thresholds.items()
+    }
+
+    logging.debug(f"Zone '{zone_name}' adaptive threshold: {zone_adaptive_threshold_map_dd.get(zone_name, confidence_threshold_from_config):.2f} (quality_factor: {quality_factor:.2f})")
     adaptive_threshold_val_dd = zone_adaptive_threshold_map_dd.get(zone_name, confidence_threshold_from_config) # Renamed var
     assert isinstance(adaptive_threshold_val_dd, (float, int)), \
         f"adaptive_threshold_val_dd is expected to be a number, got {type(adaptive_threshold_val_dd)}" #
@@ -1452,12 +1632,37 @@ def detect_defects(
                     contrast = 0 # Not enough pixels for contrast calculation
                 
                 # Zone-specific validation thresholds
-                min_contrast = {
-                    "Core": 15,      # Core requires higher contrast
-                    "Cladding": 10,  # Cladding moderate contrast
-                    "Adhesive": 8,   # Adhesive lower contrast
-                    "Contact": 5     # Contact lowest contrast
-                }.get(zone_name_for_validation, 10) # Use renamed arg
+                # Enhanced contrast validation with local background analysis
+                # Calculate local background statistics
+                background_kernel_size = 15
+                background_mask = cv2.dilate(defect_mask_roi, 
+                                        np.ones((background_kernel_size, background_kernel_size), np.uint8))
+                background_mask = background_mask - defect_mask_roi
+
+                if np.sum(background_mask) > 0:
+                    local_background_mean = np.mean(defect_roi[background_mask > 0])
+                    local_background_std = np.std(defect_roi[background_mask > 0])
+                else:
+                    local_background_mean = surrounding_mean
+                    local_background_std = 5  # Default
+
+                # Dynamic contrast thresholds based on local noise
+                min_contrast_base = {
+                    "Core": 15,
+                    "Cladding": 10,
+                    "Adhesive": 8,
+                    "Contact": 5
+                }.get(zone_name_for_validation, 10)
+
+                # Adjust for local noise level
+                min_contrast = min_contrast_base + 2 * local_background_std
+
+                # Additional shape validation
+                if defect['classification'] == 'Scratch':
+                    # Scratches should be elongated
+                    if defect.get('aspect_ratio', 1) < 2.5:
+                        logging.debug(f"Defect {i} failed scratch aspect ratio validation")
+                        continue
                 
                 # Default min_area for validation, can be different from initial filtering
                 min_validation_area = 5 

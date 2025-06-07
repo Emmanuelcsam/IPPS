@@ -23,7 +23,14 @@ except ImportError:
     CPP_ACCELERATOR_AVAILABLE = False
     logging.warning("C++ accelerator module ('dscope_accelerator') not found. "
                     "Falling back to pure Python analysis implementations.")
-
+    
+try:
+    from ml_classifier import DefectClassifier
+    ML_CLASSIFIER_AVAILABLE = True
+except ImportError:
+    ML_CLASSIFIER_AVAILABLE = False
+    logging.warning("ML classifier not available, using rule-based classification")
+    
 # D-Scope Blink module imports
 try:
     from config_loader import get_config, get_zone_definitions
@@ -120,7 +127,26 @@ def characterize_and_classify_defects(
         height_px = rotated_rect[1][1]
         aspect_ratio = max(width_px, height_px) / (min(width_px, height_px) + 1e-6)
 
-        classification = "Scratch" if aspect_ratio >= scratch_aspect_ratio_threshold else "Pit/Dig"
+        # Use ML classifier if available
+        if ML_CLASSIFIER_AVAILABLE:
+            ml_classifier = profile_config.get("ml_classifier_instance")
+            if ml_classifier and ml_classifier.fitted:
+                # Need access to original image for intensity features
+                original_image = profile_config.get("_temp_original_image")
+                if original_image is not None:
+                    classification, confidence = ml_classifier.predict(
+                        defect_dict, original_image
+                    )
+                    defect_dict["ml_confidence"] = confidence
+                else:
+                    # Fallback to rule-based
+                    classification = "Scratch" if aspect_ratio >= scratch_aspect_ratio_threshold else "Pit/Dig"
+            else:
+                # Fallback to rule-based
+                classification = "Scratch" if aspect_ratio >= scratch_aspect_ratio_threshold else "Pit/Dig"
+        else:
+            # Rule-based classification
+            classification = "Scratch" if aspect_ratio >= scratch_aspect_ratio_threshold else "Pit/Dig"
 
         defect_dict = {
             "defect_id": defect_id_str, "area_px": int(area_px), "classification": classification,

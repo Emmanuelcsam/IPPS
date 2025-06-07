@@ -60,6 +60,92 @@ py::array_t<unsigned char> do2mr_detection_cpp(py::array_t<unsigned char> image_
 }
 
 /**
+ * @brief Performs multi-scale DO2MR detection
+ * @param image_buffer Input image
+ * @param scales Vector of scale factors
+ * @param base_kernel_size Base kernel size
+ * @param gamma Threshold parameter
+ * @return Combined defect mask
+ */
+py::array_t<unsigned char> multiscale_do2mr_cpp(
+    py::array_t<unsigned char> image_buffer, 
+    std::vector<float> scales,
+    int base_kernel_size, 
+    double gamma
+) {
+    py::buffer_info buf = image_buffer.request();
+    if (buf.ndim != 2) {
+        throw std::runtime_error("Input must be 2D");
+    }
+    
+    cv::Mat image(buf.shape[0], buf.shape[1], CV_8UC1, (unsigned char*)buf.ptr);
+    cv::Mat combined_result = cv::Mat::zeros(image.size(), CV_32F);
+    
+    for (float scale : scales) {
+        cv::Mat scaled_image;
+        
+        if (scale != 1.0) {
+            cv::Size new_size(image.cols * scale, image.rows * scale);
+            cv::resize(image, scaled_image, new_size, 0, 0, cv::INTER_LINEAR);
+        } else {
+            scaled_image = image.clone();
+        }
+        
+        // Apply DO2MR at this scale
+        int kernel_size = std::max(3, static_cast<int>(base_kernel_size * scale));
+        if (kernel_size % 2 == 0) kernel_size++;
+        
+        // Call existing DO2MR logic
+        py::array_t<unsigned char> scale_result_py = do2mr_detection_cpp(
+            py::array_t<unsigned char>(
+                {scaled_image.rows, scaled_image.cols},
+                scaled_image.data
+            ),
+            kernel_size,
+            gamma
+        );
+        
+        // Convert back to cv::Mat
+        py::buffer_info scale_buf = scale_result_py.request();
+        cv::Mat scale_result(scale_buf.shape[0], scale_buf.shape[1], 
+                           CV_8UC1, (unsigned char*)scale_buf.ptr);
+        
+        // Resize back and accumulate
+        cv::Mat scale_result_resized;
+        if (scale != 1.0) {
+            cv::resize(scale_result, scale_result_resized, image.size(), 
+                      0, 0, cv::INTER_NEAREST);
+        } else {
+            scale_result_resized = scale_result;
+        }
+        
+        // Weight by scale
+        float weight = (scale > 1.0) ? 1.0 / scale : scale;
+        cv::Mat weighted;
+        scale_result_resized.convertTo(weighted, CV_32F, weight);
+        combined_result += weighted;
+    }
+    
+    // Normalize and threshold
+    cv::Mat normalized;
+    cv::normalize(combined_result, normalized, 0, 255, cv::NORM_MINMAX);
+    
+    cv::Mat final_result;
+    cv::threshold(normalized, final_result, 127, 255, cv::THRESH_BINARY);
+    
+    // Convert to uint8 and return
+    cv::Mat final_uint8;
+    final_result.convertTo(final_uint8, CV_8U);
+    
+    py::array_t<unsigned char> result({final_uint8.rows, final_uint8.cols});
+    py::buffer_info result_buf = result.request();
+    std::memcpy(result_buf.ptr, final_uint8.data, 
+                final_uint8.total() * final_uint8.elemSize());
+    
+    return result;
+}
+
+/**
  * @brief Characterizes and classifies defects from a binary mask.
  * This function finds connected components, calculates their properties (area, centroid, aspect ratio, etc.),
  * and determines their location within named zones.
@@ -195,6 +281,17 @@ PYBIND11_MODULE(dscope_accelerator, m) {
         "Performs high-speed DO2MR defect detection.",
         py::arg("image"),
         py::arg("kernel_size") = 5,
+        py::arg("gamma") = 1.5
+    );
+
+    // ADD THE NEW MODULE DEFINITION HERE
+    m.def(
+        "multiscale_do2mr",
+        &multiscale_do2mr_cpp,
+        "Performs multi-scale DO2MR defect detection",
+        py::arg("image"),
+        py::arg("scales"),
+        py::arg("base_kernel_size") = 5,
         py::arg("gamma") = 1.5
     );
 

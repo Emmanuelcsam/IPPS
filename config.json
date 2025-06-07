@@ -79,7 +79,7 @@
         "scratch_min_length_px": 10,
         "region_algorithms": ["do2mr", "morph_gradient", "black_hat", "gabor", "multiscale", "lbp"],
         "linear_algorithms": ["lei_advanced", "skeletonization", "advanced_scratch"],
-        "optional_algorithms": ["anomaly", "wavelet"],
+        "optional_algorithms": ["anomaly", "wavelet", "padim", "unet", "anomalib_full", "padim_specific", "segdecnet"],
         "confidence_threshold": 0.85,
         "min_defect_area_px": 5,
         "scratch_aspect_ratio_threshold": 3.0,
@@ -92,10 +92,15 @@
           "skeletonization": 0.3,
           "gabor": 0.5,
           "multiscale": 0.7,
-          "advanced_scratch": 0.8,
+          "advanced_scratch": 0.75,
           "anomaly": 0.5,
           "wavelet": 0.4,
-          "lbp": 0.3
+          "lbp": 0.3,
+          "padim": 0.7,
+          "unet": 0.9,
+          "anomalib_full": 0.8,
+          "padim_specific": 0.7,
+          "segdecnet": 0.85
         }
       }
     }
@@ -119,7 +124,20 @@
     "gabor_gamma": 0.5,
     "multiscale_factors": [0.5, 0.75, 1.0, 1.25, 1.5],
     "anomaly_model_path": null,
-    "scratch_dataset_path": null
+    "scratch_dataset_path": null,
+    "enable_ml_classifier": true,
+    "ml_classifier_model_path": "models/defect_classifier.pkl",
+    "enable_padim": true,
+    "padim_model_path": "models/padim_fiber.pth",
+    "enable_unet": true,
+    "unet_model_path": "models/unet_defects.pth",
+    "adaptive_threshold_adjustment": true,
+    "enhanced_validation": true,
+    "enable_advanced_models": true,
+    "anomalib_config_path": "configs/anomalib_config.yaml",
+    "segdecnet_model_path": "models/segdecnet_fiber.pth",
+    "anomalib_models": ["padim", "patchcore"],
+    "advanced_scratch_methods": ["gradient", "gabor", "hessian", "morphological"]
   },
   "zone_definitions_iec61300_3_35": {
     "single_mode_pc": [
