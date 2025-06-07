@@ -5,3 +5,4 @@ scipy
 scikit-image
 pywavelets
 circle-fit
+setuptools>=68.0.0
