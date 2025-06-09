@@ -10,7 +10,7 @@ authors = [
 ]
 description = "C++ accelerator for image processing."
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 dependencies = [
     "numpy",
     "opencv-python",
@@ -20,6 +20,9 @@ dependencies = [
     "pywavelets",
     "circle-fit",
     "matplotlib>=3.5.3",
+    "anomalib>=0.7.0", # <-- Add this line
+    "torch>=2.0.0",     # <-- Add this line
+    "torchvision>=0.15.0" # <-- Add this line
 ]
 
 [tool.setuptools]

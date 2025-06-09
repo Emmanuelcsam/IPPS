@@ -19,7 +19,7 @@
   - `uv pip install anomalib torch torchvision scikit-learn numpy opencv-python joblib scipy omegaconf`
   - `uv pip install openvino openvino-dev`
   - `uv run python setup.py build_ext --inplace`
-  - `uv run run.py`
+  - `uv run python run.py`
 
 **READ ALL DOCUMENTATION**
 

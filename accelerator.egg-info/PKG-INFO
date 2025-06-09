@@ -3,7 +3,7 @@ Name: accelerator
 Version: 0.1.0
 Summary: C++ accelerator for image processing.
 Author-email: Emmanuel <ecsampson03@gmail.com>
-Requires-Python: >=3.7
+Requires-Python: >=3.8
 Description-Content-Type: text/markdown
 Requires-Dist: numpy
 Requires-Dist: opencv-python
@@ -13,6 +13,9 @@ Requires-Dist: scikit-image
 Requires-Dist: pywavelets
 Requires-Dist: circle-fit
 Requires-Dist: matplotlib>=3.5.3
+Requires-Dist: anomalib>=0.7.0
+Requires-Dist: torch>=2.0.0
+Requires-Dist: torchvision>=0.15.0
 
 
 **ENSURE ALL PREREQUISTES INSTALLED**
@@ -22,14 +25,20 @@ Requires-Dist: matplotlib>=3.5.3
   - curl -LsSf https://astral.sh/uv/install.sh \| sh
   - wget -qO- https://astral.sh/uv/install.sh \| sh
   - pip install uv
-
+- **One line install**
+  -`uv venv && uv pip install -r requirements.txt pybind11 opencv-python "napari[all]" anomalib torch torchvision scikit-learn numpy joblib scipy omegaconf openvino openvino-dev timm --upgrade && uv run python setup.py build_ext --inplace`
 - **Steps to install and run program with uv**
   - `uv venv`
   - `uv pip install -r requirements.txt`
   - `uv pip install pybind11`
+  - `uv pip install opencv-python`
+  - `uv pip install "napari[all]"`
+  - `uv pip install --upgrade anomalib`
+  - `uv pip install --upgrade timm`
+  - `uv pip install anomalib torch torchvision scikit-learn numpy opencv-python joblib scipy omegaconf`
   - `uv pip install openvino openvino-dev`
   - `uv run python setup.py build_ext --inplace`
-  - `uv run run.py`
+  - `uv run python run.py`
 
 **READ ALL DOCUMENTATION**
 
