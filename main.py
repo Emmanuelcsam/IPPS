@@ -18,7 +18,42 @@ import sys # Standard library for system-specific parameters and functions.
 import pandas as pd # Pandas for creating the final summary CSV report.
 from typing import Dict, Any, Optional, List # For type hinting
 
+try:
+    import torch
+except ImportError:
+    torch = None
+    logging.warning("PyTorch not available")
 
+try:
+    from anomalib_integration import AnomalibDefectDetector
+    ANOMALIB_FULL_AVAILABLE = True
+except ImportError:
+    ANOMALIB_FULL_AVAILABLE = False
+    logging.warning("Anomalib full integration not available")
+
+try:
+    from padim_specific import FiberPaDiM
+    PADIM_SPECIFIC_AVAILABLE = True
+except ImportError:
+    PADIM_SPECIFIC_AVAILABLE = False
+
+try:
+    from segdecnet_integration import FiberSegDecNet
+    SEGDECNET_AVAILABLE = True
+except ImportError:
+    SEGDECNET_AVAILABLE = False
+
+try:
+    from advanced_scratch_detection import AdvancedScratchDetector
+    ADVANCED_SCRATCH_AVAILABLE = True
+except ImportError:
+    ADVANCED_SCRATCH_AVAILABLE = False
+
+try:
+    from anomaly_detection import AnomalyDetector
+    ANOMALY_DETECTION_AVAILABLE = True
+except ImportError:
+    ANOMALY_DETECTION_AVAILABLE = False
 # These imports assume the modules are in the same directory or accessible via PYTHONPATH.
 try:
     from advanced_visualization import InteractiveVisualizer

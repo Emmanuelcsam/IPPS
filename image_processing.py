@@ -1819,15 +1819,22 @@ def detect_defects(
         else:
             logging.debug(f"Skipping empty labeled region {i} during size-based filtering.")
 
-    def validate_defect_mask(defect_mask, original_image_for_validation, zone_name_for_validation): # Renamed args for clarity
+    def validate_defect_mask(defect_mask, original_image_for_validation, zone_name_for_validation):
         """Validate defects using additional criteria to reduce false positives."""
         validated_mask = np.zeros_like(defect_mask)
         
         # Find all potential defects
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(defect_mask, connectivity=8)
         
+        # Get min area from config or use default
+        min_area = 5  # Default minimum area in pixels
+        
         for i in range(1, num_labels):
             x, y, w, h, area = stats[i]
+            
+            # Skip small components
+            if area < min_area:
+                continue
             
             # Extract defect region from original image
             # Ensure ROI coordinates are within image bounds
@@ -1836,90 +1843,34 @@ def detect_defects(
             
             # Ensure labels ROI matches defect_roi shape
             defect_mask_roi = (labels[y:y_end, x:x_end] == i).astype(np.uint8)
-
-
+            
             # Calculate contrast with surrounding area
-            # Ensure defect_mask_roi has the same dimensions as defect_roi before using it for indexing
             if defect_roi.shape[0] != defect_mask_roi.shape[0] or defect_roi.shape[1] != defect_mask_roi.shape[1]:
-                # This case should ideally not happen if stats and labels are consistent.
-                # If it does, skip this defect or log an error.
-                logging.warning(f"Shape mismatch between defect_roi {defect_roi.shape} and defect_mask_roi {defect_mask_roi.shape} for defect component {i}. Skipping contrast check.")
-                if area >= min_area_by_confidence_map_dd.get(defect_mask[labels == i].max() if np.any(labels==i) else default_min_area, default_min_area): # Check area again before adding
-                     validated_mask[labels == i] = 255 # Add defect if area is fine but contrast check failed due to shape
+                logging.warning(f"Shape mismatch for defect component {i}. Skipping contrast check.")
+                # Still add the defect if it meets the area requirement
+                validated_mask[labels == i] = 255
                 continue
-
-
-            surrounding_kernel_size = 5 # Define kernel size for dilation
-            dilated_defect_mask_roi = cv2.dilate(defect_mask_roi, np.ones((surrounding_kernel_size,surrounding_kernel_size), np.uint8))
+            
+            # Create surrounding mask
+            surrounding_kernel_size = 5
+            dilated_defect_mask_roi = cv2.dilate(defect_mask_roi, np.ones((surrounding_kernel_size, surrounding_kernel_size), np.uint8))
             surrounding_mask = dilated_defect_mask_roi - defect_mask_roi
             
             if np.sum(defect_mask_roi) > 0 and np.sum(surrounding_mask) > 0:
-                # Ensure defect_roi is not empty before trying to access pixels.
-                # Also ensure defect_mask_roi has some True values to avoid errors with empty slices.
-                defect_pixels = defect_roi[defect_mask_roi > 0]
-                surrounding_pixels = defect_roi[surrounding_mask > 0]
-
-                if defect_pixels.size > 0 and surrounding_pixels.size > 0:
-                    defect_mean = np.mean(defect_pixels)
-                    surrounding_mean = np.mean(surrounding_pixels)
-                    contrast = abs(defect_mean - surrounding_mean)
-                else:
-                    contrast = 0 # Not enough pixels for contrast calculation
+                # Calculate mean intensities
+                defect_mean = np.mean(defect_roi[defect_mask_roi > 0])
+                surrounding_mean = np.mean(defect_roi[surrounding_mask > 0])
                 
-                # Zone-specific validation thresholds
-                # Enhanced contrast validation with local background analysis
-                # Calculate local background statistics
-                background_kernel_size = 15
-                background_mask = cv2.dilate(defect_mask_roi, 
-                                        np.ones((background_kernel_size, background_kernel_size), np.uint8))
-                background_mask = background_mask - defect_mask_roi
-
-                if np.sum(background_mask) > 0:
-                    local_background_mean = np.mean(defect_roi[background_mask > 0])
-                    local_background_std = np.std(defect_roi[background_mask > 0])
-                else:
-                    local_background_mean = surrounding_mean
-                    local_background_std = 5  # Default
-
-                # Dynamic contrast thresholds based on local noise
-                min_contrast_base = {
-                    "Core": 15,
-                    "Cladding": 10,
-                    "Adhesive": 8,
-                    "Contact": 5
-                }.get(zone_name_for_validation, 10)
-
-                # Adjust for local noise level
-                min_contrast = min_contrast_base + 2 * local_background_std
-
-                # Additional shape validation
-                if defect['classification'] == 'Scratch':
-                    # Scratches should be elongated
-                    if defect.get('aspect_ratio', 1) < 2.5:
-                        logging.debug(f"Defect {i} failed scratch aspect ratio validation")
-                        continue
+                # Calculate contrast
+                contrast = abs(defect_mean - surrounding_mean) / (surrounding_mean + 1e-6)
                 
-                # Default min_area for validation, can be different from initial filtering
-                min_validation_area = 5 
-                
-                # Validate based on contrast and size
-                if contrast >= min_contrast and area >= min_validation_area :
+                # Validate based on contrast
+                if contrast > 0.1:  # Minimum contrast threshold
                     validated_mask[labels == i] = 255
-                elif area >= min_validation_area : # If contrast is low, but area is okay, still consider it if other filters passed
-                    # This is a policy decision: what to do if contrast is low.
-                    # For now, let's assume if it passed other filters, it's a candidate,
-                    # but ideally, contrast should be a strong factor.
-                    # If strict contrast is required, remove this elif.
-                    # Let's keep it for now to be less aggressive in filtering here.
-                    # validated_mask[labels == i] = 255 # (Original logic was to add it)
-                    # Let's be stricter: if contrast fails, it fails validation here.
-                    logging.debug(f"Defect component {i} failed contrast check ({contrast:.1f} < {min_contrast}). Area: {area}")
-                else:
-                    logging.debug(f"Defect component {i} failed area check during validation ({area} < {min_validation_area}) or other issue.")
-
-            elif area >= min_area_by_confidence_map_dd.get(defect_mask[labels == i].max() if np.any(labels == i) else default_min_area, default_min_area): # If area is fine but no surrounding for contrast
-                 validated_mask[labels == i] = 255 # Keep it if area is okay
-
+            else:
+                # If we can't calculate contrast, include the defect if it meets area requirement
+                validated_mask[labels == i] = 255
+        
         return validated_mask
     
     def validate_defect_by_size(defect_mask: np.ndarray, zone_name: str, um_per_px: Optional[float] = None) -> np.ndarray:

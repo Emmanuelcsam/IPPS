@@ -178,23 +178,36 @@ class AdvancedScratchDetector:
         
         return binary
     
-    def _hessian_based_detection(self, image: np.ndarray) -> np.ndarray:
-        """
-        Hessian matrix based scratch detection
-        """
-        # Multi-scale Hessian analysis
-        scales = [1.0, 1.5, 2.0]
-        hessian_responses = []
-        
-        for sigma in scales:
+def _hessian_based_detection(self, image: np.ndarray) -> np.ndarray:
+    """
+    Hessian matrix based scratch detection
+    """
+    # Multi-scale Hessian analysis
+    scales = [1.0, 1.5, 2.0]
+    hessian_responses = []
+    
+    for sigma in scales:
+        try:
             # Compute Hessian matrix
             Hxx, Hxy, Hyy = hessian_matrix(image, sigma=sigma, order='xy')
             
-            # Compute eigenvalues
-            lambda1, lambda2 = hessian_matrix_eigvals(Hxx, Hxy, Hyy)
+            # Compute eigenvalues - Pass the matrices separately
+            # Create the Hessian matrix for each pixel
+            h, w = image.shape
+            lambda1 = np.zeros((h, w))
+            lambda2 = np.zeros((h, w))
+            
+            for i in range(h):
+                for j in range(w):
+                    # Construct 2x2 Hessian matrix at this pixel
+                    H = np.array([[Hxx[i, j], Hxy[i, j]], 
+                                  [Hxy[i, j], Hyy[i, j]]])
+                    # Compute eigenvalues
+                    eigvals = np.linalg.eigvalsh(H)
+                    lambda1[i, j] = eigvals[0]
+                    lambda2[i, j] = eigvals[1]
             
             # Ridge measure (scratches are ridges)
-            # Based on Frangi vesselness filter
             beta = 0.5
             c = 15
             
@@ -213,17 +226,21 @@ class AdvancedScratchDetector:
             vesselness[lambda2 >= 0] = 0
             
             hessian_responses.append(vesselness)
-        
-        # Combine scales
-        combined = np.max(hessian_responses, axis=0)
-        
-        # Normalize
-        combined = cv2.normalize(combined, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-        
-        # Threshold
-        _, binary = cv2.threshold(combined, 30, 255, cv2.THRESH_BINARY)
-        
-        return binary
+        except Exception as e:
+            logging.error(f"Error in hessian scratch detection: {e}")
+            # Return zeros on error
+            hessian_responses.append(np.zeros_like(image))
+    
+    # Combine scales
+    combined = np.max(hessian_responses, axis=0)
+    
+    # Normalize
+    combined = cv2.normalize(combined, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    
+    # Threshold
+    _, binary = cv2.threshold(combined, 30, 255, cv2.THRESH_BINARY)
+    
+    return binary
     
     def _morphological_detection(self, image: np.ndarray) -> np.ndarray:
         """

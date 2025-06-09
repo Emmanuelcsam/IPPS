@@ -1,0 +1,78 @@
+[2025-06-09 17:24:57] [INFO] [main:117] Logging configured. Level: INFO. Log file: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250609_172457\logs\inspection_20250609_172457.log
+[2025-06-09 17:24:57] [INFO] [main:389] Inspection System Started.
+[2025-06-09 17:24:57] [INFO] [main:390] Input Directory: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\sample1
+[2025-06-09 17:24:57] [INFO] [main:391] Output Directory (this run): C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250609_172457
+[2025-06-09 17:24:57] [INFO] [main:392] Using Profile: deep_inspection
+[2025-06-09 17:24:57] [INFO] [main:393] Fiber Type Key for Rules: single_mode_pc
+[2025-06-09 17:24:57] [WARNING] [calibration:251] Calibration file 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json' not found.
+[2025-06-09 17:24:57] [WARNING] [main:431] No calibration data loaded from 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json'. Measurements may be in pixels if user dimensions not provided.
+[2025-06-09 17:24:57] [INFO] [main:451] Found 1 images to process in 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\sample1'.
+[2025-06-09 17:24:57] [INFO] [main:459] Initializing advanced detection models...
+[2025-06-09 17:24:57] [WARNING] [main:499] Failed to initialize PaDiM specific: name 'torch' is not defined
+[2025-06-09 17:24:57] [WARNING] [main:512] Failed to initialize SegDecNet: name 'torch' is not defined
+[2025-06-09 17:24:57] [INFO] [main:515] Advanced model initialization complete
+[2025-06-09 17:24:57] [INFO] [main:572] Using sequential processing
+[2025-06-09 17:24:57] [INFO] [main:575] --- Starting image 1/1: ima12.jpg ---
+[2025-06-09 17:24:57] [INFO] [main:146] --- Processing image: ima12.jpg ---
+[2025-06-09 17:24:57] [INFO] [main:151] Step 1: Loading and Preprocessing...
+[2025-06-09 17:24:57] [INFO] [image_processing:333] Image 'ima12.jpg' loaded successfully.
+[2025-06-09 17:24:57] [INFO] [main:168] Step 2: Locating Fiber Structure...
+[2025-06-09 17:24:57] [INFO] [image_processing:442] Attempting enhanced multi-method circle detection
+[2025-06-09 17:24:57] [INFO] [image_processing:480] HoughCircles detected 1 circle(s).
+[2025-06-09 17:24:57] [INFO] [image_processing:524] Cladding (Hough): Center=(578,420), Radius=166px
+[2025-06-09 17:24:57] [WARNING] [image_processing:884] No core contours found using Otsu within cladding mask.
+[2025-06-09 17:24:57] [WARNING] [image_processing:887] Core detection defaulting to 0.4 * cladding radius.
+[2025-06-09 17:24:57] [INFO] [main:202] No µm/px scale available for ima12.jpg. Measurements will be in pixels.
+[2025-06-09 17:24:57] [INFO] [main:221] Detected diameters for ima12.jpg:
+[2025-06-09 17:24:57] [INFO] [main:222]   - Cladding diameter: 332.0 pixels
+[2025-06-09 17:24:57] [INFO] [main:223]   - Core diameter: 132.8 pixels
+[2025-06-09 17:24:57] [INFO] [main:230] Step 3: Generating Zone Masks...
+[2025-06-09 17:24:57] [INFO] [main:265] Step 4: Detecting Defects in Zones...
+[2025-06-09 17:24:58] [ERROR] [advanced_scratch_detection:75] Error in hessian scratch detection: hessian_matrix_eigvals() takes 1 positional argument but 3 were given
+[2025-06-09 17:25:08] [INFO] [anomaly_detection:57] No anomaly model path provided; anomaly detection will be skipped.
+[2025-06-09 17:25:08] [WARNING] [image_processing:1759] PaDiM model not available or not fitted
+[2025-06-09 17:25:08] [ERROR] [main:534] Error processing ima12.jpg: name 'defect' is not defined
+[2025-06-09 17:25:08] [INFO] [main:146] --- Processing image: ima12.jpg ---
+[2025-06-09 17:25:08] [INFO] [main:151] Step 1: Loading and Preprocessing...
+[2025-06-09 17:25:08] [INFO] [image_processing:333] Image 'ima12.jpg' loaded successfully.
+[2025-06-09 17:25:08] [INFO] [main:168] Step 2: Locating Fiber Structure...
+[2025-06-09 17:25:09] [INFO] [image_processing:442] Attempting enhanced multi-method circle detection
+[2025-06-09 17:25:09] [INFO] [image_processing:480] HoughCircles detected 1 circle(s).
+[2025-06-09 17:25:09] [INFO] [image_processing:524] Cladding (Hough): Center=(578,420), Radius=166px
+[2025-06-09 17:25:09] [WARNING] [image_processing:884] No core contours found using Otsu within cladding mask.
+[2025-06-09 17:25:09] [WARNING] [image_processing:887] Core detection defaulting to 0.4 * cladding radius.
+[2025-06-09 17:25:09] [INFO] [main:202] No µm/px scale available for ima12.jpg. Measurements will be in pixels.
+[2025-06-09 17:25:09] [INFO] [main:221] Detected diameters for ima12.jpg:
+[2025-06-09 17:25:09] [INFO] [main:222]   - Cladding diameter: 332.0 pixels
+[2025-06-09 17:25:09] [INFO] [main:223]   - Core diameter: 132.8 pixels
+[2025-06-09 17:25:09] [INFO] [main:230] Step 3: Generating Zone Masks...
+[2025-06-09 17:25:09] [INFO] [main:265] Step 4: Detecting Defects in Zones...
+[2025-06-09 17:25:10] [ERROR] [advanced_scratch_detection:75] Error in hessian scratch detection: hessian_matrix_eigvals() takes 1 positional argument but 3 were given
+[2025-06-09 17:25:20] [INFO] [anomaly_detection:57] No anomaly model path provided; anomaly detection will be skipped.
+[2025-06-09 17:25:20] [WARNING] [image_processing:1759] PaDiM model not available or not fitted
+[2025-06-09 17:25:20] [ERROR] [main:617] Unexpected error processing ima12.jpg: name 'defect' is not defined
+Traceback (most recent call last):
+  File "C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\main.py", line 592, in execute_inspection_run
+    summary = process_single_image( # Process single image.
+        image_file_path,
+    ...<6 lines>...
+        args_namespace.fiber_type
+    )
+  File "C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\main.py", line 279, in process_single_image
+    defects_in_zone_mask, zone_confidence_map = detect_defects(
+                                                ~~~~~~~~~~~~~~^
+        processed_image, zone_mask_np, zone_name, profile_config, global_algo_params
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\image_processing.py", line 1950, in detect_defects
+    final_defect_mask_in_zone = validate_defect_mask(final_defect_mask_in_zone, working_image_for_processing, zone_name)
+  File "C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\image_processing.py", line 1896, in validate_defect_mask
+    if defect['classification'] == 'Scratch':
+       ^^^^^^
+NameError: name 'defect' is not defined
+[2025-06-09 17:25:20] [INFO] [main:635] Batch summary report saved to: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250609_172457\batch_summary_report.csv
+[2025-06-09 17:25:20] [INFO] [main:642] Batch Processing Complete ---
+[2025-06-09 17:25:20] [INFO] [main:643] Total images processed: 1
+[2025-06-09 17:25:20] [INFO] [main:644] Total batch duration: 23.53 seconds.
+[2025-06-09 17:25:20] [INFO] [main:645] All reports for this run saved in: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250609_172457
