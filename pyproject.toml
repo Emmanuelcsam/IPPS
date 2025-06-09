@@ -18,7 +18,8 @@ dependencies = [
     "scipy",
     "scikit-image",
     "pywavelets",
-    "circle-fit"
+    "circle-fit",
+    "matplotlib>=3.5.3",
 ]
 
 [tool.setuptools]

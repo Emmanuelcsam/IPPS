@@ -907,7 +907,7 @@ def _lei_scratch_detection(enhanced_image: np.ndarray, kernel_lengths: List[int]
                     gx = half_length + int(round(t * cos_a + side * branch_offset * (-sin_a)))
                     gy = half_length + int(round(t * sin_a + side * branch_offset * cos_a))
                     if 0 <= gx < length and 0 <= gy < length:
-                        gray_kernel[gy, gX] = 1.0
+                        gray_kernel[gy, gx] = 1.0
             
             # Normalize kernels
             red_sum = np.sum(red_kernel)
