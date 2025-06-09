@@ -6,11 +6,17 @@
   - curl -LsSf https://astral.sh/uv/install.sh \| sh
   - wget -qO- https://astral.sh/uv/install.sh \| sh
   - pip install uv
-
+- **One line install**
+  -`uv venv && uv pip install -r requirements.txt pybind11 opencv-python "napari[all]" anomalib torch torchvision scikit-learn numpy joblib scipy omegaconf openvino openvino-dev timm --upgrade && uv run python setup.py build_ext --inplace`
 - **Steps to install and run program with uv**
   - `uv venv`
   - `uv pip install -r requirements.txt`
   - `uv pip install pybind11`
+  - `uv pip install opencv-python`
+  - `uv pip install "napari[all]"`
+  - `uv pip install --upgrade anomalib`
+  - `uv pip install --upgrade timm`
+  - `uv pip install anomalib torch torchvision scikit-learn numpy opencv-python joblib scipy omegaconf`
   - `uv pip install openvino openvino-dev`
   - `uv run python setup.py build_ext --inplace`
   - `uv run run.py`

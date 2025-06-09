@@ -344,6 +344,11 @@ def execute_inspection_run(args_namespace: Any) -> None:
         except Exception as log_e:
             print(f"[CRITICAL] Logging setup failed during config error: {log_e}", file=sys.stderr)
         sys.exit(1) # Exit if config loading fails.
+        
+    except Exception as e:
+        logging.error(f"Critical error in inspection run: {e}", exc_info=True)
+        raise     
+        
 
     general_settings = global_config.get("general_settings", {}) # Get general settings from config.
     setup_logging( # Setup logging.

@@ -10,7 +10,7 @@ from pathlib import Path
 
 # --- C++ Accelerator Integration ---
 try:
-    import accelerator
+    import accelerator  # Changed from dscope_accelerator
     CPP_ACCELERATOR_AVAILABLE = True
     logging.info("Successfully imported 'accelerator' C++ module. Analysis will be accelerated.")
 except ImportError:

@@ -268,7 +268,7 @@ py::list characterize_and_classify_defects_cpp(
 // ------------------ pybind11 Module Definition ------------------
 // This block defines the Python module and exposes the C++ functions.
 PYBIND11_MODULE(accelerator, m) {
-    m.doc() = "D-Scope Blink C++ Accelerator: High-performance image processing and analysis functions.";
+    m.doc() = "C++ Accelerator: High-performance image processing and analysis functions.";
 
     m.def(
         "do2mr_detection",

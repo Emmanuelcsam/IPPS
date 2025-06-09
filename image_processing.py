@@ -24,7 +24,7 @@ from skimage.feature import local_binary_pattern
 # Attempt to import the compiled C++ accelerator module.
 # If it's not found, the pure Python implementations will be used as a fallback.
 try:
-    import accelerator
+    import accelerator  
     CPP_ACCELERATOR_AVAILABLE = True
     logging.info("Successfully imported 'accelerator' C++ module. DO2MR will be accelerated.")
 except ImportError:
@@ -1163,28 +1163,32 @@ def _gabor_defect_detection(image: np.ndarray) -> np.ndarray:
     """
     Uses Gabor filters for texture-based defect detection.
     """
-    gabor_filters_list = [] # Renamed from filters to gabor_filters_list
-    ksize = 31 
-    sigma = 4.0 
-    lambd = 10.0 
-    gamma_gabor = 0.5 # Renamed gamma to gamma_gabor to avoid conflict with other gamma variables
-    psi = 0 
-    
-    for theta in np.arange(0, np.pi, np.pi / 8): 
-        kern = cv2.getGaborKernel((ksize, ksize), sigma, theta, lambd, gamma_gabor, psi, ktype=cv2.CV_32F)
-        gabor_filters_list.append(kern)
-    
-    responses = []
-    for kern in gabor_filters_list:
-        filtered = cv2.filter2D(image.astype(np.float32), cv2.CV_32F, kern) 
-        responses.append(np.abs(filtered)) 
-    
-    gabor_response = np.max(np.array(responses), axis=0) 
-    gabor_response_norm = cv2.normalize(gabor_response, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U) #
-    _, defect_mask = cv2.threshold(gabor_response_norm, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    
-    return defect_mask
-
+    try:
+        gabor_filters_list = []
+        ksize = 31 
+        sigma = 4.0 
+        lambd = 10.0 
+        gamma_gabor = 0.5  # Renamed to avoid conflict
+        psi = 0 
+        
+        for theta in np.arange(0, np.pi, np.pi / 8): 
+            kern = cv2.getGaborKernel((ksize, ksize), sigma, theta, lambd, gamma_gabor, psi, ktype=cv2.CV_32F)
+            gabor_filters_list.append(kern)
+        
+        responses = []
+        for kern in gabor_filters_list:
+            filtered = cv2.filter2D(image.astype(np.float32), cv2.CV_32F, kern) 
+            responses.append(np.abs(filtered)) 
+        
+        gabor_response = np.max(np.array(responses), axis=0) 
+        gabor_response_norm = cv2.normalize(gabor_response, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        _, defect_mask = cv2.threshold(gabor_response_norm, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        return defect_mask
+    except Exception as e:
+        logging.error(f"Gabor defect detection failed: {e}")
+        # Return empty mask on failure
+        return np.zeros(image.shape, dtype=np.uint8)
 def _wavelet_defect_detection(image: np.ndarray) -> np.ndarray:
     """
     Uses wavelet transform for multi-resolution defect detection.
@@ -1269,40 +1273,51 @@ def _do2mr_detection(masked_zone_image: np.ndarray, kernel_size: int = 5, gamma:
 def _multiscale_do2mr_detection(image: np.ndarray, scales: List[float] = [0.5, 0.75, 1.0, 1.25, 1.5]) -> np.ndarray:
     """
     Multi-scale DO2MR detection as suggested in the paper for improved accuracy.
-    Combines results from multiple scales to reduce false positives.
     """
-    h, w = image.shape[:2]
-    combined_result = np.zeros((h, w), dtype=np.float32)
+    if CPP_ACCELERATOR_AVAILABLE:
+        try:
+            # Use C++ accelerated version if available
+            return accelerator.multiscale_do2mr(
+                image,
+                scales,
+                base_kernel_size=5,
+                gamma=1.5
+            )
+        except Exception as e:
+            logging.error(f"C++ multiscale DO2MR failed: {e}. Falling back to Python.")
+            # Fall through to Python implementation
+    
+    # Python implementation
+    combined_mask = np.zeros(image.shape, dtype=np.float32)
     
     for scale in scales:
-        # Resize image
         if scale != 1.0:
-            scaled_h, scaled_w = int(h * scale), int(w * scale)
+            scaled_h = int(image.shape[0] * scale)
+            scaled_w = int(image.shape[1] * scale)
             scaled_image = cv2.resize(image, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
         else:
             scaled_image = image.copy()
         
         # Apply DO2MR at this scale
-        # Adjust kernel size based on scale
         kernel_size = max(3, int(5 * scale))
         if kernel_size % 2 == 0:
             kernel_size += 1
+            
+        mask = _do2mr_detection(scaled_image, kernel_size=kernel_size, gamma=1.5)
         
-        result = _do2mr_detection(scaled_image, kernel_size=kernel_size)
-        
-        # Resize result back to original size
+        # Resize back to original size
         if scale != 1.0:
-            result = cv2.resize(result, (w, h), interpolation=cv2.INTER_NEAREST)
+            mask = cv2.resize(mask, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_NEAREST)
         
-        # Weight by scale (smaller scales get higher weight for small defects)
-        weight = 1.0 / scale if scale > 0 else 1.0
-        combined_result += result.astype(np.float32) * weight
+        # Weight by inverse of scale
+        weight = 1.0 / scale if scale > 1.0 else scale
+        combined_mask += mask.astype(np.float32) * weight
     
     # Normalize and threshold
-    combined_result = combined_result / len(scales)
-    _, final_result = cv2.threshold(combined_result.astype(np.uint8), 127, 255, cv2.THRESH_BINARY)
+    combined_mask = cv2.normalize(combined_mask, None, 0, 255, cv2.NORM_MINMAX)
+    _, final_mask = cv2.threshold(combined_mask.astype(np.uint8), 127, 255, cv2.THRESH_BINARY)
     
-    return final_result
+    return final_mask
 
 
 def _multiscale_defect_detection(image: np.ndarray, scales: List[float] = [0.5, 1.0, 1.5, 2.0]) -> np.ndarray:

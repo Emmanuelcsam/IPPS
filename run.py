@@ -16,22 +16,13 @@ from typing import Optional, cast, Any # Added cast and Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 try:
-    # Attempt to import the main module from main.py
-    # This module should contain the core inspection logic.
-    import main as main_module
-    # The following imports might be specific to main.py or shared,
-    # but run.py itself doesn't directly use them beyond parameter collection.
-    # If config_loader, cv2, or numpy are ONLY used within main.py,
-    # they don't strictly need to be imported here, but it can help catch
-    # missing dependencies early.
-    from config_loader import load_config # Assuming config_loader.py exists
+    from config_loader import load_config  # Import config_loader first
     import cv2
     import numpy as np
+    import main as main_module  # Import main module last
 except ImportError as e:
     print(f"[CRITICAL] Failed to import required modules: {e}.", file=sys.stderr)
-    print("Please ensure 'main.py', 'config_loader.py', and all their dependencies ", file=sys.stderr)
-    print("(e.g., OpenCV, NumPy) are available in the same directory or Python path.", file=sys.stderr)
-    print("You might need to install dependencies: pip install -r requirements.txt", file=sys.stderr)
+    print("Please ensure all dependencies are installed: pip install -r requirements.txt", file=sys.stderr)
     sys.exit(1)
 
 def get_validated_path(prompt_message: str, is_dir: bool = True, check_exists: bool = True, create_if_not_exist_for_output: bool = False) -> Path:

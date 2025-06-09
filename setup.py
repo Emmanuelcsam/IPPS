@@ -1,13 +1,20 @@
 # setup.py
 
 import os, sys
-if sys.platform.startswith("win"):
-    os.add_dll_directory(r"C:\Users\Saem1001\Downloads\opencv\build\x64\vc16\bin")
 
-import accelerator
+# Remove the hardcoded DLL directory path - make it dynamic
+if sys.platform.startswith("win"):
+    # Try to find OpenCV directory from environment variable
+    opencv_dir = os.environ.get('OPENCV_DIR')
+    if opencv_dir:
+        bin_dir = os.path.join(opencv_dir, 'x64', 'vc16', 'bin')
+        if os.path.exists(bin_dir):
+            os.add_dll_directory(bin_dir)
+
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 import subprocess
+
 
 # --- pybind11 and OpenCV Configuration ---
 
@@ -91,8 +98,8 @@ opencv_include_dirs, opencv_library_dirs, opencv_libraries = find_opencv_libs()
 # Define the C++ extension module
 ext_modules = [
     Extension(
-        'accelerator', # CHANGE: This now matches the name in accelerator.cpp
-        ['accelerator.cpp'], # List of C++ source files
+        'accelerator',  # This is correct - matches PYBIND11_MODULE name
+        ['accelerator.cpp'],  # List of C++ source files
         include_dirs=[
             get_pybind_include(),
             *opencv_include_dirs
