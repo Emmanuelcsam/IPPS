@@ -92,6 +92,228 @@ except ImportError:
                 "skeletonization_dilation_kernel_size": [3,3]
             },
         }
+        # These stubs are defined if config_loader import fails.
+    # Later, more complete local versions of these functions are defined,
+    # which will overwrite these stubs if this script is run standalone.
+
+    # Define stub version of DO2MR detection algorithm for standalone testing
+    def _do2mr_detection_stub(masked_zone_image: np.ndarray, kernel_size: int = 5, gamma: float = 1.5) -> np.ndarray:
+        """
+        Difference of min-max ranking filtering (DO2MR) to detect region defects.
+        Returns a binary mask (0/255). (STUB VERSION)
+        """
+        # Use the masked zone image as grayscale input for processing
+        gray_img = masked_zone_image # Use the new parameter name
+        # Create rectangular structuring element for morphological operations
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+        # Apply erosion to find minimum values in local neighborhoods
+        min_filt = cv2.erode(gray_img, kernel)
+        # Apply dilation to find maximum values in local neighborhoods
+        max_filt = cv2.dilate(gray_img, kernel)
+        # Calculate residual image showing local contrast variations
+        residual = cv2.subtract(max_filt, min_filt)
+        # Sigma/mean threshold
+        # Extract only non-zero values from residual for statistics calculation
+        zone_vals = residual[residual > 0]
+        # Check if any values exist in the zone to avoid division by zero
+        if zone_vals.size == 0:
+            # Return empty mask if no valid pixels in zone
+            return np.zeros_like(gray_img, dtype=np.uint8)
+        # Cast for safety with np.mean/np.std as per probs.txt suggestion
+        # Calculate mean of residual values as float32 for numerical stability
+        mean_res = np.mean(zone_vals.astype(np.float32))
+        # Calculate standard deviation of residual values for adaptive thresholding
+        std_res = np.std(zone_vals.astype(np.float32))
+        # Use gamma parameter
+        # Initialize binary mask for defect regions
+        mask = np.zeros_like(gray_img, dtype=np.uint8)
+        # Ensure (residual - mean_res) does not cause issues with uint8 if residual is uint8
+        # However, residual from cv2.subtract of uint8s is uint8. Let's assume it handles saturation.
+        # For safety, ensure calculation is done with appropriate types if there's risk of underflow/overflow.
+        # Given earlier cast of zone_vals, mean_res and std_res are float. residual should be compatible.
+        # Apply statistical threshold: pixels with values > mean + gamma*std are defects
+        mask[(residual.astype(np.float32) - mean_res) > (gamma * std_res)] = 255 # Cast residual for comparison
+        # Apply median blur to remove salt-and-pepper noise from binary mask
+        mask = cv2.medianBlur(mask, 3)
+        # Apply morphological opening to remove small isolated noise regions
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        # Return final binary defect mask
+        return mask
+
+    # Define stub version of Gabor filter-based defect detection for texture analysis
+    def _gabor_defect_detection_stub(image: np.ndarray) -> np.ndarray:
+        """
+        Use Gabor filters to highlight region irregularities.
+        Returns a binary mask. (STUB VERSION)
+        """
+        # Use input image as grayscale for Gabor filtering
+        gray_img = image # Use the new parameter name
+        # Get image dimensions for creating accumulator array
+        h, w = gray_img.shape
+        # Initialize accumulator for maximum Gabor responses across orientations
+        accum = np.zeros((h, w), dtype=np.float32)
+        # Apply Gabor filters at multiple orientations (0 to 180 degrees in 45-degree steps)
+        for theta in np.arange(0, np.pi, np.pi / 4):
+            # Create Gabor kernel with specific parameters for texture detection
+            kernel = cv2.getGaborKernel((21, 21), 4.0, theta, 10.0, 0.5, 0, ktype=cv2.CV_32F)
+            # Apply Gabor filter to image using 2D convolution
+            filtered = cv2.filter2D(gray_img.astype(np.float32), cv2.CV_32F, kernel) # Ensure input is float for filter2D
+            # Keep maximum response across all orientations
+            accum = np.maximum(accum, filtered)
+        # Use Otsu threshold on accumulated response
+        # Normalize accumulator to 8-bit range for Otsu thresholding
+        accum_uint8 = cv2.normalize(accum, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U) #
+        # Apply Otsu's automatic threshold to create binary mask
+        _, mask = cv2.threshold(accum_uint8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # Return binary defect mask
+        return mask
+
+    # Define stub version of multi-scale defect detection for scale-invariant detection
+    def _multiscale_defect_detection_stub(image: np.ndarray, scales: List[float] = [0.5, 1.0, 1.5, 2.0]) -> np.ndarray:
+        """
+        Run a simple blob detection at multiple scales (Gaussian pyramid) to detect regions.
+        Returns a binary mask where any scale detected a candidate. (STUB VERSION)
+        """
+        # Use input image as grayscale for multi-scale processing
+        gray_img = image # Use the new parameter name
+        # Initialize accumulator for combining detections across scales
+        accum = np.zeros_like(gray_img, dtype=np.uint8)
+        # Process image at each scale in the pyramid
+        for s_val in scales: # Renamed s to s_val to avoid conflict
+            # Skip invalid scale factors
+            if s_val <= 0: continue # Skip invalid scales
+            # Calculate scaled dimensions
+            scaled_h, scaled_w = int(gray_img.shape[0] * s_val), int(gray_img.shape[1] * s_val)
+            # Skip if scaled dimensions are invalid
+            if scaled_h <=0 or scaled_w <=0: continue
+
+            # Resize image to current scale
+            resized = cv2.resize(gray_img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
+            # Apply Gaussian blur at current scale for blob detection
+            blurred = cv2.GaussianBlur(resized, (5, 5), 0)
+            # Use simple threshold in scaled space
+            # Apply Otsu threshold to detect blobs at current scale
+            _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            # Upsample back to original
+            # Resize detection mask back to original image size
+            up = cv2.resize(thresh, (gray_img.shape[1], gray_img.shape[0]), interpolation=cv2.INTER_NEAREST)
+            # Combine detections from all scales using logical OR
+            accum = cv2.bitwise_or(accum, up)
+        # Return combined multi-scale detection mask
+        return accum
+
+    # Define stub version of LEI (Linear Enhancement Inspector) scratch detection
+    def _lei_scratch_detection_stub(enhanced_image: np.ndarray, kernel_lengths: List[int], angle_step: int = 15) -> np.ndarray:
+        """
+        LEI-inspired linear enhancement scratch detector.
+        Returns a float32 response map. (STUB VERSION)
+        """
+        # Use enhanced image as input for scratch detection
+        gray_img = enhanced_image # Use the new parameter name
+        # Get image dimensions for response map initialization
+        h, w = gray_img.shape
+        # Initialize maximum response map across all orientations
+        max_resp = np.zeros((h, w), dtype=np.float32)
+        # Try different kernel lengths for multi-scale scratch detection
+        for length in kernel_lengths:
+            # Skip invalid kernel lengths
+            if length <= 0: continue # Invalid kernel length
+            # Search for scratches at different orientations
+            for theta_deg in range(0, 180, angle_step):
+                # Create a linear kernel: a rotated line of ones of length 'length'
+                # Initialize empty kernel of specified size
+                kern = np.zeros((length, length), dtype=np.float32)
+                # Corrected color for cv2.line based on Probs.txt and Problems.txt
+                # Draw vertical line through center of kernel
+                cv2.line(
+                    kern,
+                    (length // 2, 0),
+                    (length // 2, length - 1),
+                    (1.0,), thickness=1 # kern is float32, so color is (1.0,)
+                )  # vertical line
+                # Rotate kernel
+                # Ensure center for getRotationMatrix2D is float
+                # Calculate precise center point for rotation
+                center_rot = (float(length -1) / 2.0, float(length-1) / 2.0) # More precise center for rotation
+                # Create rotation matrix for current angle
+                M = cv2.getRotationMatrix2D(center_rot, float(theta_deg), 1.0)
+                # Apply rotation to linear kernel
+                kern_rot = cv2.warpAffine(kern, M, (length, length), flags=cv2.INTER_LINEAR)
+                # Ensure gray_img is float32 for filter2D
+                # Apply rotated linear filter to detect scratches at current orientation
+                resp = cv2.filter2D(gray_img.astype(np.float32), cv2.CV_32F, kern_rot)
+                # Keep maximum response across all orientations
+                max_resp = np.maximum(max_resp, resp)
+        # Return maximum response map showing scratch likelihood
+        return max_resp
+
+    # Define stub version of advanced scratch detection using multiple techniques
+    def _advanced_scratch_detection_stub(image: np.ndarray) -> np.ndarray:
+        """
+        Example: combination of Canny + Hough to detect line segments.
+        Returns binary mask of detected lines. (STUB VERSION)
+        """
+        # Use input image as grayscale for edge detection
+        gray_img = image # Use the new parameter name
+        # Apply Canny edge detection with standard thresholds
+        edges = cv2.Canny(gray_img, 50, 150, apertureSize=3)
+        # Initialize mask for detected line segments
+        mask = np.zeros_like(gray_img, dtype=np.uint8)
+        # Detect line segments using probabilistic Hough transform
+        lines = cv2.HoughLinesP(
+            edges, rho=1, theta=np.pi / 180, threshold=15, minLineLength=10, maxLineGap=5
+        )
+        # Draw detected lines on mask if any were found
+        if lines is not None:
+            # Draw each detected line segment on the mask
+            for line_seg in lines: # Renamed line to line_seg
+                # Extract line endpoints
+                x1, y1, x2, y2 = line_seg[0]
+                # Corrected color for cv2.line based on Probs.txt
+                # Draw line segment on mask
+                cv2.line(mask, (x1, y1), (x2, y2), (255,), 1) # mask is uint8
+        # Return binary mask with detected line segments
+        return mask
+
+    # Define stub version of wavelet-based defect detection for frequency domain analysis
+    def _wavelet_defect_detection_stub(image: np.ndarray) -> np.ndarray:
+        """
+        Detect defects using wavelet decomposition (e.g., Haar).
+        Returns a binary mask of potential anomalies. (STUB VERSION)
+        """
+        # Use input image as grayscale for wavelet analysis
+        gray_img = image # Use the new parameter name
+        # Apply 2D discrete wavelet transform using Haar wavelet
+        coeffs = pywt.dwt2(gray_img.astype(np.float32), 'haar')
+        # Extract approximation and detail coefficients
+        cA, (cH, cV, cD) = coeffs
+        # Compute magnitude of detail coefficients
+        # Calculate magnitude combining horizontal, vertical, and diagonal details
+        mag = np.sqrt(cH**2 + cV**2 + cD**2)
+        # Resize magnitude map back to original image size
+        mag_resized = cv2.resize(mag, (gray_img.shape[1], gray_img.shape[0]), interpolation=cv2.INTER_LINEAR)
+        # Normalize magnitude to 8-bit range for thresholding
+        mag_uint8 = cv2.normalize(mag_resized, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U) #
+        # Apply Otsu threshold to create binary defect mask
+        _, mask = cv2.threshold(mag_uint8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # Return binary defect mask
+        return mask
+
+    # Assign stubs to the names that will be later (potentially) overwritten by detailed implementations
+    # This ensures that if this module is run standalone and config_loader is missing,
+    # the _multiscale_defect_detection (stub or later detailed one) can call _do2mr_detection (stub).
+    # Assign DO2MR stub function to module-level name
+    _do2mr_detection = _do2mr_detection_stub
+    # Assign Gabor detection stub to module-level name
+    _gabor_defect_detection = _gabor_defect_detection_stub
+    # Assign multi-scale detection stub to module-level name
+    _multiscale_defect_detection = _multiscale_defect_detection_stub
+    # Assign LEI scratch detection stub to module-level name
+    _lei_scratch_detection = _lei_scratch_detection_stub
+    # Assign advanced scratch detection stub to module-level name
+    _advanced_scratch_detection = _advanced_scratch_detection_stub
+    # Assign wavelet detection stub to module-level name
+    _wavelet_defect_detection = _wavelet_defect_detection_stub
 
 # --- Image Loading and Preprocessing ---
 def load_and_preprocess_image(image_path_str: str, profile_config: Dict[str, Any]) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
@@ -861,8 +1083,6 @@ def generate_zone_masks(
 
     return masks
 
-# --- DETAILED ALGORITHM IMPLEMENTATIONS ---
-# These will overwrite stubs if stubs were defined (i.e., if config_loader import failed)
 
 
 
@@ -1865,9 +2085,3 @@ if __name__ == "__main__":
             logging.info(f"Cleaned up dummy image: {test_image_path_str}")
         except OSError as e_os_error: # Renamed e to e_os_error
             logging.error(f"Error removing dummy image {test_image_path_str}: {e_os_error}")
-# --- The rest of image_processing.py remains unchanged ---
-# The main `detect_defects` function will now automatically call the new, faster
-# `_do2mr_detection` function without any other changes needed.
-# ...
-# ... (all other functions like _lei_scratch_detection, detect_defects, etc. are identical to original)
-# ...

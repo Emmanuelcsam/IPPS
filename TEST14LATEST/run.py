@@ -4,7 +4,6 @@
 """
 Interactive Runner
 =================================
-Enhanced interactive interface for the D-Scope Blink system.
 This script gathers parameters from the user and then calls the main inspection
 logic, which is expected to be in 'main.py'.
 """
@@ -19,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
     # Attempt to import the main module from main.py
     # This module should contain the core inspection logic.
-    import main as d_scope_main_module
+    import main as main_module
     # The following imports might be specific to main.py or shared,
     # but run.py itself doesn't directly use them beyond parameter collection.
     # If config_loader, cv2, or numpy are ONLY used within main.py,
@@ -135,11 +134,11 @@ class ArgsSimulator:
 
 def main_interactive():
     """
-    Runs the D-Scope Blink system through an interactive questionnaire to gather
+    Runs the system through an interactive questionnaire to gather
     parameters, then calls the core inspection logic from main.py.
     """
     print("=" * 70)
-    print(" D-Scope Blink: Automated Fiber Optic Inspection System (Interactive Runner)")
+    print("Automated Fiber Optic Inspection System (Interactive Runner)")
     print("=" * 70)
     print("\nWelcome! This script will guide you through the inspection setup.")
 
@@ -227,7 +226,7 @@ def main_interactive():
         clad_dia_um=clad_dia_um
     )
 
-    print("\nCollected Parameters for D-Scope Blink:")
+    print("\nCollected Parameters:")
     print(f"  Input Directory: {simulated_args.input_dir}")
     print(f"  Output Directory: {simulated_args.output_dir}")
     print(f"  Config File: {simulated_args.config_file}")
@@ -237,21 +236,19 @@ def main_interactive():
     print(f"  Core Diameter (µm): {simulated_args.core_dia_um if simulated_args.core_dia_um is not None else 'Not Provided'}")
     print(f"  Cladding Diameter (µm): {simulated_args.clad_dia_um if simulated_args.clad_dia_um is not None else 'Not Provided'}")
 
-    # --- Execute Main Inspection Logic from d_scope_main_module (main.py) ---
+
     inspection_successful = False
     try:
-        # Option 1: Prefer 'execute_inspection_run' if available in d_scope_main_module (your main.py)
-        if hasattr(d_scope_main_module, 'execute_inspection_run'):
+
+        if hasattr(main_module, 'execute_inspection_run'):
             print("\n[INFO] Calling 'execute_inspection_run' from the imported main module (main.py)...")
-            # Corrected based on Problems.txt [cite: 130]
-            d_scope_main_module.execute_inspection_run(cast(Any, simulated_args))
+            main_module.execute_inspection_run(cast(Any, simulated_args))
             inspection_successful = True
         # Option 2: Fallback to 'main_with_args' if 'execute_inspection_run' is not available
-        elif hasattr(d_scope_main_module, 'main_with_args'):
+        elif hasattr(main_module, 'main_with_args'):
             print("\n[INFO] 'execute_inspection_run' not found in main.py.")
             print("       Attempting to call 'main_with_args' from the imported main module as an alternative...")
-            # Corrected based on Problems.txt [cite: 130, 131]
-            d_scope_main_module.main_with_args(cast(Any, simulated_args))
+            main_module.main_with_args(cast(Any, simulated_args))
             inspection_successful = True
         # If neither suitable function is available in main.py
         else:
@@ -276,7 +273,7 @@ def main_interactive():
         if inspection_successful:
             print("\n✅ --- Inspection Process Reported as Complete by Main Module ---")
 
-    except ImportError as ie: # Specifically catch if d_scope_main_module itself couldn't be imported initially
+    except ImportError as ie: 
         # This case should ideally be caught by the top-level import, but kept for robustness.
         logging.error(f"Failed to import the main inspection module (main.py): {ie}", exc_info=True)
         print(f"\n❌ [CRITICAL ERROR] Failed to import the main inspection module (main.py): {ie}")

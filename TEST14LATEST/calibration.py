@@ -328,7 +328,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(message)s') # Configure basic logging.
 
     # --- Argument Parsing ---
-    parser = argparse.ArgumentParser(description="D-Scope Blink: Pixel-to-Micron Calibration Tool") # Create argument parser.
+    parser = argparse.ArgumentParser(description="Pixel-to-Micron Calibration Tool") # Create argument parser.
     parser.add_argument( # Argument for calibration image path.
         "image_path",
         type=str,

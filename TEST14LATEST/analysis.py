@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # analysis.py
 
@@ -24,7 +25,7 @@ except ImportError:
     ML_CLASSIFIER_AVAILABLE = False
     logging.warning("ML classifier not available, using rule-based classification")
     
-# D-Scope Blink module imports
+
 try:
     from config_loader import get_config, get_zone_definitions
 except ImportError:
@@ -91,8 +92,6 @@ def characterize_and_classify_defects(
             logging.error(f"C++ accelerator call for characterization failed: {e}. Falling back to Python.")
             # Fall through to the Python implementation upon failure.
 
-    # --- Pure Python Fallback Implementation ---
-    # This code is identical to your original Python implementation.
     logging.info("Performing defect characterization using pure Python implementation.")
     characterized_defects_py: List[Dict[str, Any]] = []
     num_labels, labels_img, stats, centroids = cv2.connectedComponentsWithStats(

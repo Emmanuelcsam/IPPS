@@ -2,7 +2,7 @@
 # scratch_dataset_handler.py
 
 """
-D-Scope Blink: Scratch Dataset Handler
+Scratch Dataset Handler
 =====================================
 Handles integration of external scratch dataset for validation and augmentation.
 """

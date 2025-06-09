@@ -23,7 +23,7 @@ _config: Optional[Dict[str, Any]] = None # Initialize as None.
 # This provides a baseline structure if a config.json is missing or for new setups.
 DEFAULT_CONFIG_STRUCTURE = {
     "general_settings": { # General operational parameters.
-        "output_dir_name": "d_scope_blink_output", # Default directory for saving results.
+        "output_dir_name": "output", # Default directory for saving results.
         "log_level": "INFO", # Default logging level (e.g., DEBUG, INFO, WARNING, ERROR).
         "log_to_console": True # Whether to output logs to the console.
     },

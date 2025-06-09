@@ -4,8 +4,7 @@
 """
 Main Orchestration Script
 ========================================
-This script is the main entry point for the D-Scope Blink Automated Fiber Optic
-Inspection System. It handles command-line arguments, orchestrates the batch
+It handles command-line arguments, orchestrates the batch
 processing workflow, and integrates all other modules (config, calibration,
 image processing, analysis, and reporting).
 """
@@ -19,7 +18,7 @@ import sys # Standard library for system-specific parameters and functions.
 import pandas as pd # Pandas for creating the final summary CSV report.
 from typing import Dict, Any, Optional, List # For type hinting
 
-# --- D-Scope Blink Modules ---
+
 # These imports assume the modules are in the same directory or accessible via PYTHONPATH.
 try:
     from advanced_visualization import InteractiveVisualizer
@@ -40,7 +39,7 @@ try:
     from reporting import generate_annotated_image, generate_defect_csv_report, generate_polar_defect_histogram # Import reporting functions.
 except ImportError as e: # Handle import errors if modules are not found.
     error_msg = (
-        f"[CRITICAL ERROR] D-Scope Blink could not start due to missing or problematic modules.\n"
+        f"[CRITICAL ERROR] could not start due to missing or problematic modules.\n"
         f"Details: {e}\n"
         f"Please ensure all required Python modules (config_loader.py, calibration.py, "
         f"image_processing.py, analysis.py, reporting.py, and their dependencies like OpenCV, Pandas, Numpy) "
@@ -71,7 +70,7 @@ def setup_logging(log_level_str: str, log_to_console: bool, output_dir: Path) ->
 
     # --- File Handler ---
     # Create a unique log file name with a timestamp in the specified output directory.
-    log_file_name = f"d_scope_blink_inspection_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    log_file_name = f"inspection_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
     log_file_path = output_dir / "logs" / log_file_name # Define full log file path.
     log_file_path.parent.mkdir(parents=True, exist_ok=True) # Create 'logs' subdirectory if it doesn't exist.
     
@@ -320,7 +319,6 @@ def process_single_image(
     }
     return summary_for_batch # Return summary.
 
-# CORRECTED Function Definition: Changed args_namespace type hint to Any [cite: 129, 340]
 def execute_inspection_run(args_namespace: Any) -> None:
     """
     Core inspection logic that takes an args-like namespace object.
@@ -339,7 +337,7 @@ def execute_inspection_run(args_namespace: Any) -> None:
     except (FileNotFoundError, ValueError) as e: # Handle config loading errors.
         print(f"[CRITICAL] Failed to load configuration: {e}. Exiting.", file=sys.stderr)
         try:
-            fallback_log_dir = Path(".") / "d_scope_blink_error_logs"
+            fallback_log_dir = Path(".") / "error_logs"
             fallback_log_dir.mkdir(parents=True, exist_ok=True)
             setup_logging("ERROR", True, fallback_log_dir)
             logging.critical(f"Failed to load configuration: {e}. Exiting.")
@@ -354,7 +352,7 @@ def execute_inspection_run(args_namespace: Any) -> None:
         current_run_output_dir 
     )
 
-    logging.info("D-Scope Blink: Inspection System Started.")
+    logging.info("Inspection System Started.")
     logging.info(f"Input Directory: {args_namespace.input_dir}")
     logging.info(f"Output Directory (this run): {current_run_output_dir}")
     logging.info(f"Using Profile: {args_namespace.profile}")
@@ -419,7 +417,6 @@ def execute_inspection_run(args_namespace: Any) -> None:
     logging.info(f"Found {len(image_paths_to_process)} images to process in '{input_path}'.")
 
 
-    # Add this after loading configuration and before the batch processing loop
 
     # Initialize advanced models if enabled
     advanced_models_initialized = False
@@ -608,7 +605,7 @@ def execute_inspection_run(args_namespace: Any) -> None:
         logging.warning("No image summaries were generated for the batch report.")
 
     batch_duration = time.perf_counter() - batch_start_time # Calculate total batch processing time.
-    logging.info(f"--- D-Scope Blink: Batch Processing Complete ---")
+    logging.info(f"Batch Processing Complete ---")
     logging.info(f"Total images processed: {len(image_paths_to_process)}")
     logging.info(f"Total batch duration: {batch_duration:.2f} seconds.")
     logging.info(f"All reports for this run saved in: {current_run_output_dir}")
@@ -623,10 +620,10 @@ def main_with_args(args_namespace: Any) -> None:
 
 def main():
     """
-    Main function to drive the D-Scope Blink inspection system from Command Line.
+    Main function to drive the inspection system from Command Line.
     """
     # --- Argument Parsing ---
-    parser = argparse.ArgumentParser(description="D-Scope Blink: Automated Fiber Optic End Face Inspection System.") # Create argument parser.
+    parser = argparse.ArgumentParser(description="Automated Fiber Optic End Face Inspection System.") # Create argument parser.
     parser.add_argument("input_dir", type=str, help="Path to the directory containing images to inspect.") # Input directory argument.
     parser.add_argument("output_dir", type=str, help="Path to the directory where results will be saved.") # Output directory argument.
     parser.add_argument("--config_file", type=str, default="config.json", help="Path to the JSON configuration file (default: config.json).") # Config file argument.

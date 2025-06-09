@@ -37,7 +37,7 @@ class InteractiveVisualizer:
             
         try:
             # Create viewer
-            self.viewer = napari.Viewer(title='D-Scope Blink - Inspection Results')
+            self.viewer = napari.Viewer(title='Inspection Results')
             
             # Add original image
             self.viewer.add_image(original_image, name='Original Image')

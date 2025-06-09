@@ -49,14 +49,11 @@ py::array_t<unsigned char> do2mr_detection_cpp(py::array_t<unsigned char> image_
         }
     }
     
-    // --- FIX 1 START: Correctly create a copy of the cv::Mat data for Python ---
-    // The original line had a '.clone()' call on the py::array_t object, which is incorrect.
-    // The correct way is to create a py::array_t that owns its own data and copy the cv::Mat content into it.
     py::array_t<unsigned char> result({(py::ssize_t)final_mask.rows, (py::ssize_t)final_mask.cols});
     py::buffer_info result_buf = result.request();
     std::memcpy(result_buf.ptr, final_mask.data, final_mask.total() * final_mask.elemSize());
     return result;
-    // --- FIX 1 END ---
+
 }
 
 /**
@@ -240,12 +237,10 @@ py::list characterize_and_classify_defects_cpp(
         defect_dict["zone"] = zone_name;
         defect_dict["aspect_ratio"] = aspect_ratio;
 
-        // --- FIX 2 START: Explicitly define shape vector for py::array_t constructor ---
-        // The original code used an initializer list `{...}` which the compiler could not resolve.
-        // Creating an explicit std::vector for the shape is more robust.
+
         std::vector<py::ssize_t> shape = {(py::ssize_t)defect_contour.size(), 2};
         py::array_t<int> contour_points_py(shape);
-        // --- FIX 2 END ---
+
         
         auto r = contour_points_py.mutable_unchecked<2>();
         for(long j = 0; j < r.shape(0); ++j) {

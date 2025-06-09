@@ -1,6 +1,6 @@
 {
   "general_settings": {
-    "output_dir_name": "d_scope_blink_output",
+    "output_dir_name": "output",
     "log_level": "INFO",
     "log_to_console": true,
     "enable_visualization": true,

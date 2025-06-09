@@ -65,7 +65,7 @@ https://github.com/skokec/segdec-net-jim2019
     - Annotated Images  
     - CSV Reports  
     - Polar Histograms  
-+-+-+-+-+-
+
 
 
 
