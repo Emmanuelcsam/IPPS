@@ -1,0 +1,8 @@
+numpy
+opencv-python
+pandas
+scipy
+scikit-image
+pywavelets
+circle-fit
+matplotlib>=3.5.3
