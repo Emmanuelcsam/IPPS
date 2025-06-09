@@ -1,0 +1,19 @@
+[2025-06-09 17:21:12] [INFO] [main:88] Logging configured. Level: INFO. Log file: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250609_172112\logs\inspection_20250609_172112.log
+[2025-06-09 17:21:12] [INFO] [main:360] Inspection System Started.
+[2025-06-09 17:21:12] [INFO] [main:361] Input Directory: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\sample1
+[2025-06-09 17:21:12] [INFO] [main:362] Output Directory (this run): C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250609_172112
+[2025-06-09 17:21:12] [INFO] [main:363] Using Profile: deep_inspection
+[2025-06-09 17:21:12] [INFO] [main:364] Fiber Type Key for Rules: single_mode_pc
+[2025-06-09 17:21:12] [WARNING] [calibration:251] Calibration file 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json' not found.
+[2025-06-09 17:21:12] [WARNING] [main:402] No calibration data loaded from 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json'. Measurements may be in pixels if user dimensions not provided.
+[2025-06-09 17:21:12] [INFO] [main:422] Found 1 images to process in 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\sample1'.
+[2025-06-09 17:21:12] [INFO] [main:430] Initializing advanced detection models...
+[2025-06-09 17:21:12] [ERROR] [run:273] An error occurred during the call to the main module's inspection function: name 'ANOMALIB_FULL_AVAILABLE' is not defined
+Traceback (most recent call last):
+  File "C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\run.py", line 236, in main_interactive
+    main_module.execute_inspection_run(cast(Any, simulated_args))
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\main.py", line 433, in execute_inspection_run
+    if ANOMALIB_FULL_AVAILABLE:
+       ^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'ANOMALIB_FULL_AVAILABLE' is not defined

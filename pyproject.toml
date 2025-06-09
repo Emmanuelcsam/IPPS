@@ -20,9 +20,9 @@ dependencies = [
     "pywavelets",
     "circle-fit",
     "matplotlib>=3.5.3",
-    "anomalib>=0.7.0", # <-- Add this line
-    "torch>=2.0.0",     # <-- Add this line
-    "torchvision>=0.15.0" # <-- Add this line
+    "anomalib>=0.7.0", 
+    "torch>=2.0.0",    
+    "torchvision>=0.15.0" 
 ]
 
 [tool.setuptools]
