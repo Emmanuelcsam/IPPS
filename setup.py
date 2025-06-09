@@ -25,15 +25,15 @@ def find_opencv_libs():
             print("Attempting to find OpenCV with pkg-config...")
             cflags = subprocess.check_output(['pkg-config', '--cflags', 'opencv4']).decode('utf-8').strip().split()
             ldflags = subprocess.check_output(['pkg-config', '--libs', 'opencv4']).decode('utf-8').strip().split()
-            
+
             include_dirs = [flag[2:] for flag in cflags if flag.startswith('-I')]
             library_dirs = [flag[2:] for flag in ldflags if flag.startswith('-L')]
             libraries = [flag[2:] for flag in ldflags if flag.startswith('-l')]
-            
+
             print(f"Found OpenCV includes: {include_dirs}")
             print(f"Found OpenCV lib dirs: {library_dirs}")
             print(f"Found OpenCV libs: {libraries}")
-            
+
             return include_dirs, library_dirs, libraries
         except (subprocess.CalledProcessError, FileNotFoundError):
             print("WARNING: pkg-config for opencv4 not found. Check your OpenCV installation.", file=sys.stderr)
@@ -49,7 +49,7 @@ def find_opencv_libs():
 
         print(f"Using OPENCV_DIR: {opencv_dir}")
         include_dirs = [os.path.join(opencv_dir, 'include')]
-        
+
         # Determine architecture and library path
         lib_path = os.path.join(opencv_dir, 'x64')
         # Find the latest Visual Studio version directory (e.g., vc15, vc16, vc17)
@@ -57,7 +57,7 @@ def find_opencv_libs():
         if not vs_dirs:
             print(f"ERROR: Could not find Visual Studio lib directory (e.g., 'vc15', 'vc16') in {lib_path}", file=sys.stderr)
             return [], [], []
-        
+
         # Select the latest VS version
         latest_vs_dir = sorted(vs_dirs)[-1]
         library_dirs = [os.path.join(lib_path, latest_vs_dir, 'lib')]
@@ -70,7 +70,7 @@ def find_opencv_libs():
             print(f"ERROR: Could not find 'opencv_world*.lib' in {library_dirs[0]}", file=sys.stderr)
             print("       Ensure you have the compiled OpenCV libraries for C++.", file=sys.stderr)
             return [], [], []
-            
+
         # Extract the library name without the .lib extension
         libraries = [os.path.splitext(world_lib)[0]]
 
@@ -78,7 +78,7 @@ def find_opencv_libs():
         print(f"Found OpenCV lib dirs: {library_dirs}")
         print(f"Found OpenCV libs: {libraries}")
         return include_dirs, library_dirs, libraries
-        
+
     print("ERROR: Unsupported platform. Could not automatically determine OpenCV paths.", file=sys.stderr)
     return [], [], []
 
@@ -88,7 +88,7 @@ opencv_include_dirs, opencv_library_dirs, opencv_libraries = find_opencv_libs()
 # Define the C++ extension module
 ext_modules = [
     Extension(
-        'accelerator', # Name of the Python module
+        'accelerator', # CHANGE: This now matches the name in accelerator.cpp
         ['accelerator.cpp'], # List of C++ source files
         include_dirs=[
             get_pybind_include(),
