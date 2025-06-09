@@ -1,9 +1,0 @@
-advanced_visualization
-analysis
-calibration
-config_loader
-dscope_accelerator
-image_processing
-main
-reporting
-run

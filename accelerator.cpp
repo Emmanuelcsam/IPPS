@@ -21,7 +21,7 @@ py::array_t<unsigned char> do2mr_detection_cpp(py::array_t<unsigned char> image_
     if (buf.ndim != 2) {
         throw std::runtime_error("Input image must be a 2D NumPy array.");
     }
-    cv::Mat image(buf.shape[0], buf.shape[1], CV_8UC1, (unsigned char*)buf.ptr);
+    cv::Mat image(static_cast<int>(buf.shape[0]), static_cast<int>(buf.shape[1]), CV_8UC1, (unsigned char*)buf.ptr);
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(kernel_size, kernel_size));
     cv::Mat dilated_image, eroded_image;
     cv::dilate(image, dilated_image, kernel);
@@ -75,14 +75,14 @@ py::array_t<unsigned char> multiscale_do2mr_cpp(
         throw std::runtime_error("Input must be 2D");
     }
     
-    cv::Mat image(buf.shape[0], buf.shape[1], CV_8UC1, (unsigned char*)buf.ptr);
+    cv::Mat image(static_cast<int>(buf.shape[0]), static_cast<int>(buf.shape[1]), CV_8UC1, (unsigned char*)buf.ptr);
     cv::Mat combined_result = cv::Mat::zeros(image.size(), CV_32F);
     
     for (float scale : scales) {
         cv::Mat scaled_image;
         
-        if (scale != 1.0) {
-            cv::Size new_size(image.cols * scale, image.rows * scale);
+        if (scale != 1.0f) {
+            cv::Size new_size(static_cast<int>(image.cols * scale), static_cast<int>(image.rows * scale));
             cv::resize(image, scaled_image, new_size, 0, 0, cv::INTER_LINEAR);
         } else {
             scaled_image = image.clone();
@@ -104,12 +104,12 @@ py::array_t<unsigned char> multiscale_do2mr_cpp(
         
         // Convert back to cv::Mat
         py::buffer_info scale_buf = scale_result_py.request();
-        cv::Mat scale_result(scale_buf.shape[0], scale_buf.shape[1],
+        cv::Mat scale_result(static_cast<int>(scale_buf.shape[0]), static_cast<int>(scale_buf.shape[1]),
                              CV_8UC1, (unsigned char*)scale_buf.ptr);
         
         // Resize back and accumulate
         cv::Mat scale_result_resized;
-        if (scale != 1.0) {
+        if (scale != 1.0f) {
             cv::resize(scale_result, scale_result_resized, image.size(),
                        0, 0, cv::INTER_NEAREST);
         } else {
@@ -117,7 +117,7 @@ py::array_t<unsigned char> multiscale_do2mr_cpp(
         }
         
         // Weight by scale
-        float weight = (scale > 1.0) ? 1.0 / scale : scale;
+        float weight = (scale > 1.0f) ? 1.0f / scale : scale;
         cv::Mat weighted;
         scale_result_resized.convertTo(weighted, CV_32F, weight);
         combined_result += weighted;
@@ -134,7 +134,7 @@ py::array_t<unsigned char> multiscale_do2mr_cpp(
     cv::Mat final_uint8;
     final_result.convertTo(final_uint8, CV_8U);
     
-    py::array_t<unsigned char> result({final_uint8.rows, final_uint8.cols});
+    py::array_t<unsigned char> result({(py::ssize_t)final_uint8.rows, (py::ssize_t)final_uint8.cols});
     py::buffer_info result_buf = result.request();
     std::memcpy(result_buf.ptr, final_uint8.data,
                 final_uint8.total() * final_uint8.elemSize());
@@ -168,7 +168,7 @@ py::list characterize_and_classify_defects_cpp(
     if (buf.ndim != 2) {
         throw std::runtime_error("Input defect mask must be a 2D NumPy array.");
     }
-    cv::Mat final_defect_mask(buf.shape[0], buf.shape[1], CV_8U, (unsigned char*)buf.ptr);
+    cv::Mat final_defect_mask(static_cast<int>(buf.shape[0]), static_cast<int>(buf.shape[1]), CV_8U, (unsigned char*)buf.ptr);
 
     // Find connected components (defects)
     cv::Mat labels, stats, centroids;
@@ -204,7 +204,7 @@ py::list characterize_and_classify_defects_cpp(
         cv::RotatedRect rotated_rect = cv::minAreaRect(defect_contour);
         float width_px = rotated_rect.size.width;
         float height_px = rotated_rect.size.height;
-        float aspect_ratio = std::max(width_px, height_px) / (std::min(width_px, height_px) + 1e-6);
+        float aspect_ratio = std::max(width_px, height_px) / (std::min(width_px, height_px) + 1e-6f);
 
         // Classify the defect
         std::string classification = (aspect_ratio >= scratch_aspect_ratio_threshold) ? "Scratch" : "Pit/Dig";
@@ -215,7 +215,7 @@ py::list characterize_and_classify_defects_cpp(
             std::string current_zone_name = py::str(item.first);
             py::array_t<unsigned char> zone_mask_buffer = py::cast<py::array_t<unsigned char>>(item.second);
             py::buffer_info zone_buf = zone_mask_buffer.request();
-            cv::Mat zone_mask_mat(zone_buf.shape[0], zone_buf.shape[1], CV_8U, (unsigned char*)zone_buf.ptr);
+            cv::Mat zone_mask_mat(static_cast<int>(zone_buf.shape[0]), static_cast<int>(zone_buf.shape[1]), CV_8U, (unsigned char*)zone_buf.ptr);
 
             int cx_int = static_cast<int>(centroid_x_px);
             int cy_int = static_cast<int>(centroid_y_px);

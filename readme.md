@@ -1,6 +1,20 @@
 
 **ENSURE ALL PREREQUISTES INSTALLED**
 
+- **Installing UV**
+  - powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  - curl -LsSf https://astral.sh/uv/install.sh \| sh
+  - wget -qO- https://astral.sh/uv/install.sh \| sh
+  - pip install uv
+
+- **Steps to install and run program with uv**
+  - `uv venv`
+  - `uv pip install -r requirements.txt`
+  - `uv pip install pybind11`
+  - `uv pip install openvino openvino-dev`
+  - `uv run python setup.py build_ext --inplace`
+  - `uv run run.py`
+
 **READ ALL DOCUMENTATION**
 
 **ONLY WORKS WHEN DEPENDENCIES ARE IN THE SAME DIRECTORY AS ALL FILES AND ALL CORRELATING FILES ARE IN THE SAME DIRECTORY**

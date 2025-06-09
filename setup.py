@@ -1,7 +1,10 @@
 # setup.py
 
-import os
-import sys
+import os, sys
+if sys.platform.startswith("win"):
+    os.add_dll_directory(r"C:\Users\Saem1001\Downloads\opencv\build\x64\vc16\bin")
+
+import accelerator
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 import subprocess
