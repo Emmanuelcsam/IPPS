@@ -86,8 +86,8 @@ The project is organized into several key modules:
 | config.json | Central Configuration: A JSON file to control all parameters, from algorithm settings to pass/fail rules. |
 | advanced\_scratch\_detection.py | Contains specialized, advanced algorithms for detecting linear scratch defects. |
 | advanced\_visualization.py | Implements the interactive napari viewer for detailed analysis. |
-| dscope\_accelerator.cpp | The C++ source code for performance-critical analysis functions. |
-| setup.py | A standard Python script to compile the dscope\_accelerator.cpp extension using pybind11. |
+| accelerator.cpp | The C++ source code for performance-critical analysis functions. |
+| setup.py | A standard Python script to compile the accelerator.cpp extension using pybind11. |
 | requirements.txt | A list of all required Python packages for the project. |
 
 ## **Setup and Installation**
@@ -115,7 +115,7 @@ Run the following command in the project's root directory:
 
 python setup.py build\_ext \--inplace
 
-If the compilation is successful, a dscope\_accelerator module will be created, and the program will use it automatically. If it fails or you skip this step, the application will fall back to the slower, pure Python implementation.
+If the compilation is successful, a accelerator module will be created, and the program will use it automatically. If it fails or you skip this step, the application will fall back to the slower, pure Python implementation.
 
 ## **How to Run**
 

@@ -2,7 +2,7 @@
 # config_loader.py
 
 """
-D-Scope Blink: Configuration Loader Module
+Configuration Loader Module
 ==========================================
 This module is responsible for loading, validating, and providing access to
 all operational settings from the 'config.json' file. It ensures that

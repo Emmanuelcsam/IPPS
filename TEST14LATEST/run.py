@@ -2,7 +2,7 @@
 # run_inspector_interactive.py
 
 """
-D-Scope Blink: Interactive Runner
+Interactive Runner
 =================================
 Enhanced interactive interface for the D-Scope Blink system.
 This script gathers parameters from the user and then calls the main inspection

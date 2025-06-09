@@ -2,7 +2,7 @@
 # padim_specific.py
 
 """
-D-Scope Blink: Specific PaDiM Implementation
+Specific PaDiM Implementation
 ===========================================
 Based on xiahaifeng1995's implementation with fiber-specific adaptations
 """

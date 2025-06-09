@@ -2,7 +2,7 @@
 # reporting.py
 
 """
-D-Scope Blink: Reporting Module
+ Reporting Module
 ===============================
 This module is responsible for generating all output reports for each processed image,
 including annotated images, detailed CSV files for defects, and polar defect

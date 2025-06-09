@@ -2,7 +2,7 @@
 # anomalib_integration.py
 
 """
-D-Scope Blink: Anomalib Full Integration
+Anomalib Full Integration
 =======================================
 Integrates the complete Anomalib library for advanced anomaly detection
 """

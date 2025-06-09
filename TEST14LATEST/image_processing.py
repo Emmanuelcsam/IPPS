@@ -2,7 +2,7 @@
 # image_processing.py
 
 """
-D-Scope Blink: Image Processing Engine
+Image Processing Engine
 ======================================
 This module contains the core logic for processing fiber optic end face images.
 It includes functions for preprocessing, fiber localization (cladding and core),
@@ -24,12 +24,12 @@ from skimage.feature import local_binary_pattern
 # Attempt to import the compiled C++ accelerator module.
 # If it's not found, the pure Python implementations will be used as a fallback.
 try:
-    import dscope_accelerator
+    import accelerator
     CPP_ACCELERATOR_AVAILABLE = True
-    logging.info("Successfully imported 'dscope_accelerator' C++ module. DO2MR will be accelerated.")
+    logging.info("Successfully imported 'accelerator' C++ module. DO2MR will be accelerated.")
 except ImportError:
     CPP_ACCELERATOR_AVAILABLE = False
-    logging.warning("C++ accelerator module ('dscope_accelerator') not found. "
+    logging.warning("C++ accelerator module ('accelerator') not found. "
                     "Falling back to pure Python implementations. "
                     "For a significant performance increase, compile the C++ module using setup.py.")
 
@@ -982,7 +982,7 @@ def _wavelet_defect_detection(image: np.ndarray) -> np.ndarray:
 def _do2mr_detection(masked_zone_image: np.ndarray, kernel_size: int = 5, gamma: float = 1.5) -> np.ndarray:
     """
     Enhanced DO2MR implementation that uses a C++ accelerator if available.
-    If the compiled C++ module `dscope_accelerator` is not found, it gracefully
+    If the compiled C++ module `accelerator` is not found, it gracefully
     falls back to the pure Python/NumPy implementation.
 
     Args:
@@ -999,7 +999,7 @@ def _do2mr_detection(masked_zone_image: np.ndarray, kernel_size: int = 5, gamma:
             # The C++ function expects a uint8 NumPy array.
             # It directly processes the image and returns the final mask.
             # The 'masked_zone_image' also serves as the mask for stats calculation inside C++.
-            return dscope_accelerator.do2mr_detection(masked_zone_image, kernel_size, gamma)
+            return accelerator.do2mr_detection(masked_zone_image, kernel_size, gamma)
         except Exception as e:
             logging.error(f"C++ accelerator call for DO2MR failed: {e}. Falling back to Python implementation.")
             # Fall through to the Python implementation upon failure.

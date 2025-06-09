@@ -2,7 +2,7 @@
 # main.py
 
 """
-D-Scope Blink: Main Orchestration Script
+Main Orchestration Script
 ========================================
 This script is the main entry point for the D-Scope Blink Automated Fiber Optic
 Inspection System. It handles command-line arguments, orchestrates the batch

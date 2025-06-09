@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # anomaly_detection.py
-
 """
-D-Scope Blink: Anomaly Detection Module
 ======================================
 Integrates deep learning-based anomaly detection using Anomalib
 for enhanced defect detection capabilities.

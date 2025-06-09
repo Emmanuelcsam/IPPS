@@ -2,7 +2,7 @@
 # advanced_scratch_detection.py
 
 """
-D-Scope Blink: Advanced Scratch Detection
+Advanced Scratch Detection
 =========================================
 Based on yudarw's implementation with enhancements
 """

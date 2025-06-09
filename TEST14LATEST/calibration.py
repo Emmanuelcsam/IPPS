@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # calibration.py
-
-"""
-D-Scope Blink: Calibration Module
-=================================
+""""
 This module is responsible for calculating the pixel-to-micron conversion
 ratio (um_per_px) using a calibration target image (e.g., a stage micrometer).
 It can be run as a standalone script to generate/update 'calibration.json'.

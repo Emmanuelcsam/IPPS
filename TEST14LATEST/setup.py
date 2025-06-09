@@ -88,8 +88,8 @@ opencv_include_dirs, opencv_library_dirs, opencv_libraries = find_opencv_libs()
 # Define the C++ extension module
 ext_modules = [
     Extension(
-        'dscope_accelerator', # Name of the Python module
-        ['dscope_accelerator.cpp'], # List of C++ source files
+        'accelerator', # Name of the Python module
+        ['accelerator.cpp'], # List of C++ source files
         include_dirs=[
             get_pybind_include(),
             *opencv_include_dirs

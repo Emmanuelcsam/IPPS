@@ -2,7 +2,7 @@
 # padim_integration.py
 
 """
-D-Scope Blink: PaDiM Integration Module
+PaDiM Integration Module
 ======================================
 Integrates PaDiM (Patch Distribution Modeling) for anomaly detection
 """

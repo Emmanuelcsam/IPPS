@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 # analysis.py
 
-"""
-D-Scope Blink: Defect Analysis and Rule Application Module
-==========================================================
-This module takes the confirmed defect masks, characterizes each defect,
-classifies them, and applies pass/fail criteria based on loaded rules.
-This version is enhanced with an optional C++ accelerator for characterization.
-"""
 import cv2
 import numpy as np
 from typing import Dict, Any, Optional, List, Tuple, Union
@@ -16,12 +9,12 @@ from pathlib import Path
 
 # --- C++ Accelerator Integration ---
 try:
-    import dscope_accelerator
+    import accelerator
     CPP_ACCELERATOR_AVAILABLE = True
-    logging.info("Successfully imported 'dscope_accelerator' C++ module. Analysis will be accelerated.")
+    logging.info("Successfully imported 'accelerator' C++ module. Analysis will be accelerated.")
 except ImportError:
     CPP_ACCELERATOR_AVAILABLE = False
-    logging.warning("C++ accelerator module ('dscope_accelerator') not found. "
+    logging.warning("C++ accelerator module ('accelerator') not found. "
                     "Falling back to pure Python analysis implementations.")
     
 try:
@@ -73,7 +66,7 @@ def characterize_and_classify_defects(
         try:
             # Call the C++ function, which handles the entire analysis loop.
             # It returns a list of dictionaries directly, matching the Python output.
-            characterized_defects = dscope_accelerator.characterize_and_classify_defects(
+            characterized_defects = accelerator.characterize_and_classify_defects(
                 final_defect_mask,
                 zone_masks,
                 um_per_px if um_per_px is not None else 0.0,

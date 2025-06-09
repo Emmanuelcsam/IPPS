@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
 # advanced_visualization.py
-
-"""
-D-Scope Blink: Advanced Visualization Module
-===========================================
-Provides interactive visualization using Napari for detailed inspection.
-"""
 import numpy as np
 import logging
 import cv2

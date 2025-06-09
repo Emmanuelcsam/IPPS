@@ -2,7 +2,7 @@
 # unet_segmentation.py
 
 """
-D-Scope Blink: U-Net Segmentation Module
+ U-Net Segmentation Module
 =======================================
 Implements U-Net architecture for fiber optic defect segmentation
 """

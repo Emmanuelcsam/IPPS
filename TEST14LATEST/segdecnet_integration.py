@@ -2,7 +2,7 @@
 # segdecnet_integration.py
 
 """
-D-Scope Blink: SegDecNet Integration
+SegDecNet Integration
 ====================================
 Segmentation-Decision Network for fiber defect detection
 """

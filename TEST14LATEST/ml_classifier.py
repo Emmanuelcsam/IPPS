@@ -2,7 +2,7 @@
 # ml_classifier.py
 
 """
-D-Scope Blink: ML-Based Defect Classifier
+ ML-Based Defect Classifier
 ========================================
 Machine learning classifier for defect type determination
 """
