@@ -1,0 +1,9 @@
+Defect_ID,Zone,Type,Centroid_X_px,Centroid_Y_px,Area_px2,Area_um2,Perimeter_px,Perimeter_um,Major_Dim_px,Major_Dim_um,Minor_Dim_px,Minor_Dim_um,Confidence,Detection_Methods
+1,ferrule_contact,Scratch,836,465,485.00,N/A,219.40,N/A,94.35,N/A,10.29,N/A,0.400,do2mr; lei
+2,core,Scratch,566,421,12367.00,N/A,413.85,N/A,123.00,N/A,122.00,N/A,0.000,
+3,core,Scratch,555,381,5834.50,N/A,1953.02,N/A,295.00,N/A,293.00,N/A,0.200,lei
+4,ferrule_contact,Scratch,785,277,1659.50,N/A,676.71,N/A,287.61,N/A,46.46,N/A,0.200,lei
+5,cladding,Scratch,487,521,6994.00,N/A,2417.70,N/A,554.76,N/A,401.46,N/A,0.200,lei
+6,ferrule_contact,Scratch,648,161,176.00,N/A,141.05,N/A,61.98,N/A,6.69,N/A,0.400,do2mr; lei
+7,ferrule_contact,Scratch,507,155,82.00,N/A,88.43,N/A,38.31,N/A,5.73,N/A,0.400,do2mr; lei
+8,ferrule_contact,Scratch,592,149,33.50,N/A,54.38,N/A,24.19,N/A,3.68,N/A,0.400,do2mr; lei
