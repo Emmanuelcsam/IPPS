@@ -5,9 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "accelerator"
 version = "0.1.0"
-authors = [
-    { name = "Gemini", email = "na@example.com" },
-]
+authors = Emmanuel
 description = "C++ accelerator for image processing."
 readme = "README.md"
 requires-python = ">=3.7"
