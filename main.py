@@ -361,6 +361,9 @@ def execute_inspection_run(args_namespace: Any) -> None:
     Core inspection logic that takes an args-like namespace object.
     This function contains the main processing flow.
     """
+    # --- FIX: Declare intent to use global variables ---
+    global PADIM_SPECIFIC_AVAILABLE, SEGDECNET_AVAILABLE
+
     # --- Output Directory Setup ---
     base_output_dir = Path(args_namespace.output_dir) # Convert output dir string to Path object.
     run_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S') # Generate timestamp.
@@ -529,6 +532,7 @@ def execute_inspection_run(args_namespace: Any) -> None:
                 logging.info("SegDecNet initialized")
             except Exception as e:
                 logging.warning(f"Failed to initialize SegDecNet: {e}")
+                SEGDECNET_AVAILABLE = False # Corrected this line
         
         advanced_models_initialized = True
         logging.info("Advanced model initialization complete")
@@ -650,4 +654,4 @@ def main():
     execute_inspection_run(args) # Call the core logic
 
 if __name__ == "__main__":
-    main() # Call the main function when script is executed.
+    main()

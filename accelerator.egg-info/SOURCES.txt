@@ -1,4 +1,3 @@
-README.md
 accelerator.cpp
 advanced_visualization.py
 analysis.py
