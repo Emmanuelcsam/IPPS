@@ -749,6 +749,36 @@ def locate_fiber_structure(
     image_for_core_detect = original_gray_image if original_gray_image is not None else processed_image
     # After core detection, add adhesive layer detection
     
+                
+            
+    # Create a mask for the cladding area to search for the core.
+    cladding_mask_for_core_det = np.zeros_like(image_for_core_detect, dtype=np.uint8)
+    cl_cx_core, cl_cy_core = localization_result['cladding_center_xy'] # Get cladding center.
+
+    # Use the determined localization method to create the search mask for the core.
+    # Reduce search radius slightly (e.g., 90-95% of cladding) to avoid cladding edge effects.
+    search_radius_factor = 0.90 
+    if localization_result.get('localization_method') in ['HoughCircles', 'CircleFitLib', 'ContourFitCircle', 'TemplateMatching']:
+        cl_r_core_search = int(localization_result['cladding_radius_px'] * search_radius_factor)
+
+        cv2.circle(cladding_mask_for_core_det, (cl_cx_core, cl_cy_core), cl_r_core_search, (255,), -1)
+#        cv2.circle(core_mask_inv, (cl_cx_core, cl_cy_core), 5, (0,), -1)
+    elif localization_result.get('cladding_ellipse_params'): # If cladding was an ellipse.
+        ellipse_p_core = localization_result['cladding_ellipse_params']
+        # Scale down ellipse axes for core search.
+        scaled_axes_core = (ellipse_p_core[1][0] * search_radius_factor, ellipse_p_core[1][1] * search_radius_factor)
+        # Corrected color for cv2.ellipse
+        cv2.ellipse(cladding_mask_for_core_det, (ellipse_p_core[0], scaled_axes_core, ellipse_p_core[2]), (255,), -1)
+    else: # Should not happen if cladding_center_xy is present, but as a safeguard.
+        logging.error("Cladding localization method unknown for core detection masking. Cannot proceed with core detection.")
+        # Return with at least cladding info, core will be marked as not found or estimated.
+        localization_result['core_center_xy'] = localization_result['cladding_center_xy'] # Default to cladding center.
+        localization_result['core_radius_px'] = localization_result['cladding_radius_px'] * 0.4 # Default typical ratio.
+        logging.warning(f"Core detection failed due to masking issue, defaulting to 0.4 * cladding radius.")
+
+
+
+
     if 'core_center_xy' in localization_result and 'cladding_center_xy' in localization_result:
         # Detect adhesive layer between core and cladding
         cladding_radius = localization_result['cladding_radius_px']
@@ -778,32 +808,7 @@ def locate_fiber_structure(
                 localization_result['adhesive_detected'] = True
                 localization_result['adhesive_intensity_range'] = adhesive_intensity_peaks
                 logging.info(f"Adhesive layer detected with intensity peaks at: {adhesive_intensity_peaks}")
-                
-            
-    # Create a mask for the cladding area to search for the core.
-    cladding_mask_for_core_det = np.zeros_like(image_for_core_detect, dtype=np.uint8)
-    cl_cx_core, cl_cy_core = localization_result['cladding_center_xy'] # Get cladding center.
 
-    # Use the determined localization method to create the search mask for the core.
-    # Reduce search radius slightly (e.g., 90-95% of cladding) to avoid cladding edge effects.
-    search_radius_factor = 0.90 
-    if localization_result.get('localization_method') in ['HoughCircles', 'CircleFitLib', 'ContourFitCircle', 'TemplateMatching']:
-        cl_r_core_search = int(localization_result['cladding_radius_px'] * search_radius_factor)
-
-        cv2.circle(cladding_mask_for_core_det, (cl_cx_core, cl_cy_core), cl_r_core_search, (255,), -1)
-        cv2.circle(core_mask_inv, (cl_cx_core, cl_cy_core), 5, (0,), -1)
-    elif localization_result.get('cladding_ellipse_params'): # If cladding was an ellipse.
-        ellipse_p_core = localization_result['cladding_ellipse_params']
-        # Scale down ellipse axes for core search.
-        scaled_axes_core = (ellipse_p_core[1][0] * search_radius_factor, ellipse_p_core[1][1] * search_radius_factor)
-        # Corrected color for cv2.ellipse
-        cv2.ellipse(cladding_mask_for_core_det, (ellipse_p_core[0], scaled_axes_core, ellipse_p_core[2]), (255,), -1)
-    else: # Should not happen if cladding_center_xy is present, but as a safeguard.
-        logging.error("Cladding localization method unknown for core detection masking. Cannot proceed with core detection.")
-        # Return with at least cladding info, core will be marked as not found or estimated.
-        localization_result['core_center_xy'] = localization_result['cladding_center_xy'] # Default to cladding center.
-        localization_result['core_radius_px'] = localization_result['cladding_radius_px'] * 0.4 # Default typical ratio.
-        logging.warning(f"Core detection failed due to masking issue, defaulting to 0.4 * cladding radius.")
         return localization_result
 
     # Apply the cladding mask to the image chosen for core detection.
@@ -955,15 +960,15 @@ def generate_zone_masks(
         micron_mode_possible = um_per_px is not None and um_per_px > 0 and reference_cladding_diameter_um is not None
 
         # Add validation for zone overlap
-        def validate_zone_boundaries(r_min: float, r_max: float, zone_name: str, prev_zone_max: float = 0) -> Tuple[float, float]:
-            """Ensure zones don't overlap and have proper boundaries"""
-            if r_min < prev_zone_max:
-                r_min = prev_zone_max
-                logging.debug(f"Adjusted {zone_name} r_min to {r_min} to prevent overlap")
-            if r_max <= r_min:
-                r_max = r_min * 1.1  # Ensure some width
-                logging.warning(f"Adjusted {zone_name} r_max to {r_max} to ensure valid zone")
-            return r_min, r_max
+#        def validate_zone_boundaries(r_min: float, r_max: float, zone_name: str, prev_zone_max: float = 0) -> Tuple[float, float]:
+#            """Ensure zones don't overlap and have proper boundaries"""
+ #           if r_min < prev_zone_max:
+  #              r_min = prev_zone_max
+   #             logging.debug(f"Adjusted {zone_name} r_min to {r_min} to prevent overlap")
+    #        if r_max <= r_min:
+     #           r_max = r_min * 1.1  # Ensure some width
+      #          logging.warning(f"Adjusted {zone_name} r_max to {r_max} to ensure valid zone")
+       #     return r_min, r_max
 
         prev_zone_max_radius = 0.0
         if micron_mode_possible:
@@ -1890,28 +1895,28 @@ def detect_defects(
         
         return validated_mask
     
-    def validate_defect_by_size(defect_mask: np.ndarray, zone_name: str, um_per_px: Optional[float] = None) -> np.ndarray:
-        """Additional size-based validation specific to zones."""
-        validated_mask = defect_mask.copy()
+#    def validate_defect_by_size(defect_mask: np.ndarray, zone_name: str, um_per_px: Optional[float] = None) -> np.ndarray:
+ #       """Additional size-based validation specific to zones."""
+  #      validated_mask = defect_mask.copy()
+   #     
+    #    # Zone-specific minimum sizes (in pixels if no um_per_px, otherwise in um²)
+    #    min_sizes = {
+     #       "Core": 3 if um_per_px is None else (2.0 / (um_per_px ** 2)),  # 2 µm²
+      #      "Cladding": 5 if um_per_px is None else (5.0 / (um_per_px ** 2)),  # 5 µm²
+       #     "Adhesive": 10 if um_per_px is None else (20.0 / (um_per_px ** 2)),  # 20 µm²
+        #    "Contact": 20 if um_per_px is None else (50.0 / (um_per_px ** 2))  # 50 µm²
+       # }
         
-        # Zone-specific minimum sizes (in pixels if no um_per_px, otherwise in um²)
-        min_sizes = {
-            "Core": 3 if um_per_px is None else (2.0 / (um_per_px ** 2)),  # 2 µm²
-            "Cladding": 5 if um_per_px is None else (5.0 / (um_per_px ** 2)),  # 5 µm²
-            "Adhesive": 10 if um_per_px is None else (20.0 / (um_per_px ** 2)),  # 20 µm²
-            "Contact": 20 if um_per_px is None else (50.0 / (um_per_px ** 2))  # 50 µm²
-        }
-        
-        min_area = min_sizes.get(zone_name, 5)
-        
+       # min_area = min_sizes.get(zone_name, 5)
+       # 
         # Remove components smaller than zone-specific minimum
-        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(validated_mask, connectivity=8)
-        
-        for i in range(1, num_labels):
-            if stats[i, cv2.CC_STAT_AREA] < min_area:
-                validated_mask[labels == i] = 0
-        
-        return validated_mask
+       # num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(validated_mask, connectivity=8)
+#        
+ #       for i in range(1, num_labels):
+  #          if stats[i, cv2.CC_STAT_AREA] < min_area:
+   #             validated_mask[labels == i] = 0
+    #    
+     #   return validated_mask
     # Add validation before returning
     # The error was here: 'working_image' was not defined.
     # It should be 'working_image_for_processing' which is the most up-to-date image for the current zone.
