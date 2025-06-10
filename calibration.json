@@ -1,0 +1,15 @@
+{
+  "calibration_data": {
+    "pixels_per_micron": 2.5,
+    "reference_diameter_pixels": 250,
+    "reference_diameter_microns": 125,
+    "calibration_date": "2025-06-10",
+    "calibration_method": "reference_fiber",
+    "notes": "Calibrated using standard single-mode fiber"
+  },
+  "camera_settings": {
+    "resolution": [1920, 1080],
+    "focal_length_mm": 50,
+    "working_distance_mm": 10
+  }
+}

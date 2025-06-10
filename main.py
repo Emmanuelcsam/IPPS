@@ -2,22 +2,97 @@
 # main.py
 
 """
-Main Orchestration Script
+Main Orchestration Script with Performance Optimizations
 ========================================
-It handles command-line arguments, orchestrates the batch
-processing workflow, and integrates all other modules (config, calibration,
-image processing, analysis, and reporting).
+Enhanced version with image resizing optimization, progress monitoring,
+and improved error handling for OpenCV contrib modules.
 """
-import cv2 # OpenCV for image processing tasks.
-import argparse # Standard library for parsing command-line arguments.
-import logging # Standard library for logging events.
-import time # Standard library for time-related functions (performance tracking).
-import datetime # Standard library for date and time objects.
-from pathlib import Path # Standard library for object-oriented path manipulation.
-import sys # Standard library for system-specific parameters and functions.
-import pandas as pd # Pandas for creating the final summary CSV report.
-from typing import Dict, Any, Optional, List # For type hinting
+import cv2
+import argparse
+import logging
+import time
+import datetime
+from pathlib import Path
+import sys
+import pandas as pd
+import numpy as np
+from typing import Dict, Any, Optional, List, Tuple
+from functools import wraps
+from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
 
+# Performance timer decorator
+def performance_timer(func):
+    """Decorator to measure and log function execution time"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        elapsed_time = time.perf_counter() - start_time
+        logging.info(f"{func.__name__} took {elapsed_time:.2f} seconds")
+        return result
+    return wrapper
+
+# Image processor for performance optimization
+class ImageProcessor:
+    """Handles image processing optimizations"""
+    
+    def __init__(self, max_processing_size=1024):
+        self.max_processing_size = max_processing_size
+    
+    def resize_for_processing(self, image, max_size=None):
+        """
+        Resize image for faster processing if needed.
+        Returns tuple of (processed_image, scale_factor)
+        """
+        if max_size is None:
+            max_size = self.max_processing_size
+            
+        h, w = image.shape[:2]
+        scale_factor = 1.0
+        
+        if max(h, w) > max_size:
+            scale_factor = max_size / max(h, w)
+            new_h = int(h * scale_factor)
+            new_w = int(w * scale_factor)
+            resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            logging.debug(f"Image resized from {w}x{h} to {new_w}x{new_h} (scale: {scale_factor:.2f})")
+            return resized, scale_factor
+        
+        return image, scale_factor
+
+# Safe thinning implementation with fallback
+def safe_thinning(binary_image):
+    """Safe thinning with fallback if opencv-contrib not available"""
+    try:
+        import cv2
+        if hasattr(cv2, 'ximgproc') and hasattr(cv2.ximgproc, 'thinning'):
+            return cv2.ximgproc.thinning(binary_image)
+        else:
+            logging.debug("cv2.ximgproc.thinning not available, using morphological skeleton")
+            return morphological_skeleton(binary_image)
+    except AttributeError:
+        logging.debug("OpenCV contrib not available, using fallback skeleton")
+        return morphological_skeleton(binary_image)
+
+def morphological_skeleton(binary_image):
+    """Fallback skeleton using morphological operations"""
+    skeleton = np.zeros_like(binary_image)
+    element = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+    
+    while True:
+        eroded = cv2.erode(binary_image, element)
+        temp = cv2.dilate(eroded, element)
+        temp = cv2.subtract(binary_image, temp)
+        skeleton = cv2.bitwise_or(skeleton, temp)
+        binary_image = eroded.copy()
+        
+        if cv2.countNonZero(binary_image) == 0:
+            break
+    
+    return skeleton
+
+# Check for optional dependencies
 try:
     import torch
     TORCH_AVAILABLE = True
@@ -56,25 +131,33 @@ try:
     ANOMALY_DETECTION_AVAILABLE = True
 except ImportError:
     ANOMALY_DETECTION_AVAILABLE = False
-# These imports assume the modules are in the same directory or accessible via PYTHONPATH.
+
 try:
     from advanced_visualization import InteractiveVisualizer
     VISUALIZATION_AVAILABLE = True
 except ImportError:
     VISUALIZATION_AVAILABLE = False
-    
+
+# Import core modules
 try:
-    from config_loader import load_config, get_processing_profile, get_zone_definitions # Import config loading functions.
-    from calibration import load_calibration_data # Import calibration data loading function.
-    from image_processing import ( # Import image processing functions.
+    from config_loader import load_config, get_processing_profile, get_zone_definitions
+    from calibration import load_calibration_data
+    from image_processing import (
         load_and_preprocess_image,
         locate_fiber_structure,
         generate_zone_masks,
         detect_defects
     )
-    from analysis import characterize_and_classify_defects, apply_pass_fail_rules # Import analysis functions.
-    from reporting import generate_annotated_image, generate_defect_csv_report, generate_polar_defect_histogram # Import reporting functions.
-except ImportError as e: # Handle import errors if modules are not found.
+    from analysis import characterize_and_classify_defects, apply_pass_fail_rules
+    from reporting import generate_annotated_image, generate_defect_csv_report, generate_polar_defect_histogram
+    # Import performance optimizer if available
+    try:
+        from performance_optimizer import ImageProcessor as OptimizedImageProcessor
+        PERFORMANCE_OPTIMIZER_AVAILABLE = True
+    except ImportError:
+        PERFORMANCE_OPTIMIZER_AVAILABLE = False
+        logging.debug("Performance optimizer module not available, using built-in optimization")
+except ImportError as e:
     error_msg = (
         f"[CRITICAL ERROR] could not start due to missing or problematic modules.\n"
         f"Details: {e}\n"
@@ -84,10 +167,7 @@ except ImportError as e: # Handle import errors if modules are not found.
         f"Refer to the installation documentation for troubleshooting."
     )
     print(error_msg, file=sys.stderr)
-    sys.exit(1) # Exit if essential modules cannot be imported.
-
-# Import numpy for type hinting if not already (it's used in image_processing)
-import numpy as np
+    sys.exit(1)
 
 def setup_logging(log_level_str: str, log_to_console: bool, output_dir: Path) -> None:
     """
@@ -98,33 +178,33 @@ def setup_logging(log_level_str: str, log_to_console: bool, output_dir: Path) ->
         log_to_console: Boolean indicating whether to log to the console.
         output_dir: The base directory where log files will be saved.
     """
-    numeric_log_level = getattr(logging, log_level_str.upper(), logging.INFO) # Convert string log level to numeric.
+    numeric_log_level = getattr(logging, log_level_str.upper(), logging.INFO)
     
-    log_format = '[%(asctime)s] [%(levelname)s] [%(module)s:%(lineno)d] %(message)s' # Define log message format.
-    date_format = '%Y-%m-%d %H:%M:%S' # Define date format for logs.
+    log_format = '[%(asctime)s] [%(levelname)s] [%(module)s:%(lineno)d] %(message)s'
+    date_format = '%Y-%m-%d %H:%M:%S'
 
-    handlers: List[logging.Handler] = [] # Initialize list for log handlers.
+    handlers: List[logging.Handler] = []
 
-    # --- File Handler ---
-    # Create a unique log file name with a timestamp in the specified output directory.
+    # File Handler
     log_file_name = f"inspection_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-    log_file_path = output_dir / "logs" / log_file_name # Define full log file path.
-    log_file_path.parent.mkdir(parents=True, exist_ok=True) # Create 'logs' subdirectory if it doesn't exist.
+    log_file_path = output_dir / "logs" / log_file_name
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
     
-    file_handler = logging.FileHandler(log_file_path, encoding='utf-8') # Create file handler.
-    file_handler.setFormatter(logging.Formatter(log_format, datefmt=date_format)) # Set formatter for file handler.
-    handlers.append(file_handler) # Add file handler to list.
+    file_handler = logging.FileHandler(log_file_path, encoding='utf-8')
+    file_handler.setFormatter(logging.Formatter(log_format, datefmt=date_format))
+    handlers.append(file_handler)
 
-    # --- Console Handler (Optional) ---
-    if log_to_console: # If logging to console is enabled.
-        console_handler = logging.StreamHandler(sys.stdout) # Create console handler.
-        console_handler.setFormatter(logging.Formatter(log_format, datefmt=date_format)) # Set formatter for console handler.
-        handlers.append(console_handler) # Add console handler to list.
+    # Console Handler (Optional)
+    if log_to_console:
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(logging.Formatter(log_format, datefmt=date_format))
+        handlers.append(console_handler)
 
-    logging.basicConfig(level=numeric_log_level, handlers=handlers, force=True) # Configure basic logging with handlers. `force=True` helps in re-running in notebooks/interactive sessions.
+    logging.basicConfig(level=numeric_log_level, handlers=handlers, force=True)
     logging.info(f"Logging configured. Level: {log_level_str}. Log file: {log_file_path}")
 
-def process_single_image(
+@performance_timer
+def process_single_image_optimized(
     image_path: Path,
     output_dir_image: Path,
     profile_config: Dict[str, Any],
@@ -133,33 +213,22 @@ def process_single_image(
     user_core_dia_um: Optional[float],
     user_clad_dia_um: Optional[float],
     fiber_type_key: str
-) -> Dict[str, Any]: # Ensure it always returns a Dict
+) -> Dict[str, Any]:
     """
-    Orchestrates the full processing pipeline for a single image.
-
-    Args:
-        image_path: Path to the image file.
-        output_dir_image: Directory to save results for this specific image.
-        profile_config: The active processing profile configuration.
-        global_config: The full global configuration dictionary.
-        calibration_um_per_px: Calibrated um_per_px from file (can be None).
-        user_core_dia_um: User-provided core diameter in microns (can be None).
-        user_clad_dia_um: User-provided cladding diameter in microns (can be None).
-        fiber_type_key: Key for the fiber type being processed.
-
-    Returns:
-        A dictionary containing summary results for the image.
+    Optimized version of process_single_image with performance improvements.
     """
-    image_start_time = time.perf_counter() # Start timer for image processing.
+    image_start_time = time.perf_counter()
     logging.info(f"--- Processing image: {image_path.name} ---")
-    output_dir_image.mkdir(parents=True, exist_ok=True) # Ensure image-specific output directory exists.
+    output_dir_image.mkdir(parents=True, exist_ok=True)
 
+    # Initialize optimizer
+    processor = ImageProcessor() if not PERFORMANCE_OPTIMIZER_AVAILABLE else OptimizedImageProcessor()
 
-    # --- 1. Load and Preprocess Image ---
-    logging.info("Step 1: Loading and Preprocessing...") # Log current step.
-    preprocess_results = load_and_preprocess_image(str(image_path), profile_config) # Call function to load and preprocess.
-    if preprocess_results is None: # Check if preprocessing failed.
-        logging.error(f"Failed to load/preprocess image {image_path.name}. Skipping.") # Log error.
+    # Load and Preprocess Image
+    logging.info("Step 1: Loading and Preprocessing...")
+    preprocess_results = load_and_preprocess_image(str(image_path), profile_config)
+    if preprocess_results is None:
+        logging.error(f"Failed to load/preprocess image {image_path.name}. Skipping.")
         return {
             "image_filename": image_path.name,
             "pass_fail_status": "ERROR_LOAD_PREPROCESS",
@@ -169,13 +238,18 @@ def process_single_image(
             "cladding_defect_count": 0,
             "failure_reason_summary": "Load/preprocess failed"
         }
-    # Unpack results from preprocessing.
+    
     original_bgr, original_gray, processed_image = preprocess_results
 
-    # --- 2. Locate Fiber Structure (Cladding and Core) ---
-    logging.info("Step 2: Locating Fiber Structure...") # Log current step.
-    localization_data = locate_fiber_structure(processed_image, profile_config, original_gray_image=original_gray)# Locate fiber structure.
-    if localization_data is None or "cladding_center_xy" not in localization_data: # If localization failed.
+    # Resize for faster processing if image is large
+    processed_resized, scale_factor = processor.resize_for_processing(processed_image)
+    gray_resized, _ = processor.resize_for_processing(original_gray) if scale_factor != 1.0 else (original_gray, 1.0)
+
+    # Locate Fiber Structure (on resized image)
+    logging.info("Step 2: Locating Fiber Structure...")
+    localization_data = locate_fiber_structure(processed_resized, profile_config, original_gray_image=gray_resized)
+    
+    if localization_data is None or "cladding_center_xy" not in localization_data:
         logging.error(f"Failed to localize fiber structure in {image_path.name}. Skipping.")
         return {
             "image_filename": image_path.name,
@@ -187,81 +261,73 @@ def process_single_image(
             "failure_reason_summary": "Localization failed"
         }
     
-    current_image_um_per_px = calibration_um_per_px # Default to generic calibration.
-    if user_clad_dia_um is not None: # If user provided cladding diameter.
-        detected_cladding_radius_px = localization_data.get("cladding_radius_px") # Get detected cladding radius.
-        if detected_cladding_radius_px and detected_cladding_radius_px > 0: # If radius is valid.
-            detected_cladding_diameter_px = detected_cladding_radius_px * 2.0 # Calculate diameter.
-            current_image_um_per_px = user_clad_dia_um / detected_cladding_diameter_px # Calculate image-specific um/px.
-            logging.info(f"Using image-specific scale for {image_path.name}: {current_image_um_per_px:.4f} µm/px (user_clad_dia={user_clad_dia_um}µm, detected_clad_dia={detected_cladding_diameter_px:.1f}px).")
-        elif localization_data.get("cladding_ellipse_params"): # If ellipse parameters available.
-            ellipse_axes = localization_data["cladding_ellipse_params"][1] # Get ellipse axes (minor, major).
-            detected_cladding_diameter_px = ellipse_axes[1] # Major axis.
-            if detected_cladding_diameter_px > 0: # If diameter is valid.
-                current_image_um_per_px = user_clad_dia_um / detected_cladding_diameter_px # Calculate image-specific um/px.
-                logging.info(f"Using image-specific scale (ellipse) for {image_path.name}: {current_image_um_per_px:.4f} µm/px (user_clad_dia={user_clad_dia_um}µm, detected_major_axis={detected_cladding_diameter_px:.1f}px).")
-            else: # If diameter is not valid.
-                 logging.warning(f"Detected cladding diameter (ellipse major axis) is zero for {image_path.name}. Cannot calculate image-specific scale. Falling back to generic calibration: {calibration_um_per_px}")
-        else: # If radius/ellipse not valid.
-            logging.warning(f"Could not determine detected cladding diameter for {image_path.name} to calculate image-specific scale. Falling back to generic calibration: {calibration_um_per_px}")
-    elif current_image_um_per_px: # If using generic calibration.
-        logging.info(f"Using generic calibration scale for {image_path.name}: {current_image_um_per_px:.4f} µm/px.")
-    else: # If no scale available.
-        logging.info(f"No µm/px scale available for {image_path.name}. Measurements will be in pixels.")
+    # Scale results back to original image coordinates if resized
+    if scale_factor != 1.0:
+        # Scale center coordinates
+        localization_data['cladding_center_xy'] = tuple(
+            int(coord / scale_factor) for coord in localization_data['cladding_center_xy']
+        )
+        # Scale radii
+        if 'cladding_radius_px' in localization_data:
+            localization_data['cladding_radius_px'] = localization_data['cladding_radius_px'] / scale_factor
+        if 'core_center_xy' in localization_data:
+            localization_data['core_center_xy'] = tuple(
+                int(coord / scale_factor) for coord in localization_data['core_center_xy']
+            )
+        if 'core_radius_px' in localization_data:
+            localization_data['core_radius_px'] = localization_data['core_radius_px'] / scale_factor
+        # Scale ellipse parameters if present
+        if 'cladding_ellipse_params' in localization_data:
+            center, axes, angle = localization_data['cladding_ellipse_params']
+            localization_data['cladding_ellipse_params'] = (
+                tuple(int(c / scale_factor) for c in center),
+                tuple(a / scale_factor for a in axes),
+                angle
+            )
 
+    # Calculate scaling factor
+    current_image_um_per_px = calibration_um_per_px
+    if user_clad_dia_um is not None:
+        detected_cladding_radius_px = localization_data.get("cladding_radius_px")
+        if detected_cladding_radius_px and detected_cladding_radius_px > 0:
+            detected_cladding_diameter_px = detected_cladding_radius_px * 2.0
+            current_image_um_per_px = user_clad_dia_um / detected_cladding_diameter_px
+            logging.info(f"Using image-specific scale for {image_path.name}: {current_image_um_per_px:.4f} µm/px")
+        elif localization_data.get("cladding_ellipse_params"):
+            ellipse_axes = localization_data["cladding_ellipse_params"][1]
+            avg_radius_px = sum(ellipse_axes) / 2.0
+            avg_diameter_px = avg_radius_px * 2.0
+            current_image_um_per_px = user_clad_dia_um / avg_diameter_px
+            logging.info(f"Using ellipse-based scale for {image_path.name}: {current_image_um_per_px:.4f} µm/px")
 
-    analysis_summary = {
-        "image_filename": image_path.name,
-        "cladding_diameter_px": None,
-        "core_diameter_px": None,
-        "characterized_defects": [],
-        "overall_status": "UNKNOWN",
-        "total_defect_count": 0,
-        "failure_reasons": [],
-        "um_per_px_used": current_image_um_per_px
-    }
-    
-    # Add detected diameters to analysis summary
-    if localization_data:
-        cladding_diameter_px = localization_data.get("cladding_radius_px", 0) * 2
-        core_diameter_px = localization_data.get("core_radius_px", 0) * 2
-        
-        logging.info(f"Detected diameters for {image_path.name}:")
-        logging.info(f"  - Cladding diameter: {cladding_diameter_px:.1f} pixels")
-        logging.info(f"  - Core diameter: {core_diameter_px:.1f} pixels")
-        
-        analysis_summary['cladding_diameter_px'] = cladding_diameter_px
-        analysis_summary['core_diameter_px'] = core_diameter_px
-
-    # --- 3. Generate Zone Masks ---
-    zone_start_time = time.perf_counter()
+    # Generate Zone Masks (on original size)
     logging.info("Step 3: Generating Zone Masks...")
     try:
-        zone_definitions_for_type = get_zone_definitions(fiber_type_key)
-    except ValueError as e: # Handle if fiber type not found in config.
-        logging.error(f"Configuration error for fiber type '{fiber_type_key}': {e}. Cannot generate zone masks for {image_path.name}. Skipping.")
+        zone_definitions_list = get_zone_definitions(fiber_type_key)  # Fixed: Only pass fiber_type_key
+    except ValueError as e:
+        logging.error(f"Zone definitions for fiber type '{fiber_type_key}' not found: {e}")
         return {
             "image_filename": image_path.name,
-            "pass_fail_status": "ERROR_CONFIG_ZONES",
+            "pass_fail_status": "ERROR_CONFIG",
             "processing_time_s": round(time.perf_counter() - image_start_time, 2),
             "total_defect_count": 0,
             "core_defect_count": 0,
             "cladding_defect_count": 0,
-            "failure_reason_summary": f"Config error for fiber type '{fiber_type_key}': {e}"
+            "failure_reason_summary": f"Zone definitions not found for {fiber_type_key}: {e}"
         }
 
-    zone_masks = generate_zone_masks( # Generate zone masks.
-        processed_image.shape, localization_data, zone_definitions_for_type,
-        current_image_um_per_px, user_core_dia_um, user_clad_dia_um
+    zone_masks = generate_zone_masks(
+        processed_image.shape, localization_data, zone_definitions_list,
+        um_per_px=current_image_um_per_px,
+        user_core_diameter_um=user_core_dia_um,
+        user_cladding_diameter_um=user_clad_dia_um
     )
-    zone_duration = time.perf_counter() - zone_start_time
-    logging.debug(f"Zone mask generation took {zone_duration:.3f}s")
-    
-    if not zone_masks: # If zone mask generation failed.
+
+    if not zone_masks:
         logging.error(f"Failed to generate zone masks for {image_path.name}. Skipping.")
         return {
             "image_filename": image_path.name,
-            "pass_fail_status": "ERROR_ZONES",
+            "pass_fail_status": "ERROR_ZONE_MASKS",
             "processing_time_s": round(time.perf_counter() - image_start_time, 2),
             "total_defect_count": 0,
             "core_defect_count": 0,
@@ -269,307 +335,123 @@ def process_single_image(
             "failure_reason_summary": "Zone mask generation failed"
         }
 
-    # --- 4. Defect Detection in Each Zone ---
-    logging.info("Step 4: Detecting Defects in Zones...")
-    all_zone_defect_masks: Dict[str, np.ndarray] = {}
-    combined_final_defect_mask = np.zeros_like(processed_image, dtype=np.uint8)
-    combined_confidence_map = np.zeros_like(processed_image, dtype=np.float32)
-    global_algo_params = global_config.get("algorithm_parameters", {})
+    # Detect Defects per Zone
+    logging.info("Step 4: Detecting Defects...")
+    algo_params = global_config.get("algorithm_parameters", {})
+    all_detected_defects = []
+    confidence_maps_all_zones = {}
 
-    for zone_name, zone_mask_np in zone_masks.items():
-        if np.sum(zone_mask_np) == 0:
+    for zone_name, zone_mask in zone_masks.items():
+        if np.sum(zone_mask) == 0:
             logging.debug(f"Zone '{zone_name}' is empty. Skipping defect detection.")
-            all_zone_defect_masks[zone_name] = np.zeros_like(processed_image, dtype=np.uint8)
             continue
         
-        logging.debug(f"Detecting defects in zone: '{zone_name}'...")
-        # CORRECTED CALL to detect_defects: Added zone_name
-        defects_in_zone_mask, zone_confidence_map = detect_defects(
-            processed_image, zone_mask_np, zone_name, profile_config, global_algo_params
+        defects_mask, confidence_map = detect_defects(
+            processed_image, zone_mask, zone_name, profile_config, algo_params
         )
-        all_zone_defect_masks[zone_name] = defects_in_zone_mask
-        combined_final_defect_mask = cv2.bitwise_or(combined_final_defect_mask, defects_in_zone_mask)
-        combined_confidence_map = np.maximum(combined_confidence_map, zone_confidence_map)
-    
-    # --- 5. Characterize, Classify Defects and Apply Pass/Fail ---
-    logging.info("Step 5: Analyzing Defects and Applying Rules...")
-    characterized_defects, overall_status, total_defect_count = characterize_and_classify_defects(
-        combined_final_defect_mask, 
-        zone_masks, 
-        profile_config, 
-        current_image_um_per_px, 
-        image_path.name,
-        confidence_map=combined_confidence_map
-    )
-    
-    # CORRECTED CALL to apply_pass_fail_rules: Changed zone_definitions_for_type to fiber_type_key
-    overall_status, failure_reasons = apply_pass_fail_rules(characterized_defects, fiber_type_key)
+        confidence_maps_all_zones[zone_name] = confidence_map if confidence_map is not None else np.zeros_like(zone_mask, dtype=np.float32)
+        
+        # Label connected components
+        num_labels, labeled_defects, stats, centroids = cv2.connectedComponentsWithStats(defects_mask.astype(np.uint8), connectivity=8)
+        
+        for label_id in range(1, num_labels):
+            defect_mask_single = (labeled_defects == label_id).astype(np.uint8) * 255
+            defect_info = {
+                "zone": zone_name,
+                "defect_mask": defect_mask_single,
+                "area_px": stats[label_id, cv2.CC_STAT_AREA],
+                "bounding_box": {
+                    "x": stats[label_id, cv2.CC_STAT_LEFT],
+                    "y": stats[label_id, cv2.CC_STAT_TOP],
+                    "width": stats[label_id, cv2.CC_STAT_WIDTH],
+                    "height": stats[label_id, cv2.CC_STAT_HEIGHT]
+                },
+                "centroid": (centroids[label_id][0], centroids[label_id][1])
+            }
+            all_detected_defects.append(defect_info)
 
-    analysis_summary = { # Create analysis summary dictionary.
+    logging.info(f"Total defects detected across all zones: {len(all_detected_defects)}")
+
+    # Characterize and Classify Defects
+    logging.info("Step 5: Characterizing and Classifying Defects...")
+    characterized_defects = characterize_and_classify_defects(
+        all_detected_defects, processed_image, 
+        localization_data, current_image_um_per_px, global_config
+    )
+
+    # Apply Pass/Fail Rules
+    logging.info("Step 6: Applying Pass/Fail Rules...")
+    overall_status, failure_reasons = apply_pass_fail_rules(
+        characterized_defects, zone_definitions.get("zones", []), global_config
+    )
+
+    # Generate Reports
+    logging.info("Step 7: Generating Reports...")
+    annotated_image_path = output_dir_image / f"{image_path.stem}_annotated.png"
+    generate_annotated_image(
+        original_bgr, localization_data, zone_masks, 
+        characterized_defects, overall_status, failure_reasons,
+        str(annotated_image_path), global_config
+    )
+
+    csv_report_path = output_dir_image / f"{image_path.stem}_report.csv"
+    generate_defect_csv_report(
+        characterized_defects, str(csv_report_path), 
+        image_filename=image_path.name, scale_um_per_px=current_image_um_per_px
+    )
+
+    polar_histogram_path = output_dir_image / f"{image_path.stem}_histogram.png"
+    generate_polar_defect_histogram(
+        characterized_defects, localization_data.get("cladding_center_xy", (0, 0)),
+        str(polar_histogram_path), global_config
+    )
+
+    processing_time_s = time.perf_counter() - image_start_time
+    logging.info(f"Image processing complete. Status: {overall_status}. Time: {processing_time_s:.2f}s")
+
+    # Prepare summary
+    total_defect_count = len(characterized_defects)
+    summary_for_batch = {
         "image_filename": image_path.name,
-        "characterized_defects": characterized_defects,
-        "overall_status": overall_status, 
-        "total_defect_count": total_defect_count, 
-        "failure_reasons": failure_reasons, 
-        "um_per_px_used": current_image_um_per_px
-    }
-
-    # --- 6. Generate Reports ---
-    logging.info("Step 6: Generating Reports...")
-    annotated_img_path = output_dir_image / f"{image_path.stem}_annotated.png" # Define path for annotated image.
-    generate_annotated_image( # Generate annotated image.
-        original_bgr, analysis_summary, localization_data, zone_masks, fiber_type_key, annotated_img_path
-    )
-    csv_report_path = output_dir_image / f"{image_path.stem}_report.csv" # Define path for CSV report.
-    generate_defect_csv_report(analysis_summary, csv_report_path) # Generate CSV report.
-    
-    histogram_path = output_dir_image / f"{image_path.stem}_histogram.png" # Define path for histogram.
-    generate_polar_defect_histogram( # Generate polar histogram.
-        analysis_summary, localization_data, zone_masks, fiber_type_key, histogram_path
-    )
-    
-    processing_time_s = time.perf_counter() - image_start_time # Calculate processing time.
-    logging.info(f"--- Finished processing {image_path.name}. Duration: {processing_time_s:.2f}s ---")
-
-    # --- 7. Advanced Visualization (Optional) ---
-    if VISUALIZATION_AVAILABLE and global_config.get("general_settings", {}).get("enable_visualization", False):
-        try:
-            visualizer = InteractiveVisualizer()
-            visualizer.show_inspection_results(
-                original_bgr,
-                all_zone_defect_masks,
-                zone_masks,
-                analysis_summary,
-                interactive=False  # Non-blocking for batch processing
-            )
-        except Exception as e:
-            logging.warning(f"Visualization failed for {image_path.name}: {e}")
-            
-    summary_for_batch = { # Create summary dictionary for batch.
-        "image_filename": image_path.name,
-        "pass_fail_status": overall_status, 
+        "pass_fail_status": overall_status,
         "processing_time_s": round(processing_time_s, 2),
-        "total_defect_count": total_defect_count, 
+        "total_defect_count": total_defect_count,
         "core_defect_count": sum(1 for d in characterized_defects if d["zone"] == "Core"),
         "cladding_defect_count": sum(1 for d in characterized_defects if d["zone"] == "Cladding"),
-        "failure_reason_summary": "; ".join(failure_reasons) if failure_reasons else "N/A" 
+        "failure_reason_summary": "; ".join(failure_reasons) if failure_reasons else "N/A"
     }
-    return summary_for_batch # Return summary.
+    return summary_for_batch
 
-def execute_inspection_run(args_namespace: Any) -> None:
-    """
-    Core inspection logic that takes an args-like namespace object.
-    This function contains the main processing flow.
-    """
-    # --- FIX: Declare intent to use global variables ---
-    global PADIM_SPECIFIC_AVAILABLE, SEGDECNET_AVAILABLE
-
-    # --- Output Directory Setup ---
-    base_output_dir = Path(args_namespace.output_dir) # Convert output dir string to Path object.
-    run_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S') # Generate timestamp.
-    current_run_output_dir = base_output_dir / f"run_{run_timestamp}" # Define path for current run output.
-    current_run_output_dir.mkdir(parents=True, exist_ok=True) # Create directory.
-
-    # --- Configuration and Logging Setup ---
+def process_image_wrapper(args):
+    """Wrapper for multiprocessing with performance optimization"""
+    image_path, output_dir, profile_config, global_config, um_per_px, core_dia, clad_dia, fiber_type = args
     try:
-        config_file_path = str(args_namespace.config_file)
-        global_config = load_config(config_file_path) # Load global configuration.
-    except (FileNotFoundError, ValueError) as e: # Handle config loading errors.
-        print(f"[CRITICAL] Failed to load configuration: {e}. Exiting.", file=sys.stderr)
-        try:
-            fallback_log_dir = Path(".") / "error_logs"
-            fallback_log_dir.mkdir(parents=True, exist_ok=True)
-            setup_logging("ERROR", True, fallback_log_dir)
-            logging.critical(f"Failed to load configuration: {e}. Exiting.")
-        except Exception as log_e:
-            print(f"[CRITICAL] Logging setup failed during config error: {log_e}", file=sys.stderr)
-        sys.exit(1) # Exit if config loading fails.
-        
+        return process_single_image_optimized(
+            image_path, output_dir, profile_config, global_config,
+            um_per_px, core_dia, clad_dia, fiber_type
+        )
     except Exception as e:
-        logging.error(f"Critical error in inspection run: {e}", exc_info=True)
-        raise     
-        
+        logging.error(f"Error processing {image_path.name}: {e}")
+        return {
+            "image_filename": image_path.name,
+            "pass_fail_status": "ERROR_PROCESSING",
+            "processing_time_s": 0,
+            "total_defect_count": 0,
+            "core_defect_count": 0,
+            "cladding_defect_count": 0,
+            "failure_reason_summary": str(e)
+        }
 
-    general_settings = global_config.get("general_settings", {}) # Get general settings from config.
-    setup_logging( # Setup logging.
-        general_settings.get("log_level", "INFO"),
-        general_settings.get("log_to_console", True),
-        current_run_output_dir 
-    )
-
-    logging.info("Inspection System Started.")
-    logging.info(f"Input Directory: {args_namespace.input_dir}")
-    logging.info(f"Output Directory (this run): {current_run_output_dir}")
-    logging.info(f"Using Profile: {args_namespace.profile}")
-    logging.info(f"Fiber Type Key for Rules: {args_namespace.fiber_type}")
+def process_with_progress(images_to_process, current_run_output_dir, active_profile_config, 
+                         global_config, loaded_um_per_px, args_namespace):
+    """Process images with progress monitoring"""
+    all_image_summaries = []
     
-    # Add fiber type validation and correction
-    fiber_type_corrections = {
-        "single_mode": "single_mode_pc",
-        "multi_mode": "multi_mode_pc",
-        "sm": "single_mode_pc",
-        "mm": "multi_mode_pc",
-        "singlemode": "single_mode_pc",
-        "multimode": "multi_mode_pc"
-    }
-    
-    if args_namespace.fiber_type in fiber_type_corrections:
-        corrected_type = fiber_type_corrections[args_namespace.fiber_type]
-        logging.warning(f"Correcting fiber type '{args_namespace.fiber_type}' to '{corrected_type}'")
-        args_namespace.fiber_type = corrected_type
-
-
-    if args_namespace.core_dia_um: logging.info(f"User Provided Core Diameter: {args_namespace.core_dia_um} µm")
-    if args_namespace.clad_dia_um: logging.info(f"User Provided Cladding Diameter: {args_namespace.clad_dia_um} µm")
-
-    try:
-        active_profile_config = get_processing_profile(args_namespace.profile) # Get active processing profile.
-    except ValueError as e: # Handle if profile not found.
-        logging.critical(f"Failed to get processing profile '{args_namespace.profile}': {e}. Exiting.")
-        sys.exit(1) # Exit.
-
-    # --- Load Calibration Data ---
-    calibration_file_path = str(args_namespace.calibration_file)
-    calibration_data = load_calibration_data(calibration_file_path) # Load calibration data.
-    loaded_um_per_px: Optional[float] = None # Initialize loaded um/px.
-    if calibration_data: # If calibration data loaded.
-        loaded_um_per_px = calibration_data.get("um_per_px") # Get um/px value.
-        if loaded_um_per_px: # If um/px value exists.
-            logging.info(f"Loaded µm/pixel scale from '{calibration_file_path}': {loaded_um_per_px:.4f} µm/px.")
-        else: # If um/px key missing.
-            logging.warning(f"Calibration file '{calibration_file_path}' loaded, but 'um_per_px' key is missing or invalid.")
-    else: # If calibration data not loaded.
-        logging.warning(f"No calibration data loaded from '{calibration_file_path}'. Measurements may be in pixels if user dimensions not provided.")
-
-    # --- Image Discovery ---
-    input_path = Path(args_namespace.input_dir) # Convert input dir string to Path object.
-    if not input_path.is_dir(): # Check if input path is a directory.
-        logging.critical(f"Input path '{input_path}' is not a valid directory. Exiting.")
-        sys.exit(1) # Exit.
-
-    image_extensions = [".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"]
-    image_paths_to_process: List[Path] = [] # Initialize list for image paths.
-    for ext in image_extensions: # Iterate through extensions.
-        image_paths_to_process.extend(list(input_path.glob(f"*{ext}"))) # Add images with current extension.
-        image_paths_to_process.extend(list(input_path.glob(f"*{ext.upper()}"))) # Add with uppercase extension.
-    
-    image_paths_to_process = sorted(list(set(image_paths_to_process)))
-
-    if not image_paths_to_process: # If no images found.
-        logging.info(f"No images found in directory: {input_path}")
-        sys.exit(0) # Exit gracefully.
-
-    logging.info(f"Found {len(image_paths_to_process)} images to process in '{input_path}'.")
-
-
-
-    # Initialize advanced models if enabled
-    advanced_models_initialized = False
-
-    if global_config.get("algorithm_parameters", {}).get("enable_advanced_models", True):
-        logging.info("Initializing advanced detection models...")
-        
-        # Get algorithm parameters from config
-        global_algo_params = global_config.get("algorithm_parameters", {})
-        
-        # Initialize Anomalib
-        if ANOMALIB_FULL_AVAILABLE:
-            try:
-                anomalib_config_path = global_config["algorithm_parameters"].get("anomalib_config_path")
-                anomalib_detector = AnomalibDefectDetector(anomalib_config_path)
-                
-                # Load pre-trained models
-                model_paths = {
-                    "padim": Path("models/anomalib/padim/openvino"),
-                    "patchcore": Path("models/anomalib/patchcore/openvino")
-                }
-                
-                existing_models = {k: v for k, v in model_paths.items() if v.exists()}
-                if existing_models:
-                    anomalib_detector.create_ensemble_detector(existing_models)
-                    global_config["algorithm_parameters"]["anomalib_detector_instance"] = anomalib_detector
-                    logging.info(f"Anomalib ensemble initialized with models: {list(existing_models.keys())}")
-            except Exception as e:
-                logging.warning(f"Failed to initialize Anomalib: {e}")
-        
-        # Initialize PaDiM Specific
-        if PADIM_SPECIFIC_AVAILABLE:
-            try:
-                padim_model = FiberPaDiM()
-                padim_model_path = global_algo_params.get("padim_model_path")
-                if padim_model_path and Path(padim_model_path).exists():
-                    # Load saved model state
-                    import torch
-                    checkpoint = torch.load(padim_model_path, map_location=padim_model.device)
-                    padim_model.patch_means = checkpoint.get('patch_means')
-                    padim_model.C = checkpoint.get('C')
-                    padim_model.C_inv = checkpoint.get('C_inv')
-                    padim_model.R = checkpoint.get('R')
-                    padim_model.N = checkpoint.get('N')
-                    padim_model.fitted = True  # Mark as fitted
-                    global_config["algorithm_parameters"]["padim_specific_instance"] = padim_model
-                    logging.info("PaDiM specific model loaded successfully")
-                else:
-                    logging.warning("PaDiM model path not found, using untrained model")
-            except Exception as e:
-                logging.warning(f"Failed to initialize PaDiM specific: {e}")
-                PADIM_SPECIFIC_AVAILABLE = False
-        
-        # Initialize SegDecNet
-        if SEGDECNET_AVAILABLE:
-            try:
-                segdecnet_model_path = global_config["algorithm_parameters"].get("segdecnet_model_path")
-                # Instantiate the model (presumably on CPU by default)
-                model = FiberSegDecNet(
-                    model_path=segdecnet_model_path if Path(segdecnet_model_path).exists() else None
-                )
-                
-                # Apply the check and move to CUDA if available
-                if hasattr(model, 'to') and torch.cuda.is_available():
-                    model = model.to('cuda')
-                
-                global_config["algorithm_parameters"]["segdecnet_instance"] = model
-                logging.info("SegDecNet initialized")
-            except Exception as e:
-                logging.warning(f"Failed to initialize SegDecNet: {e}")
-                SEGDECNET_AVAILABLE = False # Corrected this line
-        
-        advanced_models_initialized = True
-        logging.info("Advanced model initialization complete")
-
-    # --- Batch Processing ---
-    batch_start_time = time.perf_counter() # Start timer for batch processing.
-    all_image_summaries: List[Dict[str, Any]] = [] # Initialize list for summaries of all images.
-
-    # Parallel processing setup
-    from multiprocessing import Pool, cpu_count
-    from functools import partial
-
-    def process_image_wrapper(args):
-        """Wrapper for multiprocessing"""
-        image_path, output_dir, profile_config, global_config, um_per_px, core_dia, clad_dia, fiber_type = args
-        try:
-            return process_single_image(
-                image_path, output_dir, profile_config, global_config,
-                um_per_px, core_dia, clad_dia, fiber_type
-            )
-        except Exception as e:
-            logging.error(f"Error processing {image_path.name}: {e}")
-            return {
-                "image_filename": image_path.name,
-                "pass_fail_status": "ERROR_PROCESSING",
-                "processing_time_s": 0,
-                "total_defect_count": 0,
-                "core_defect_count": 0,
-                "cladding_defect_count": 0,
-                "failure_reason_summary": str(e)
-            }
-
     # Determine number of processes
-    num_processes = min(cpu_count() - 1, len(image_paths_to_process))
-    num_processes = max(1, num_processes)  # At least 1 process
+    num_processes = min(cpu_count() - 1, len(images_to_process))
+    num_processes = max(1, num_processes)
 
-    if num_processes > 1 and len(image_paths_to_process) > 1:
+    if num_processes > 1 and len(images_to_process) > 1:
         logging.info(f"Using parallel processing with {num_processes} processes")
         
         # Prepare arguments for each image
@@ -584,32 +466,158 @@ def execute_inspection_run(args_namespace: Any) -> None:
                 args_namespace.clad_dia_um,
                 args_namespace.fiber_type
             )
-            for image_path in image_paths_to_process
+            for image_path in images_to_process
         ]
         
-        # Process in parallel
+        # Process in parallel with progress bar
         with Pool(processes=num_processes) as pool:
-            all_image_summaries = pool.map(process_image_wrapper, process_args)
+            with tqdm(total=len(images_to_process), desc="Processing images") as pbar:
+                for i, result in enumerate(pool.imap(process_image_wrapper, process_args)):
+                    all_image_summaries.append(result)
+                    pbar.set_postfix({
+                        'file': result['image_filename'],
+                        'status': result['pass_fail_status'],
+                        'time': f'{result["processing_time_s"]:.1f}s'
+                    })
+                    pbar.update(1)
     else:
-        # Fall back to sequential processing for single image or if parallel not beneficial
+        # Sequential processing with progress bar
         logging.info("Using sequential processing")
-        all_image_summaries = []
-        for i, image_file_path in enumerate(image_paths_to_process):
-            logging.info(f"--- Starting image {i+1}/{len(image_paths_to_process)}: {image_file_path.name} ---")
-            image_specific_output_subdir = current_run_output_dir / image_file_path.stem
-            summary = process_image_wrapper((
-                image_file_path,
-                image_specific_output_subdir,
-                active_profile_config,
-                global_config,
-                loaded_um_per_px,
-                args_namespace.core_dia_um,
-                args_namespace.clad_dia_um,
-                args_namespace.fiber_type
-            ))
-            all_image_summaries.append(summary)
+        
+        with tqdm(total=len(images_to_process), desc="Processing images") as pbar:
+            for i, image_file_path in enumerate(images_to_process):
+                start_time = time.time()
+                logging.info(f"--- Starting image {i+1}/{len(images_to_process)}: {image_file_path.name} ---")
+                
+                image_specific_output_subdir = current_run_output_dir / image_file_path.stem
+                summary = process_image_wrapper((
+                    image_file_path,
+                    image_specific_output_subdir,
+                    active_profile_config,
+                    global_config,
+                    loaded_um_per_px,
+                    args_namespace.core_dia_um,
+                    args_namespace.clad_dia_um,
+                    args_namespace.fiber_type
+                ))
+                all_image_summaries.append(summary)
+                
+                elapsed = time.time() - start_time
+                pbar.set_postfix({
+                    'file': image_file_path.name,
+                    'status': summary['pass_fail_status'],
+                    'time': f'{elapsed:.1f}s'
+                })
+                pbar.update(1)
+    
+    return all_image_summaries
 
-    # --- Final Summary Report ---
+def execute_inspection_run(args_namespace: Any) -> None:
+    """
+    Core inspection logic that takes an args-like namespace object.
+    This function contains the main processing flow.
+    """
+    # Declare intent to use global variables
+    global PADIM_SPECIFIC_AVAILABLE, SEGDECNET_AVAILABLE
+
+    # Output Directory Setup
+    base_output_dir = Path(args_namespace.output_dir)
+    run_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    current_run_output_dir = base_output_dir / f"run_{run_timestamp}"
+    current_run_output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Configuration and Logging Setup
+    try:
+        config_file_path = str(args_namespace.config_file)
+        global_config = load_config(config_file_path)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"[CRITICAL] Failed to load configuration: {e}. Exiting.", file=sys.stderr)
+        try:
+            fallback_log_dir = Path(".") / "error_logs"
+            fallback_log_dir.mkdir(parents=True, exist_ok=True)
+            setup_logging("ERROR", True, fallback_log_dir)
+            logging.critical(f"Failed to load configuration: {e}. Exiting.")
+        except Exception as log_e:
+            print(f"[CRITICAL] Logging setup failed during config error: {log_e}", file=sys.stderr)
+        sys.exit(1)
+        
+    except Exception as e:
+        logging.error(f"Critical error in inspection run: {e}", exc_info=True)
+        raise
+
+    general_settings = global_config.get("general_settings", {})
+    setup_logging(
+        general_settings.get("log_level", "INFO"),
+        general_settings.get("log_to_console", True),
+        current_run_output_dir
+    )
+
+    logging.info("Inspection System Started.")
+    logging.info(f"Configuration loaded from: {config_file_path}")
+    logging.info(f"Results will be saved to: {current_run_output_dir}")
+
+    # Processing Profile
+    profile_name = args_namespace.profile
+    active_profile_config = get_processing_profile(profile_name)  # Fixed: Only pass profile_name
+    if active_profile_config is None:
+        logging.critical(f"Processing profile '{profile_name}' not found in configuration. Exiting.")
+        sys.exit(1)
+    logging.info(f"Using processing profile: '{profile_name}'")
+
+    # Calibration Data
+    calibration_file_path = str(args_namespace.calibration_file)
+    loaded_um_per_px = load_calibration_data(calibration_file_path, global_config)
+    if loaded_um_per_px:
+        logging.info(f"Calibration loaded: {loaded_um_per_px:.4f} µm/px")
+    else:
+        logging.info("No calibration data; using default or user-provided scale factors.")
+
+    # Validate fiber type
+    fiber_type_key = args_namespace.fiber_type
+    try:
+        zone_defs = get_zone_definitions(fiber_type_key)  # Fixed: Only pass fiber_type_key
+        logging.info(f"Using fiber type rules: '{fiber_type_key}'")
+    except ValueError as e:
+        logging.critical(f"Fiber type '{fiber_type_key}' not found in zone definitions: {e}")
+        sys.exit(1)
+
+    # Model availability check
+    if active_profile_config.get("defect_detection", {}).get("use_padim", False) and not PADIM_SPECIFIC_AVAILABLE:
+        logging.warning("PaDiM model requested but not available. Will proceed without it.")
+        active_profile_config["defect_detection"]["use_padim"] = False
+
+    if active_profile_config.get("defect_detection", {}).get("use_segdecnet", False) and not SEGDECNET_AVAILABLE:
+        logging.warning("SegDecNet model requested but not available. Will proceed without it.")
+        active_profile_config["defect_detection"]["use_segdecnet"] = False
+
+    # Input Directory and Image Discovery
+    input_dir = Path(args_namespace.input_dir)
+    if not input_dir.exists() or not input_dir.is_dir():
+        logging.critical(f"Input directory does not exist or is not a directory: {input_dir}. Exiting.")
+        sys.exit(1)
+
+    supported_image_extensions = general_settings.get("supported_image_extensions", [".png", ".jpg", ".jpeg", ".bmp", ".tiff"])
+    image_paths_to_process = [
+        img_path for img_path in input_dir.iterdir()
+        if img_path.is_file() and img_path.suffix.lower() in supported_image_extensions
+    ]
+
+    if not image_paths_to_process:
+        logging.warning(f"No images found in the input directory: {input_dir}. Exiting.")
+        sys.exit(0)
+
+    logging.info(f"Found {len(image_paths_to_process)} image(s) to process.")
+
+    # Batch Processing with Progress Monitoring
+    batch_start_time = time.perf_counter()
+    logging.info("--- Starting Batch Processing ---")
+
+    all_image_summaries = process_with_progress(
+        image_paths_to_process, current_run_output_dir, active_profile_config,
+        global_config, loaded_um_per_px, args_namespace
+    )
+
+    # Final Summary Report
     if all_image_summaries:
         summary_df = pd.DataFrame(all_image_summaries)
         summary_report_path = current_run_output_dir / "batch_summary_report.csv"
@@ -627,7 +635,6 @@ def execute_inspection_run(args_namespace: Any) -> None:
     logging.info(f"Total batch duration: {batch_duration:.2f} seconds.")
     logging.info(f"All reports for this run saved in: {current_run_output_dir}")
 
-# CORRECTED Function Definition: Changed args_namespace type hint to Any
 def main_with_args(args_namespace: Any) -> None:
     """
     Entry point that uses a pre-filled args_namespace object.
@@ -639,19 +646,19 @@ def main():
     """
     Main function to drive the inspection system from Command Line.
     """
-    # --- Argument Parsing ---
-    parser = argparse.ArgumentParser(description="Automated Fiber Optic End Face Inspection System.") # Create argument parser.
-    parser.add_argument("input_dir", type=str, help="Path to the directory containing images to inspect.") # Input directory argument.
-    parser.add_argument("output_dir", type=str, help="Path to the directory where results will be saved.") # Output directory argument.
-    parser.add_argument("--config_file", type=str, default="config.json", help="Path to the JSON configuration file (default: config.json).") # Config file argument.
-    parser.add_argument("--calibration_file", type=str, default="calibration.json", help="Path to the JSON calibration file (default: calibration.json).") # Calibration file argument.
-    parser.add_argument("--profile", type=str, default="deep_inspection", choices=["fast_scan", "deep_inspection"], help="Processing profile to use (default: deep_inspection).") # Processing profile argument.
-    parser.add_argument("--fiber_type", type=str, default="single_mode_pc", help="Key for fiber type specific rules, e.g., 'single_mode_pc', 'multi_mode_pc' (must match config.json).") # Fiber type argument.
-    parser.add_argument("--core_dia_um", type=float, default=None, help="Optional: Known core diameter in microns for this batch.") # Core diameter argument.
-    parser.add_argument("--clad_dia_um", type=float, default=None, help="Optional: Known cladding diameter in microns for this batch.") # Cladding diameter argument.
+    # Argument Parsing
+    parser = argparse.ArgumentParser(description="Automated Fiber Optic End Face Inspection System.")
+    parser.add_argument("input_dir", type=str, help="Path to the directory containing images to inspect.")
+    parser.add_argument("output_dir", type=str, help="Path to the directory where results will be saved.")
+    parser.add_argument("--config_file", type=str, default="config.json", help="Path to the JSON configuration file (default: config.json).")
+    parser.add_argument("--calibration_file", type=str, default="calibration.json", help="Path to the JSON calibration file (default: calibration.json).")
+    parser.add_argument("--profile", type=str, default="deep_inspection", choices=["fast_scan", "deep_inspection"], help="Processing profile to use (default: deep_inspection).")
+    parser.add_argument("--fiber_type", type=str, default="single_mode_pc", help="Key for fiber type specific rules, e.g., 'single_mode_pc', 'multi_mode_pc' (must match config.json).")
+    parser.add_argument("--core_dia_um", type=float, default=None, help="Optional: Known core diameter in microns for this batch.")
+    parser.add_argument("--clad_dia_um", type=float, default=None, help="Optional: Known cladding diameter in microns for this batch.")
     
-    args = parser.parse_args() # Parse command-line arguments.
-    execute_inspection_run(args) # Call the core logic
+    args = parser.parse_args()
+    execute_inspection_run(args)
 
 if __name__ == "__main__":
     main()
