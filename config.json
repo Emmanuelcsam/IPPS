@@ -155,7 +155,12 @@
       "bilateral_filter_enabled": true,
       "guided_filter_enabled": true,
       "consensus_threshold_core": 0.6,
-      "consensus_threshold_cladding": 0.4
+      "consensus_threshold_cladding": 0.4,
+      "matrix_variance_threshold": 15.0,
+      "matrix_local_window_size": 3,
+      "boundary_exclusion_width": 3,
+      "adaptive_sensitivity_core": 0.8,
+      "multi_threshold_levels": true,
   },
   "zone_definitions_iec61300_3_35": {
     "single_mode_pc": [

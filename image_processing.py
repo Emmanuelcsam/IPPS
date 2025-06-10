@@ -492,31 +492,38 @@ def do2mr_detection(image: np.ndarray, zone_mask: np.ndarray,
     # Try C++ accelerator first if available
     if CPP_ACCELERATOR_AVAILABLE:
         try:
-            # Try C++ version first
             kernel_size = global_algo_params.get("do2mr_kernel_size", 5)
             gamma = global_algo_params.get(f"do2mr_gamma_{zone_name.lower()}", 
                                           global_algo_params.get("do2mr_gamma_default", 1.5))
+            # Apply adaptive sensitivity for core zone
+            if zone_name == "Core":
+                gamma = gamma * global_algo_params.get("adaptive_sensitivity_core", 0.8)
+            
             result = accelerator.do2mr_detection(image, kernel_size, gamma)
             confidence = result.astype(np.float32) / 255.0
             return result, confidence
-        except:
-            pass
+        except Exception as e:
+            logging.debug(f"C++ accelerator failed, falling back to Python: {e}")
     
     # Enhanced Python implementation with multi-scale
     # Multi-scale kernel sizes for different defect sizes
     kernel_sizes = [3, 5, 7, 9] if zone_name == "Core" else [5, 7, 11]
     combined_result = np.zeros_like(image, dtype=np.float32)
     
+    # Apply zone mask once
+    masked_image = cv2.bitwise_and(image, image, mask=zone_mask)
+    
+    # Pre-filter to reduce noise
+    denoised = cv2.bilateralFilter(masked_image, 5, 50, 50)
+    
     for kernel_size in kernel_sizes:
-        # Adaptive gamma based on local statistics
+        # Get base gamma for this zone
         gamma_base = global_algo_params.get(f"do2mr_gamma_{zone_name.lower()}", 
                                            global_algo_params.get("do2mr_gamma_default", 1.5))
         
-        # Apply zone mask
-        masked_image = cv2.bitwise_and(image, image, mask=zone_mask)
-        
-        # Pre-filter to reduce noise
-        denoised = cv2.bilateralFilter(masked_image, 5, 50, 50)
+        # Apply adaptive sensitivity for core zone
+        if zone_name == "Core":
+            gamma_base = gamma_base * global_algo_params.get("adaptive_sensitivity_core", 0.8)
         
         # Create kernel
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
@@ -529,63 +536,92 @@ def do2mr_detection(image: np.ndarray, zone_mask: np.ndarray,
         residual = cv2.subtract(max_filtered, min_filtered)
         
         # Apply guided filter for edge-preserving smoothing if available
-        if hasattr(cv2, 'ximgproc'):
-            residual_filtered = cv2.ximgproc.guidedFilter(
-                guide=denoised, 
-                src=residual, 
-                radius=3, 
-                eps=10
-            )
-        else:
+        try:
+            if hasattr(cv2, 'ximgproc') and hasattr(cv2.ximgproc, 'guidedFilter'):
+                residual_filtered = cv2.ximgproc.guidedFilter(
+                    guide=denoised, 
+                    src=residual, 
+                    radius=3, 
+                    eps=10
+                )
+            else:
+                residual_filtered = cv2.medianBlur(residual, 3)
+        except:
             residual_filtered = cv2.medianBlur(residual, 3)
         
-        # Adaptive thresholding based on local statistics
+        # Get pixels within zone for statistics
         zone_pixels = residual_filtered[zone_mask > 0]
         if len(zone_pixels) < 100:
             continue
-            
+        
         # Use robust statistics (median and MAD instead of mean and std)
         median_val = np.median(zone_pixels)
         mad = np.median(np.abs(zone_pixels - median_val))
         std_robust = 1.4826 * mad  # Conversion factor for normal distribution
         
-        # Local adaptive gamma
-        local_contrast = np.std(denoised[zone_mask > 0]) / (np.mean(denoised[zone_mask > 0]) + 1e-6)
-        adaptive_gamma = gamma_base * (1 + 0.5 * local_contrast)
+        # Calculate local contrast for adaptive gamma
+        denoised_zone_pixels = denoised[zone_mask > 0]
+        if len(denoised_zone_pixels) > 0:
+            local_mean = np.mean(denoised_zone_pixels)
+            local_std = np.std(denoised_zone_pixels)
+            local_contrast = local_std / (local_mean + 1e-6)
+            adaptive_gamma = gamma_base * (1 + 0.5 * np.clip(local_contrast, 0, 1))
+        else:
+            adaptive_gamma = gamma_base
         
-        # Threshold with hysteresis for better connectivity
-        threshold_high = median_val + adaptive_gamma * std_robust
-        threshold_low = median_val + (adaptive_gamma * 0.7) * std_robust
+        # Multi-level thresholding with hysteresis for better connectivity
+        if global_algo_params.get("multi_threshold_levels", True):
+            # High threshold for definite defects
+            threshold_high = median_val + adaptive_gamma * std_robust
+            # Low threshold for possible defects
+            threshold_low = median_val + (adaptive_gamma * 0.6) * std_robust
+            
+            # Apply thresholds
+            _, high_mask = cv2.threshold(residual_filtered, threshold_high, 255, cv2.THRESH_BINARY)
+            _, low_mask = cv2.threshold(residual_filtered, threshold_low, 255, cv2.THRESH_BINARY)
+            
+            # Apply zone mask to threshold results
+            high_mask = cv2.bitwise_and(high_mask, zone_mask)
+            low_mask = cv2.bitwise_and(low_mask, zone_mask)
+            
+            # Morphological reconstruction to connect regions
+            kernel_recon = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+            
+            # Use high confidence regions as markers
+            marker = cv2.erode(high_mask, kernel_recon)
+            
+            # Reconstruct from markers within low threshold regions
+            reconstructed = cv2.dilate(marker, kernel_recon, iterations=2)
+            reconstructed = cv2.bitwise_and(reconstructed, low_mask)
+            
+            # Include all high confidence regions
+            result_for_scale = cv2.bitwise_or(reconstructed, high_mask)
+        else:
+            # Single threshold (fallback)
+            threshold = median_val + adaptive_gamma * std_robust
+            _, result_for_scale = cv2.threshold(residual_filtered, threshold, 255, cv2.THRESH_BINARY)
+            result_for_scale = cv2.bitwise_and(result_for_scale, zone_mask)
         
-        # Apply dual threshold
-        _, high_mask = cv2.threshold(residual_filtered, threshold_high, 255, cv2.THRESH_BINARY)
-        _, low_mask = cv2.threshold(residual_filtered, threshold_low, 255, cv2.THRESH_BINARY)
-        
-        # Connect regions using morphological reconstruction
-        high_mask = cv2.bitwise_and(high_mask, zone_mask)
-        low_mask = cv2.bitwise_and(low_mask, zone_mask)
-        
-        # Morphological reconstruction
-        kernel_recon = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
-        reconstructed = cv2.morphologyEx(high_mask, cv2.MORPH_DILATE, kernel_recon, iterations=2)
-        reconstructed = cv2.bitwise_and(reconstructed, low_mask)
-        
-        # Weight by kernel size (larger kernels for larger defects)
-        weight = 1.0 / (1 + np.log(kernel_size))
-        combined_result += reconstructed.astype(np.float32) * weight
+        # Weight by kernel size (smaller kernels get higher weight for small defects)
+        weight = 1.0 / (1 + 0.5 * np.log(kernel_size))
+        combined_result += result_for_scale.astype(np.float32) * weight
     
     # Normalize combined result
-    combined_result = combined_result / len(kernel_sizes)
+    if len(kernel_sizes) > 0:
+        combined_result = combined_result / sum(1.0 / (1 + 0.5 * np.log(k)) for k in kernel_sizes)
     
     # Final thresholding
     _, defect_mask = cv2.threshold(combined_result, 127, 255, cv2.THRESH_BINARY)
     defect_mask = defect_mask.astype(np.uint8)
     
-    # Apply zone mask to result
+    # Apply zone mask to final result
     defect_mask = cv2.bitwise_and(defect_mask, zone_mask)
     
-    # Morphological cleanup with size-aware operations
-    min_defect_size = 3 if zone_name == "Core" else 5
+    # Morphological cleanup with zone-specific parameters
+    min_defect_size = global_algo_params.get(f"min_defect_area_{zone_name.lower()}_px", 
+                                            3 if zone_name == "Core" else 5)
+    
+    # Opening to remove noise
     kernel_clean = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     defect_mask = cv2.morphologyEx(defect_mask, cv2.MORPH_OPEN, kernel_clean)
     
@@ -595,12 +631,16 @@ def do2mr_detection(image: np.ndarray, zone_mask: np.ndarray,
         if stats[i, cv2.CC_STAT_AREA] < min_defect_size:
             defect_mask[labels == i] = 0
     
-    # Create confidence map
+    # Create confidence map normalized to [0, 1]
     confidence_map = combined_result / 255.0
-    confidence_map = cv2.bitwise_and(confidence_map, confidence_map, 
-                                    mask=(zone_mask.astype(np.float32) / 255.0).astype(np.uint8))
+    confidence_map = np.clip(confidence_map, 0, 1)
+    
+    # Mask confidence map to zone
+    zone_mask_float = zone_mask.astype(np.float32) / 255.0
+    confidence_map = confidence_map * zone_mask_float
     
     return defect_mask, confidence_map
+
 
 def lei_scratch_detection(image: np.ndarray, zone_mask: np.ndarray,
                          global_algo_params: Dict[str, Any]) -> np.ndarray:
@@ -738,6 +778,11 @@ def validate_defects(defect_mask: np.ndarray, original_image: np.ndarray,
     """
     validated_mask = np.zeros_like(defect_mask)
     
+    # Create zone boundary exclusion mask
+    boundary_exclusion_mask = create_boundary_exclusion_mask(zone_mask, localization_data)
+    
+    # Remove defects on zone boundaries
+    defect_mask_cleaned = cv2.bitwise_and(defect_mask, cv2.bitwise_not(boundary_exclusion_mask))
     # Zone-specific validation parameters
     zone_params = {
         "Core": {"min_contrast": 15, "min_area": 3, "texture_threshold": 0.8},
@@ -748,7 +793,7 @@ def validate_defects(defect_mask: np.ndarray, original_image: np.ndarray,
     params = zone_params.get(zone_name, zone_params["default"])
     
     # Find connected components
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(defect_mask, connectivity=8)
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(defect_mask_cleaned, connectivity=8)
     
     for i in range(1, num_labels):
         # Get component mask
@@ -819,13 +864,116 @@ def validate_defects(defect_mask: np.ndarray, original_image: np.ndarray,
             
     return validated_mask
 
+def create_boundary_exclusion_mask(zone_mask: np.ndarray, 
+                                  localization_data: Optional[Dict[str, Any]] = None,
+                                  boundary_width: int = 3) -> np.ndarray:
+    """
+    Creates a mask to exclude zone boundaries from defect detection.
+    """
+    if localization_data is None:
+        return np.zeros_like(zone_mask)
+    
+    h, w = zone_mask.shape
+    exclusion_mask = np.zeros((h, w), dtype=np.uint8)
+    
+    # Get core and cladding parameters
+    cladding_center = localization_data.get('cladding_center_xy')
+    core_radius = localization_data.get('core_radius_px', 0)
+    cladding_radius = localization_data.get('cladding_radius_px', 0)
+    
+    if cladding_center and core_radius > 0:
+        cx, cy = cladding_center
+        
+        # Create exclusion rings around zone boundaries
+        # Core-Cladding boundary
+        cv2.circle(exclusion_mask, (int(cx), int(cy)), 
+                  int(core_radius + boundary_width), 255, -1)
+        cv2.circle(exclusion_mask, (int(cx), int(cy)), 
+                  int(max(0, core_radius - boundary_width)), 0, -1)
+        
+        # Cladding outer boundary
+        cv2.circle(exclusion_mask, (int(cx), int(cy)), 
+                  int(cladding_radius + boundary_width), 255, -1)
+        cv2.circle(exclusion_mask, (int(cx), int(cy)), 
+                  int(max(0, cladding_radius - boundary_width)), 0, -1)
+    
+    return exclusion_mask
+
+def matrix_variance_detection(image: np.ndarray, zone_mask: np.ndarray,
+                            variance_threshold: float = 15.0,
+                            local_window_size: int = 3) -> np.ndarray:
+    """
+    Divides image into 9 segments and detects anomalies based on local pixel variance.
+    """
+    h, w = image.shape[:2]
+    result_mask = np.zeros((h, w), dtype=np.uint8)
+    
+    # Define 9 segments (3x3 grid)
+    segment_h = h // 3
+    segment_w = w // 3
+    
+    for row in range(3):
+        for col in range(3):
+            # Calculate segment boundaries
+            y_start = row * segment_h
+            y_end = (row + 1) * segment_h if row < 2 else h
+            x_start = col * segment_w
+            x_end = (col + 1) * segment_w if col < 2 else w
+            
+            # Extract segment
+            segment = image[y_start:y_end, x_start:x_end]
+            segment_zone_mask = zone_mask[y_start:y_end, x_start:x_end]
+            
+            # Only process pixels within the zone
+            if np.sum(segment_zone_mask) == 0:
+                continue
+            
+            # Analyze each pixel in the segment
+            seg_h, seg_w = segment.shape
+            half_window = local_window_size // 2
+            
+            for y in range(half_window, seg_h - half_window):
+                for x in range(half_window, seg_w - half_window):
+                    if segment_zone_mask[y, x] == 0:
+                        continue
+                    
+                    # Get local neighborhood
+                    local_region = segment[y-half_window:y+half_window+1,
+                                         x-half_window:x+half_window+1]
+                    
+                    # Calculate local statistics
+                    center_value = float(segment[y, x])
+                    local_mean = np.mean(local_region)
+                    local_std = np.std(local_region)
+                    
+                    # Check for significant variance
+                    if local_std > 0:
+                        # Calculate how many standard deviations the center pixel is from local mean
+                        z_score = abs(center_value - local_mean) / local_std
+                        
+                        # Also check absolute difference
+                        abs_diff = abs(center_value - local_mean)
+                        
+                        # Mark as anomaly if high variance
+                        if z_score > 2.0 or abs_diff > variance_threshold:
+                            # Convert back to full image coordinates
+                            full_y = y_start + y
+                            full_x = x_start + x
+                            result_mask[full_y, full_x] = 255
+    
+    # Apply morphological operations to clean up
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    result_mask = cv2.morphologyEx(result_mask, cv2.MORPH_CLOSE, kernel)
+    
+    return result_mask
 
 def detect_defects(
     processed_image: np.ndarray,
     zone_mask: np.ndarray,
     zone_name: str, 
     profile_config: Dict[str, Any],
-    global_algo_params: Dict[str, Any]
+    global_algo_params: Dict[str, Any],
+    localization_data: Optional[Dict[str, Any]] = None
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Advanced defect detection with intelligent fusion and validation
@@ -923,7 +1071,17 @@ def detect_defects(
     # Apply validation mask to confidence
     final_confidence = final_confidence * (validated_mask > 0).astype(np.float32)
     
-    return validated_mask, final_confidence
+    matrix_mask = matrix_variance_detection(processed_image, zone_mask,
+                                          variance_threshold=global_algo_params.get('matrix_variance_threshold', 15.0))
+    combined_mask = cv2.bitwise_or(combined_mask, matrix_mask)
+    matrix_confidence = matrix_mask.astype(np.float32) / 255.0 * 0.8  # 80% confidence weight
+    combined_confidence = np.maximum(combined_confidence, matrix_confidence)
+    
+    # Validate defects before returning with zone boundary exclusion
+    validated_mask = validate_defects(combined_mask, processed_image, zone_mask,
+                                    localization_data=localization_data)
+    
+    return validated_mask, combined_confidence
 
 
 

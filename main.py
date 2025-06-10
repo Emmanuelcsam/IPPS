@@ -347,7 +347,8 @@ def process_single_image_optimized(
             continue
         
         defects_mask, confidence_map = detect_defects(
-            processed_image, zone_mask, zone_name, profile_config, algo_params
+            processed_image, zone_mask, zone_name, profile_config, algo_params,
+            localization_data=localization_data
         )
         confidence_maps_all_zones[zone_name] = confidence_map if confidence_map is not None else np.zeros_like(zone_mask, dtype=np.float32)
         
