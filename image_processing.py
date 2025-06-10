@@ -770,9 +770,11 @@ def lei_scratch_detection(image: np.ndarray, zone_mask: np.ndarray,
     
     return result
 
+
 def validate_defects(defect_mask: np.ndarray, original_image: np.ndarray, 
                     zone_mask: np.ndarray, min_contrast: float = 10,
-                    zone_name: str = "") -> np.ndarray:
+                    zone_name: str = "", 
+                    localization_data: Optional[Dict[str, Any]] = None) -> np.ndarray:
     """
     Enhanced defect validation with zone-specific rules and texture analysis
     """
@@ -783,6 +785,7 @@ def validate_defects(defect_mask: np.ndarray, original_image: np.ndarray,
     
     # Remove defects on zone boundaries
     defect_mask_cleaned = cv2.bitwise_and(defect_mask, cv2.bitwise_not(boundary_exclusion_mask))
+    
     # Zone-specific validation parameters
     zone_params = {
         "Core": {"min_contrast": 15, "min_area": 3, "texture_threshold": 0.8},
@@ -842,9 +845,25 @@ def validate_defects(defect_mask: np.ndarray, original_image: np.ndarray,
         
         # 4. Shape analysis for scratches vs noise
         if area > 10:
-            perimeter = cv2.arcLength(np.argwhere(component_mask > 0), True)
-            compactness = 4 * np.pi * area / (perimeter * perimeter + 1e-6)
-            is_scratch_like = compactness < 0.3  # Elongated shape
+            # Get the bounding box for this component
+            x_comp = stats[i, cv2.CC_STAT_LEFT]
+            y_comp = stats[i, cv2.CC_STAT_TOP]
+            w_comp = stats[i, cv2.CC_STAT_WIDTH]
+            h_comp = stats[i, cv2.CC_STAT_HEIGHT]
+            
+            # Create a contour from the component mask
+            component_points = np.argwhere(component_mask > 0)
+            if len(component_points) > 0:
+                # Calculate perimeter using the component boundary
+                component_contours, _ = cv2.findContours(component_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                if component_contours:
+                    perimeter = cv2.arcLength(component_contours[0], True)
+                    compactness = 4 * np.pi * area / (perimeter * perimeter + 1e-6)
+                    is_scratch_like = compactness < 0.3  # Elongated shape
+                else:
+                    is_scratch_like = False
+            else:
+                is_scratch_like = False
         else:
             is_scratch_like = False
         
