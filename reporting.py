@@ -380,12 +380,10 @@ def generate_polar_defect_histogram(
 
     ax.set_rlim(0, current_r_max) 
 
-    # Corrected line:
-    # ax.set_rticks(np.linspace(0, ax.get_rlim()[1], 5)) # Original problematic line
     ax.set_rticks(np.linspace(0, ax.get_ylim()[1], 5)) # Corrected: Use get_ylim() for PolarAxes
 
     ax.set_rlabel_position(22.5) 
-# ... [rest of the function] ...
+
 
     ax.grid(True)
     ax.set_title(f"Defect Distribution: {output_path.stem.replace('_histogram','')}", va='bottom', pad=20)

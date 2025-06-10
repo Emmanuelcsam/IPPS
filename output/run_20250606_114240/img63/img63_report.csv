@@ -1,2 +1,0 @@
-defect_id,zone,classification,centroid_x_px,centroid_y_px,length_um,width_um,width_px,area_px,bbox_x_px,bbox_y_px,bbox_w_px,bbox_h_px
-img63_D1,Contact,Pit/Dig,473.0,276.0,,,6.0,45,470,273,7,7

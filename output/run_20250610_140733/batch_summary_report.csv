@@ -1,0 +1,2 @@
+image_filename,pass_fail_status,processing_time_s,total_defect_count,core_defect_count,cladding_defect_count,failure_reason_summary
+ima12.jpg,ERROR_PROCESSING,0,0,0,0,'type'

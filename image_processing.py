@@ -21,16 +21,14 @@ import pywt
 from scipy import ndimage
 from skimage.feature import local_binary_pattern
 
-
 try:
     from skimage.feature import hessian_matrix, hessian_matrix_eigvals
     SKIMAGE_AVAILABLE = True
 except ImportError:
     SKIMAGE_AVAILABLE = False
     logging.warning("scikit-image features not available")
+
 # --- C++ Accelerator Integration ---
-# Attempt to import the compiled C++ accelerator module.
-# If it's not found, the pure Python implementations will be used as a fallback.
 try:
     import accelerator  
     CPP_ACCELERATOR_AVAILABLE = True
@@ -40,7 +38,6 @@ except ImportError:
     logging.warning("C++ accelerator module ('accelerator') not found. "
                     "Falling back to pure Python implementations. "
                     "For a significant performance increase, compile the C++ module using setup.py.")
-
 
 # Import all advanced detection modules
 try:
@@ -91,7 +88,6 @@ try:
 except ImportError:
     logging.warning("Could not import get_config from config_loader. Using dummy config for standalone testing.")
 
-
 def get_dummy_config():
     """Fallback configuration for standalone testing."""
     return {
@@ -101,108 +97,6 @@ def get_dummy_config():
             }
         }
     }
-
-
-# Stub functions for unavailable algorithms
-def _anomalib_full_detection_stub(image, zone_mask, profile_config):
-    """Stub for unavailable Anomalib integration."""
-    return np.zeros_like(image, dtype=np.uint8), np.zeros_like(image, dtype=np.float32)
-
-def _padim_specific_detection_stub(image, zone_mask, profile_config):
-    """Stub for unavailable PaDiM specific detection."""
-    return np.zeros_like(image, dtype=np.uint8), np.zeros_like(image, dtype=np.float32)
-
-def _segdecnet_detection_stub(image, zone_mask, profile_config):
-    """Stub for unavailable SegDecNet detection."""
-    return np.zeros_like(image, dtype=np.uint8), np.zeros_like(image, dtype=np.float32)
-
-def _advanced_scratch_detection_stub(image, zone_mask, profile_config):
-    """Stub for unavailable advanced scratch detection."""
-    return np.zeros_like(image, dtype=np.uint8)
-
-def _anomaly_detection_stub(image, zone_mask, profile_config):
-    """Stub for unavailable anomaly detection."""
-    return np.zeros_like(image, dtype=np.uint8), np.zeros_like(image, dtype=np.float32)
-
-def _do2mr_detection_stub(image, zone_mask, zone_name, global_algo_params):
-    """Stub for DO2MR detection when accelerator is not available."""
-    return np.zeros_like(image, dtype=np.uint8), np.zeros_like(image, dtype=np.float32)
-
-def _gabor_defect_detection_stub(image, zone_mask, global_algo_params):
-    """Stub for Gabor defect detection."""
-    return np.zeros_like(image, dtype=np.uint8)
-
-def _multiscale_defect_detection_stub(image, zone_mask, global_algo_params):
-    """Stub for multi-scale defect detection."""
-    return np.zeros_like(image, dtype=np.uint8)
-
-def _lei_scratch_detection_stub(image, zone_mask, global_algo_params):
-    """Stub for LEI scratch detection."""
-    return np.zeros_like(image, dtype=np.uint8)
-
-def _wavelet_defect_detection_stub(image, zone_mask, global_algo_params):
-    """Stub for wavelet defect detection."""
-    return np.zeros_like(image, dtype=np.uint8)
-
-
-# Assign detection functions based on availability
-if ANOMALIB_FULL_AVAILABLE:
-    _anomalib_full_detection = lambda img, mask, cfg: AnomalibDefectDetector().detect_defects(img, mask, cfg)
-else:
-    _anomalib_full_detection = _anomalib_full_detection_stub
-
-if PADIM_SPECIFIC_AVAILABLE:
-    _padim_specific_detection = lambda img, mask, cfg: FiberPaDiM().detect_defects(img, mask, cfg)
-else:
-    _padim_specific_detection = _padim_specific_detection_stub
-
-if SEGDECNET_AVAILABLE:
-    _segdecnet_detection = lambda img, mask, cfg: FiberSegDecNet().detect_defects(img, mask, cfg)
-else:
-    _segdecnet_detection = _segdecnet_detection_stub
-
-if ADVANCED_SCRATCH_AVAILABLE:
-    _advanced_scratch_detection = lambda img, mask, cfg: AdvancedScratchDetector().detect_scratches(img, mask, cfg)
-else:
-    _advanced_scratch_detection = _advanced_scratch_detection_stub
-
-if ANOMALY_DETECTION_AVAILABLE:
-    _anomaly_detection = lambda img, mask, cfg: AnomalyDetector().detect_anomalies(img, mask, cfg)
-else:
-    _anomaly_detection = _anomaly_detection_stub
-
-# Assign remaining algorithm stubs regardless of availability
-if CPP_ACCELERATOR_AVAILABLE:
-    # Use C++ accelerated implementations when available
-    def _do2mr_detection(image, zone_mask, zone_name, global_algo_params):
-        """C++ accelerated DO2MR detection."""
-        try:
-            return accelerator.do2mr_detect(image, zone_mask, zone_name, global_algo_params)
-        except Exception as e:
-            logging.warning(f"C++ DO2MR failed, falling back to stub: {e}")
-            return _do2mr_detection_stub(image, zone_mask, zone_name, global_algo_params)
-    
-    # Assign Gabor detection C++ function if available
-    _gabor_defect_detection = lambda img, mask, params: accelerator.gabor_detect(img, mask, params)
-    # Assign multi-scale detection C++ function if available  
-    _multiscale_defect_detection = lambda img, mask, params: accelerator.multiscale_detect(img, mask, params)
-    # Assign LEI scratch detection C++ function if available
-    _lei_scratch_detection = lambda img, mask, params: accelerator.lei_scratch_detect(img, mask, params)
-    # Assign wavelet detection C++ function if available
-    _wavelet_defect_detection = lambda img, mask, params: accelerator.wavelet_detect(img, mask, params)
-else:
-    # Assign DO2MR stub function to module-level name
-    _do2mr_detection = _do2mr_detection_stub
-    # Assign Gabor detection stub to module-level name
-    _gabor_defect_detection = _gabor_defect_detection_stub
-    # Assign multi-scale detection stub to module-level name
-    _multiscale_defect_detection = _multiscale_defect_detection_stub
-    # Assign LEI scratch detection stub to module-level name
-    _lei_scratch_detection = _lei_scratch_detection_stub
-    # Assign advanced scratch detection stub to module-level name
-    _advanced_scratch_detection = _advanced_scratch_detection_stub
-    # Assign wavelet detection stub to module-level name
-    _wavelet_defect_detection = _wavelet_defect_detection_stub
 
 # --- Image Loading and Preprocessing ---
 def load_and_preprocess_image(image_path_str: str, profile_config: Dict[str, Any]) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
@@ -238,7 +132,6 @@ def load_and_preprocess_image(image_path_str: str, profile_config: Dict[str, Any
 
     return original_bgr, gray_image, processed_image
 
-
 def _correct_illumination(gray_image: np.ndarray, original_dtype: np.dtype = np.uint8) -> np.ndarray:
     """
     Performs advanced illumination correction using rolling ball algorithm.
@@ -249,14 +142,12 @@ def _correct_illumination(gray_image: np.ndarray, original_dtype: np.dtype = np.
     background = cv2.morphologyEx(gray_image, cv2.MORPH_CLOSE, kernel)
     
     # Subtract background
-    # Corrected cv2.add with NumPy addition for safety as per Probs.txt
     corrected_int16 = cv2.subtract(gray_image.astype(np.int16), background.astype(np.int16))
     corrected_int16 = corrected_int16 + 128  # Shift to mid-gray
-    # Clip and convert back to original dtype (passed or default uint8)
+    # Clip and convert back to original dtype
     corrected = np.clip(corrected_int16, 0, 255).astype(original_dtype)
     
     return corrected
-
 
 def detect_core_improved(image, cladding_center, cladding_radius, core_diameter_hint=None):
     """
@@ -341,11 +232,10 @@ def detect_core_improved(image, cladding_center, cladding_radius, core_diameter_
     if core_diameter_hint:
         core_radius = core_diameter_hint / 2
     else:
-        # Better estimation based on fiber type
-        core_radius = cladding_radius * 0.35  # More realistic ratio for single-mode
+        # Better estimation for single-mode fibers (typically 9µm core in 125µm cladding)
+        core_radius = cladding_radius * 0.072
     
     return tuple(cladding_center), core_radius * 2
-
 
 def locate_fiber_structure(
     processed_image: np.ndarray,
@@ -355,34 +245,18 @@ def locate_fiber_structure(
     """
     Locates the fiber cladding and core using HoughCircles, contour fitting, or circle-fit library.
     Enhanced with improved core detection methods.
-
-    Args:
-        processed_image: The preprocessed grayscale image (e.g., after CLAHE and Gaussian blur).
-        profile_config: The specific processing profile sub-dictionary from the main config.
-        original_gray_image: The original grayscale image, primarily for core detection if available.
-
-    Returns:
-        A dictionary containing localization data or None if localization fails.
     """
-    # Get localization parameters from the profile configuration.
+    # Get localization parameters from the profile configuration
     loc_params = profile_config.get("localization", {})
-    # Get image height (h) and width (w).
     h, w = processed_image.shape[:2]
-    # Determine the smaller dimension of the image.
     min_img_dim = min(h, w)
 
-    # --- Initialize Parameters for HoughCircles ---
-    # dp: Inverse ratio of accumulator resolution.
+    # Initialize Parameters for HoughCircles
     dp = loc_params.get("hough_dp", 1.2)
-    # minDist: Minimum distance between centers of detected circles (factor of min_img_dim).
     min_dist_circles = int(min_img_dim * loc_params.get("hough_min_dist_factor", 0.15))
-    # param1: Upper Canny threshold for internal edge detection in HoughCircles.
     param1 = loc_params.get("hough_param1", 70)
-    # param2: Accumulator threshold for circle centers at the detection stage.
     param2 = loc_params.get("hough_param2", 35)
-    # minRadius: Minimum circle radius to detect (factor of min_img_dim).
     min_radius_hough = int(min_img_dim * loc_params.get("hough_min_radius_factor", 0.08))
-    # maxRadius: Maximum circle radius to detect (factor of min_img_dim).
     max_radius_hough = int(min_img_dim * loc_params.get("hough_max_radius_factor", 0.45))
 
     # Initialize the result dictionary
@@ -501,45 +375,11 @@ def locate_fiber_structure(
         logging.error(f"Enhanced core detection failed: {e}")
         # Final fallback
         localization_result['core_center_xy'] = localization_result['cladding_center_xy']
-        localization_result['core_radius_px'] = localization_result['cladding_radius_px'] * 0.35
+        # Better estimation for single-mode fibers (typically 9µm core in 125µm cladding)
+        localization_result['core_radius_px'] = localization_result['cladding_radius_px'] * 0.072
         logging.warning("Core detection failed, using fallback estimation")
 
-    # --- Adhesive Layer Detection ---
-    if 'core_center_xy' in localization_result and 'cladding_center_xy' in localization_result:
-        try:
-            # Detect adhesive layer between core and cladding
-            cl_cx_core, cl_cy_core = localization_result['cladding_center_xy']
-            core_radius = localization_result['core_radius_px']
-            
-            # Create mask for the region between core and cladding
-            adhesive_search_mask = np.zeros_like(image_for_core_detect, dtype=np.uint8)
-            cv2.circle(adhesive_search_mask, (cl_cx_core, cl_cy_core), int(cladding_radius * 0.95), 255, -1)
-            cv2.circle(adhesive_search_mask, (cl_cx_core, cl_cy_core), int(core_radius * 1.05), 0, -1)
-            
-            # Look for adhesive layer characteristics
-            masked_adhesive_region = cv2.bitwise_and(image_for_core_detect, image_for_core_detect, mask=adhesive_search_mask)
-            
-            # Adhesive often appears as a ring with different intensity
-            hist = cv2.calcHist([masked_adhesive_region], [0], adhesive_search_mask, [256], [0, 256])
-            
-            # Find peaks in histogram (adhesive layer often has distinct intensity)
-            if hist is not None and len(hist) > 0:
-                # Simple peak detection for adhesive layer
-                adhesive_intensity_peaks = []
-                for i in range(10, 246):  # Avoid edges
-                    if hist[i] > hist[i-1] and hist[i] > hist[i+1] and hist[i] > np.mean(hist) * 0.5:
-                        adhesive_intensity_peaks.append(i)
-                
-                if adhesive_intensity_peaks:
-                    # Store adhesive layer information
-                    localization_result['adhesive_detected'] = True
-                    localization_result['adhesive_intensity_range'] = adhesive_intensity_peaks
-                    logging.info(f"Adhesive layer detected with intensity peaks at: {adhesive_intensity_peaks}")
-        except Exception as e:
-            logging.warning(f"Adhesive layer detection failed: {e}")
-
     return localization_result
-
 
 def generate_zone_masks(
     image_shape: Tuple[int, int],
@@ -550,18 +390,7 @@ def generate_zone_masks(
     user_cladding_diameter_um: Optional[float]
 ) -> Dict[str, np.ndarray]:
     """
-    Generates binary masks for each inspection zone based on IEC standards and detected fiber.
-
-    Args:
-        image_shape: (height, width) of the image.
-        localization_data: Dictionary from locate_fiber_structure.
-        zone_definitions: List of zone definition dicts from config (e.g., for 'single_mode_pc').
-        um_per_px: Current image's microns-per-pixel scale, if available.
-        user_core_diameter_um: User-provided core diameter (for scaling relative zones).
-        user_cladding_diameter_um: User-provided cladding diameter (for scaling relative zones).
-
-    Returns:
-        A dictionary where keys are zone names and values are binary mask (np.ndarray).
+    Generates binary masks for Core and Cladding zones only.
     """
     masks: Dict[str, np.ndarray] = {}
     h, w = image_shape[:2]
@@ -571,9 +400,7 @@ def generate_zone_masks(
     cladding_center = localization_data.get('cladding_center_xy')
     core_center = localization_data.get('core_center_xy', cladding_center)
     core_radius_px_detected = localization_data.get('core_radius_px')
-    
     detected_cladding_radius_px = localization_data.get('cladding_radius_px')
-    cladding_ellipse_params = localization_data.get('cladding_ellipse_params')
 
     if cladding_center is None:
         logging.error("Cannot generate zone masks: Cladding center not localized.")
@@ -586,82 +413,197 @@ def generate_zone_masks(
     dist_sq_from_cladding = (X - cx)**2 + (Y - cy)**2
     dist_sq_from_core = (X - core_cx)**2 + (Y - core_cy)**2
 
-    for zone_def in zone_definitions:
-        zone_name = zone_def["name"]
-        zone_type = zone_def["type"]
-        
-        try:
-            if zone_type == "core":
-                # Core zone mask
-                if user_core_diameter_um and um_per_px:
-                    # Use user-provided core diameter
-                    core_radius_px = (user_core_diameter_um / 2) / um_per_px
-                elif core_radius_px_detected and core_radius_px_detected > 0:
-                    # Use detected core radius
-                    core_radius_px = core_radius_px_detected
-                else:
-                    # Fallback: estimate from cladding
-                    core_radius_px = detected_cladding_radius_px * 0.35 if detected_cladding_radius_px else 20
-                
-                masks[zone_name] = (dist_sq_from_core <= core_radius_px**2).astype(np.uint8) * 255
-                logging.debug(f"Core zone '{zone_name}' created with radius {core_radius_px:.1f}px")
+    # Determine core radius
+    if user_core_diameter_um and um_per_px:
+        core_radius_px = (user_core_diameter_um / 2) / um_per_px
+    elif core_radius_px_detected and core_radius_px_detected > 0:
+        core_radius_px = core_radius_px_detected
+    else:
+        # Better estimation for single-mode fibers (typically 9µm core in 125µm cladding)
+        core_radius_px = detected_cladding_radius_px * 0.072 if detected_cladding_radius_px else 5
 
-            elif zone_type == "cladding":
-                # Cladding zone (excluding core)
-                if user_cladding_diameter_um and um_per_px:
-                    cladding_radius_px = (user_cladding_diameter_um / 2) / um_per_px
-                elif detected_cladding_radius_px:
-                    cladding_radius_px = detected_cladding_radius_px
-                else:
-                    logging.error(f"Cannot create cladding zone '{zone_name}': No cladding radius available")
-                    continue
+    # Determine cladding radius
+    if user_cladding_diameter_um and um_per_px:
+        cladding_radius_px = (user_cladding_diameter_um / 2) / um_per_px
+    elif detected_cladding_radius_px:
+        cladding_radius_px = detected_cladding_radius_px
+    else:
+        logging.error("Cannot create zone masks: No cladding radius available")
+        return masks
 
-                # Get core radius for exclusion
-                if user_core_diameter_um and um_per_px:
-                    core_radius_px = (user_core_diameter_um / 2) / um_per_px
-                elif core_radius_px_detected and core_radius_px_detected > 0:
-                    core_radius_px = core_radius_px_detected
-                else:
-                    core_radius_px = cladding_radius_px * 0.35
+    # Create Core mask
+    masks["Core"] = (dist_sq_from_core <= core_radius_px**2).astype(np.uint8) * 255
+    
+    # Create Cladding mask (excluding core)
+    cladding_mask = (dist_sq_from_cladding <= cladding_radius_px**2).astype(np.uint8)
+    core_mask = (dist_sq_from_core <= core_radius_px**2).astype(np.uint8)
+    masks["Cladding"] = (cladding_mask - core_mask) * 255
 
-                # Create annular mask (cladding - core)
-                cladding_mask = (dist_sq_from_cladding <= cladding_radius_px**2).astype(np.uint8)
-                core_mask = (dist_sq_from_core <= core_radius_px**2).astype(np.uint8)
-                masks[zone_name] = (cladding_mask - core_mask) * 255
-                logging.debug(f"Cladding zone '{zone_name}' created as annulus: outer={cladding_radius_px:.1f}px, inner={core_radius_px:.1f}px")
-
-            elif zone_type == "adhesive":
-                # Adhesive zone around cladding
-                inner_factor = zone_def.get("inner_radius_factor", 1.0)
-                outer_factor = zone_def.get("outer_radius_factor", 1.15)
-                
-                if detected_cladding_radius_px:
-                    inner_radius_px = detected_cladding_radius_px * inner_factor
-                    outer_radius_px = detected_cladding_radius_px * outer_factor
-                    
-                    outer_mask = (dist_sq_from_cladding <= outer_radius_px**2).astype(np.uint8)
-                    inner_mask = (dist_sq_from_cladding <= inner_radius_px**2).astype(np.uint8)
-                    masks[zone_name] = (outer_mask - inner_mask) * 255
-                    logging.debug(f"Adhesive zone '{zone_name}' created: inner={inner_radius_px:.1f}px, outer={outer_radius_px:.1f}px")
-                else:
-                    logging.error(f"Cannot create adhesive zone '{zone_name}': No cladding radius available")
-
-            elif zone_type == "custom_radius":
-                # Custom radius zone
-                radius_um = zone_def.get("radius_um")
-                if radius_um and um_per_px:
-                    radius_px = radius_um / um_per_px
-                    masks[zone_name] = (dist_sq_from_cladding <= radius_px**2).astype(np.uint8) * 255
-                    logging.debug(f"Custom radius zone '{zone_name}' created with {radius_px:.1f}px")
-                else:
-                    logging.error(f"Cannot create custom radius zone '{zone_name}': Missing radius_um or um_per_px")
-
-        except Exception as e:
-            logging.error(f"Error creating zone mask '{zone_name}': {e}")
-            continue
+    logging.info(f"Generated zone masks - Core radius: {core_radius_px:.1f}px, Cladding radius: {cladding_radius_px:.1f}px")
 
     return masks
 
+def do2mr_detection(image: np.ndarray, zone_mask: np.ndarray, 
+                   zone_name: str, global_algo_params: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    DO2MR (Difference of Min-Max Ranking) detection implementation.
+    """
+    if CPP_ACCELERATOR_AVAILABLE:
+        try:
+            # Try C++ version first
+            kernel_size = global_algo_params.get("do2mr_kernel_size", 5)
+            gamma = global_algo_params.get(f"do2mr_gamma_{zone_name.lower()}", 
+                                          global_algo_params.get("do2mr_gamma_default", 1.5))
+            result = accelerator.do2mr_detection(image, kernel_size, gamma)
+            confidence = result.astype(np.float32) / 255.0
+            return result, confidence
+        except:
+            pass
+    
+    # Python implementation
+    kernel_size = global_algo_params.get("do2mr_kernel_size", 5)
+    gamma = global_algo_params.get(f"do2mr_gamma_{zone_name.lower()}", 
+                                  global_algo_params.get("do2mr_gamma_default", 1.5))
+    
+    # Apply zone mask
+    masked_image = cv2.bitwise_and(image, image, mask=zone_mask)
+    
+    # Create kernel
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+    
+    # Max and min filtering
+    max_filtered = cv2.dilate(masked_image, kernel)
+    min_filtered = cv2.erode(masked_image, kernel)
+    
+    # Calculate residual
+    residual = cv2.subtract(max_filtered, min_filtered)
+    
+    # Apply median blur to reduce noise
+    residual_filtered = cv2.medianBlur(residual, 3)
+    
+    # Calculate statistics within zone
+    zone_pixels = residual_filtered[zone_mask > 0]
+    if len(zone_pixels) == 0:
+        return np.zeros_like(image), np.zeros_like(image, dtype=np.float32)
+    
+    mean_val = np.mean(zone_pixels)
+    std_val = np.std(zone_pixels)
+    
+    # Threshold
+    threshold = mean_val + gamma * std_val
+    _, defect_mask = cv2.threshold(residual_filtered, threshold, 255, cv2.THRESH_BINARY)
+    
+    # Apply zone mask to result
+    defect_mask = cv2.bitwise_and(defect_mask, zone_mask)
+    
+    # Morphological cleanup
+    kernel_clean = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    defect_mask = cv2.morphologyEx(defect_mask, cv2.MORPH_OPEN, kernel_clean)
+    
+    # Create confidence map
+    confidence_map = residual_filtered.astype(np.float32) / 255.0
+    confidence_map = cv2.bitwise_and(confidence_map, confidence_map, 
+                                    mask=(zone_mask.astype(np.float32) / 255.0).astype(np.uint8))
+    
+    return defect_mask, confidence_map
+
+def lei_scratch_detection(image: np.ndarray, zone_mask: np.ndarray,
+                         global_algo_params: Dict[str, Any]) -> np.ndarray:
+    """
+    LEI (Linear Enhancement Inspector) scratch detection implementation.
+    """
+    # Parameters
+    kernel_lengths = global_algo_params.get("lei_kernel_lengths", [11, 17, 23])
+    angle_step = global_algo_params.get("lei_angle_step_deg", 15)
+    
+    # Apply zone mask
+    masked_image = cv2.bitwise_and(image, image, mask=zone_mask)
+    
+    # Enhance image contrast
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(masked_image)
+    
+    # Initialize result
+    scratch_map = np.zeros_like(enhanced, dtype=np.float32)
+    
+    # Search at multiple orientations
+    for angle in range(0, 180, angle_step):
+        angle_rad = np.deg2rad(angle)
+        
+        for kernel_length in kernel_lengths:
+            # Create oriented kernel
+            kernel = np.zeros((kernel_length, kernel_length), dtype=np.float32)
+            center = kernel_length // 2
+            
+            # Draw line in kernel
+            for i in range(kernel_length):
+                x = int(center + (i - center) * np.cos(angle_rad))
+                y = int(center + (i - center) * np.sin(angle_rad))
+                if 0 <= x < kernel_length and 0 <= y < kernel_length:
+                    kernel[y, x] = 1.0
+                    
+            # Normalize kernel
+            kernel = kernel / (np.sum(kernel) + 1e-6)
+            
+            # Apply filter
+            response = cv2.filter2D(enhanced, cv2.CV_32F, kernel)
+            
+            # Update maximum response
+            scratch_map = np.maximum(scratch_map, response)
+    
+    # Normalize and threshold
+    scratch_map = cv2.normalize(scratch_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    
+    # Adaptive threshold
+    binary = cv2.adaptiveThreshold(scratch_map, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                  cv2.THRESH_BINARY, 11, 2)
+    
+    # Apply zone mask
+    result = cv2.bitwise_and(binary, zone_mask)
+    
+    # Clean up
+    kernel_clean = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 1))
+    result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, kernel_clean)
+    
+    return result
+
+def validate_defects(defect_mask: np.ndarray, original_image: np.ndarray, 
+                    zone_mask: np.ndarray, min_contrast: float = 10) -> np.ndarray:
+    """
+    Validate detected defects to reduce false positives.
+    """
+    validated_mask = np.zeros_like(defect_mask)
+    
+    # Find connected components
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(defect_mask, connectivity=8)
+    
+    for i in range(1, num_labels):
+        # Get component mask
+        component_mask = (labels == i).astype(np.uint8) * 255
+        
+        # Calculate local contrast
+        defect_pixels = original_image[component_mask > 0]
+        if len(defect_pixels) == 0:
+            continue
+            
+        # Get surrounding pixels
+        dilated = cv2.dilate(component_mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
+        surrounding_mask = cv2.bitwise_and(dilated - component_mask, zone_mask)
+        surrounding_pixels = original_image[surrounding_mask > 0]
+        
+        if len(surrounding_pixels) == 0:
+            continue
+            
+        # Calculate contrast
+        defect_mean = np.mean(defect_pixels)
+        surrounding_mean = np.mean(surrounding_pixels)
+        contrast = abs(defect_mean - surrounding_mean)
+        
+        # Validate based on contrast
+        if contrast >= min_contrast:
+            validated_mask = cv2.bitwise_or(validated_mask, component_mask)
+            
+    return validated_mask
 
 def detect_defects(
     processed_image: np.ndarray,
@@ -673,159 +615,40 @@ def detect_defects(
     """
     Enhanced defect detection using multi-algorithm fusion approach.
     """
-    # Validate inputs
     if processed_image is None or zone_mask is None:
-        logging.error(f"Invalid input to detect_defects: processed_image or zone_mask is None")
         return np.zeros_like(processed_image), np.zeros_like(processed_image, dtype=np.float32)
     
     if np.sum(zone_mask) == 0:
-        logging.debug(f"Defect detection skipped for empty zone mask in zone '{zone_name}'.")
         return np.zeros_like(processed_image), np.zeros_like(processed_image, dtype=np.float32)
 
     defect_config = profile_config.get("defect_detection", {})
-    enabled_algorithms = defect_config.get("enabled_algorithms", ["basic_threshold"])
     
-    # Initialize result arrays
-    combined_defect_mask = np.zeros_like(processed_image, dtype=np.uint8)
-    combined_confidence_map = np.zeros_like(processed_image, dtype=np.float32)
+    # Get algorithms for this profile
+    region_algorithms = defect_config.get("region_algorithms", ["do2mr"])
+    linear_algorithms = defect_config.get("linear_algorithms", ["lei_simple"])
     
-    # Apply zone mask to input image
-    masked_image = cv2.bitwise_and(processed_image, processed_image, mask=zone_mask)
+    # Initialize combined results
+    combined_mask = np.zeros_like(processed_image, dtype=np.uint8)
+    combined_confidence = np.zeros_like(processed_image, dtype=np.float32)
     
-    logging.debug(f"Running defect detection in zone '{zone_name}' with algorithms: {enabled_algorithms}")
+    # Run region-based algorithms
+    for algo in region_algorithms:
+        if algo == "do2mr":
+            mask, conf = do2mr_detection(processed_image, zone_mask, zone_name, global_algo_params)
+            combined_mask = cv2.bitwise_or(combined_mask, mask)
+            combined_confidence = np.maximum(combined_confidence, conf)
     
-    # Algorithm execution
-    for algorithm in enabled_algorithms:
-        try:
-            if algorithm == "basic_threshold":
-                defect_mask, confidence = _basic_threshold_detection(masked_image, defect_config)
-            elif algorithm == "do2mr" and CPP_ACCELERATOR_AVAILABLE:
-                defect_mask, confidence = _do2mr_detection(masked_image, zone_mask, zone_name, global_algo_params)
-            elif algorithm == "gabor":
-                defect_mask = _gabor_defect_detection(masked_image, zone_mask, global_algo_params)
-                confidence = defect_mask.astype(np.float32) / 255.0
-            elif algorithm == "multiscale":
-                defect_mask = _multiscale_defect_detection(masked_image, zone_mask, global_algo_params)
-                confidence = defect_mask.astype(np.float32) / 255.0
-            elif algorithm == "lei_scratch":
-                defect_mask = _lei_scratch_detection(masked_image, zone_mask, global_algo_params)
-                confidence = defect_mask.astype(np.float32) / 255.0
-            elif algorithm == "advanced_scratch":
-                defect_mask = _advanced_scratch_detection(masked_image, zone_mask, defect_config)
-                confidence = defect_mask.astype(np.float32) / 255.0
-            elif algorithm == "wavelet":
-                defect_mask = _wavelet_defect_detection(masked_image, zone_mask, global_algo_params)
-                confidence = defect_mask.astype(np.float32) / 255.0
-            elif algorithm == "anomalib_full":
-                defect_mask, confidence = _anomalib_full_detection(masked_image, zone_mask, defect_config)
-            elif algorithm == "padim_specific":
-                defect_mask, confidence = _padim_specific_detection(masked_image, zone_mask, defect_config)
-            elif algorithm == "segdecnet":
-                defect_mask, confidence = _segdecnet_detection(masked_image, zone_mask, defect_config)
-            elif algorithm == "anomaly_detection":
-                defect_mask, confidence = _anomaly_detection(masked_image, zone_mask, defect_config)
-            else:
-                logging.warning(f"Unknown algorithm '{algorithm}' in zone '{zone_name}', skipping")
-                continue
-            
-            # Combine results using logical OR for masks and maximum for confidence
-            combined_defect_mask = cv2.bitwise_or(combined_defect_mask, defect_mask)
-            combined_confidence_map = np.maximum(combined_confidence_map, confidence)
-            
-            logging.debug(f"Algorithm '{algorithm}' found {np.sum(defect_mask > 0)} defect pixels in zone '{zone_name}'")
-            
-        except Exception as e:
-            logging.error(f"Error in algorithm '{algorithm}' for zone '{zone_name}': {e}")
-            continue
+    # Run scratch detection algorithms
+    for algo in linear_algorithms:
+        if algo in ["lei_simple", "lei_advanced"]:
+            scratch_mask = lei_scratch_detection(processed_image, zone_mask, global_algo_params)
+            combined_mask = cv2.bitwise_or(combined_mask, scratch_mask)
+            combined_confidence = np.maximum(combined_confidence, scratch_mask.astype(np.float32) / 255.0)
     
-    # Apply zone mask to final results
-    combined_defect_mask = cv2.bitwise_and(combined_defect_mask, zone_mask)
-    combined_confidence_map = combined_confidence_map * (zone_mask.astype(np.float32) / 255.0)
+    # Validate defects before returning
+    validated_mask = validate_defects(combined_mask, processed_image, zone_mask)
     
-    logging.debug(f"Combined defect detection in zone '{zone_name}' found {np.sum(combined_defect_mask > 0)} total defect pixels")
-    
-    return combined_defect_mask, combined_confidence_map
-
-
-def _basic_threshold_detection(image: np.ndarray, config: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Basic threshold-based defect detection.
-    """
-    threshold_value = config.get("basic_threshold_value", 0)
-    threshold_type = config.get("basic_threshold_type", "auto")
-    
-    if threshold_type == "auto":
-        # Use Otsu's method for automatic thresholding
-        _, defect_mask = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        # Invert if needed (defects are typically darker)
-        if np.mean(image[defect_mask > 0]) > np.mean(image[defect_mask == 0]):
-            defect_mask = cv2.bitwise_not(defect_mask)
-    else:
-        # Use manual threshold
-        _, defect_mask = cv2.threshold(image, threshold_value, 255, cv2.THRESH_BINARY)
-    
-    # Create confidence map based on distance from threshold
-    confidence_map = np.abs(image.astype(np.float32) - threshold_value) / 255.0
-    confidence_map = np.clip(confidence_map, 0, 1)
-    
-    return defect_mask, confidence_map
-
-
-def _scratch_detection_lei(image: np.ndarray) -> np.ndarray:
-    """
-    Linear Edge Intensity (LEI) based scratch detection.
-    """
-    # Apply different morphological operations to detect linear features
-    scratch_map_combined = np.zeros_like(image, dtype=np.uint8)
-    
-    # Ridge filter for detecting linear features
-    try:
-        from skimage.filters import sato, frangi, hessian
-        ridge_response = sato(image, sigmas=range(1, 4), black_ridges=True)
-        if np.any(ridge_response):
-            ridge_response_norm = cv2.normalize(ridge_response, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-            _, ridge_mask = cv2.threshold(ridge_response_norm, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            scratch_map_combined = cv2.bitwise_or(scratch_map_combined, ridge_mask)
-    except ImportError:
-        # Fallback to basic morphological operations
-        pass
-    except np.linalg.LinAlgError:
-        pass 
-
-    if np.any(ridge_response):
-        ridge_response_norm = cv2.normalize(ridge_response, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-        _, ridge_mask = cv2.threshold(ridge_response_norm, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        scratch_map_combined = cv2.bitwise_or(scratch_map_combined, ridge_mask)
-    
-    # Black-hat morphology for line detection
-    kernel_bh_rect_vertical = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 15)) 
-    kernel_bh_rect_horizontal = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 1)) 
-    blackhat_v = cv2.morphologyEx(image, cv2.MORPH_BLACKHAT, kernel_bh_rect_vertical)
-    blackhat_h = cv2.morphologyEx(image, cv2.MORPH_BLACKHAT, kernel_bh_rect_horizontal)
-    blackhat_combined = np.maximum(blackhat_v, blackhat_h)
-
-    if np.any(blackhat_combined):
-        _, bh_thresh = cv2.threshold(blackhat_combined, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        scratch_map_combined = cv2.bitwise_or(scratch_map_combined, bh_thresh)
-    
-    # Hough line detection
-    edges = cv2.Canny(image, 50, 150, apertureSize=3) 
-    lines = cv2.HoughLinesP(edges, rho=1, theta=np.pi/180, threshold=30, minLineLength=20, maxLineGap=7) 
-    
-    if lines is not None:
-        line_mask = np.zeros_like(image, dtype=np.uint8)
-        for line_segment in lines:
-            x1, y1, x2, y2 = line_segment[0]
-            cv2.line(line_mask, (x1, y1), (x2, y2), 255, 1) 
-        scratch_map_combined = cv2.bitwise_or(scratch_map_combined, line_mask)
-    
-    # Clean up results
-    kernel_clean = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    scratch_map_combined = cv2.morphologyEx(scratch_map_combined, cv2.MORPH_OPEN, kernel_clean, iterations=1)
-    scratch_map_combined = cv2.morphologyEx(scratch_map_combined, cv2.MORPH_CLOSE, kernel_clean, iterations=1)
-    
-    return scratch_map_combined
-
+    return validated_mask, combined_confidence
 
 # Test function for module validation
 def run_basic_tests():
@@ -840,7 +663,7 @@ def run_basic_tests():
         # Create a simple test image
         dummy_image = np.zeros((200, 200, 3), dtype=np.uint8)
         cv2.circle(dummy_image, (100, 100), 80, (128, 128, 128), -1)  # Cladding
-        cv2.circle(dummy_image, (100, 100), 30, (64, 64, 64), -1)     # Core
+        cv2.circle(dummy_image, (100, 100), 6, (64, 64, 64), -1)     # Core (smaller for single-mode)
         cv2.imwrite(test_image_path_str, dummy_image)
         logging.info(f"Created dummy test image: {test_image_path_str}")
     
@@ -863,10 +686,18 @@ def run_basic_tests():
                 "hough_max_radius_factor": 0.45
             },
             "defect_detection": {
-                "enabled_algorithms": ["basic_threshold"],
-                "basic_threshold_value": 100
+                "region_algorithms": ["do2mr"],
+                "linear_algorithms": ["lei_simple"],
+                "min_defect_area_px": 5
             }
         }
+    
+    dummy_global_algo_params_main_test = {
+        "do2mr_kernel_size": 5,
+        "do2mr_gamma_default": 1.5,
+        "lei_kernel_lengths": [11, 17, 23],
+        "lei_angle_step_deg": 15
+    }
     
     # Test preprocessing
     logging.info(f"\n--- Test Case 1: Load and Preprocess Image: {test_image_path_str} ---")
@@ -887,8 +718,7 @@ def run_basic_tests():
             logging.info("\n--- Test Case 3: Generate Zone Masks ---")
             dummy_zone_defs_main_test = [
                 {"name": "Core", "type": "core"},
-                {"name": "Cladding", "type": "cladding"},
-                {"name": "Adhesive", "type": "adhesive", "inner_radius_factor": 1.0, "outer_radius_factor": 1.15}
+                {"name": "Cladding", "type": "cladding"}
             ]
             
             um_per_px_test = 0.5 
@@ -907,7 +737,6 @@ def run_basic_tests():
                 
                 # Test defect detection
                 logging.info("\n--- Test Case 4: Detect Defects (Iterating Zones) ---")
-                dummy_global_algo_params_main_test = {"test_param": "test_value"}
                 
                 for zone_name_test, zone_mask_test in zone_masks_generated.items():
                     if np.sum(zone_mask_test) == 0:
@@ -936,7 +765,6 @@ def run_basic_tests():
             logging.error(f"Error removing dummy image {test_image_path_str}: {e_os_error}")
 
     logging.info("=== Image Processing Module Tests Complete ===\n")
-
 
 if __name__ == "__main__":
     # Configure logging for standalone testing

@@ -382,28 +382,46 @@ def process_single_image_optimized(
     # Apply Pass/Fail Rules
     logging.info("Step 6: Applying Pass/Fail Rules...")
     overall_status, failure_reasons = apply_pass_fail_rules(
-        characterized_defects, zone_definitions.get("zones", []), global_config
+        characterized_defects, fiber_type_key
     )
 
     # Generate Reports
     logging.info("Step 7: Generating Reports...")
+
+    # Create analysis_results dictionary for reporting functions
+    analysis_results = {
+        "characterized_defects": characterized_defects,
+        "overall_status": overall_status,
+        "failure_reasons": failure_reasons,
+        "image_filename": image_path.name,
+        "total_defect_count": len(characterized_defects),
+        "core_defect_count": sum(1 for d in characterized_defects if d["zone"] == "Core"),
+        "cladding_defect_count": sum(1 for d in characterized_defects if d["zone"] == "Cladding")
+    }
+
     annotated_image_path = output_dir_image / f"{image_path.stem}_annotated.png"
     generate_annotated_image(
-        original_bgr, localization_data, zone_masks, 
-        characterized_defects, overall_status, failure_reasons,
-        str(annotated_image_path), global_config
+        original_bgr, 
+        analysis_results,
+        localization_data, 
+        zone_masks,
+        fiber_type_key,
+        annotated_image_path
     )
 
     csv_report_path = output_dir_image / f"{image_path.stem}_report.csv"
     generate_defect_csv_report(
-        characterized_defects, str(csv_report_path), 
-        image_filename=image_path.name, scale_um_per_px=current_image_um_per_px
+        analysis_results,
+        csv_report_path
     )
 
     polar_histogram_path = output_dir_image / f"{image_path.stem}_histogram.png"
     generate_polar_defect_histogram(
-        characterized_defects, localization_data.get("cladding_center_xy", (0, 0)),
-        str(polar_histogram_path), global_config
+        analysis_results,
+        localization_data,
+        zone_masks,
+        fiber_type_key,
+        polar_histogram_path
     )
 
     processing_time_s = time.perf_counter() - image_start_time
@@ -566,8 +584,10 @@ def execute_inspection_run(args_namespace: Any) -> None:
 
     # Calibration Data
     calibration_file_path = str(args_namespace.calibration_file)
-    loaded_um_per_px = load_calibration_data(calibration_file_path, global_config)
-    if loaded_um_per_px:
+    calibration_data = load_calibration_data(calibration_file_path)
+    loaded_um_per_px = calibration_data.get("um_per_px") if isinstance(calibration_data, dict) else calibration_data
+
+    if loaded_um_per_px is not None:
         logging.info(f"Calibration loaded: {loaded_um_per_px:.4f} µm/px")
     else:
         logging.info("No calibration data; using default or user-provided scale factors.")
