@@ -198,7 +198,7 @@ class AdvancedScratchDetector:
                 
                 # Directly get eigenvalues. This is more robust than building a tensor.
                 # It returns two arrays (lambda1, lambda2) of the same shape as the image.
-                lambda1, lambda2 = hessian_matrix_eigvals(Hxx, Hxy, Hyy)
+                lambda1, lambda2 = hessian_matrix_eigvals((Hxx, Hxy, Hyy))
                 
                 # For detecting dark ridges (scratches), we look for a large negative eigenvalue (lambda1)
                 # and a small eigenvalue (lambda2, close to zero).
