@@ -283,7 +283,7 @@ def process_single_image(
             continue
         
         logging.debug(f"Detecting defects in zone: '{zone_name}'...")
-        # CORRECTED CALL to detect_defects: Added zone_name [cite: 109, 317]
+        # CORRECTED CALL to detect_defects: Added zone_name
         defects_in_zone_mask, zone_confidence_map = detect_defects(
             processed_image, zone_mask_np, zone_name, profile_config, global_algo_params
         )
@@ -302,7 +302,7 @@ def process_single_image(
         confidence_map=combined_confidence_map
     )
     
-    # CORRECTED CALL to apply_pass_fail_rules: Changed zone_definitions_for_type to fiber_type_key [cite: 113, 321]
+    # CORRECTED CALL to apply_pass_fail_rules: Changed zone_definitions_for_type to fiber_type_key
     overall_status, failure_reasons = apply_pass_fail_rules(characterized_defects, fiber_type_key)
 
     analysis_summary = { # Create analysis summary dictionary.
@@ -466,6 +466,9 @@ def execute_inspection_run(args_namespace: Any) -> None:
     if global_config.get("algorithm_parameters", {}).get("enable_advanced_models", True):
         logging.info("Initializing advanced detection models...")
         
+        # Get algorithm parameters from config
+        global_algo_params = global_config.get("algorithm_parameters", {})
+        
         # Initialize Anomalib
         if ANOMALIB_FULL_AVAILABLE:
             try:
@@ -492,8 +495,16 @@ def execute_inspection_run(args_namespace: Any) -> None:
                 padim_model = FiberPaDiM()
                 padim_model_path = global_algo_params.get("padim_model_path")
                 if padim_model_path and Path(padim_model_path).exists():
-                    padim_model.load_model(padim_model_path)
-                    global_algo_params["padim_instance"] = padim_model
+                    # Load saved model state
+                    import torch
+                    checkpoint = torch.load(padim_model_path, map_location=padim_model.device)
+                    padim_model.patch_means = checkpoint.get('patch_means')
+                    padim_model.C = checkpoint.get('C')
+                    padim_model.C_inv = checkpoint.get('C_inv')
+                    padim_model.R = checkpoint.get('R')
+                    padim_model.N = checkpoint.get('N')
+                    padim_model.fitted = True  # Mark as fitted
+                    global_config["algorithm_parameters"]["padim_specific_instance"] = padim_model
                     logging.info("PaDiM specific model loaded successfully")
                 else:
                     logging.warning("PaDiM model path not found, using untrained model")
@@ -505,11 +516,16 @@ def execute_inspection_run(args_namespace: Any) -> None:
         if SEGDECNET_AVAILABLE:
             try:
                 segdecnet_model_path = global_config["algorithm_parameters"].get("segdecnet_model_path")
-                segdecnet = FiberSegDecNet(
-                    model_path=segdecnet_model_path if Path(segdecnet_model_path).exists() else None,
-                    device='cuda' if torch.cuda.is_available() else 'cpu'
+                # Instantiate the model (presumably on CPU by default)
+                model = FiberSegDecNet(
+                    model_path=segdecnet_model_path if Path(segdecnet_model_path).exists() else None
                 )
-                global_config["algorithm_parameters"]["segdecnet_instance"] = segdecnet
+                
+                # Apply the check and move to CUDA if available
+                if hasattr(model, 'to') and torch.cuda.is_available():
+                    model = model.to('cuda')
+                
+                global_config["algorithm_parameters"]["segdecnet_instance"] = model
                 logging.info("SegDecNet initialized")
             except Exception as e:
                 logging.warning(f"Failed to initialize SegDecNet: {e}")
@@ -588,67 +604,26 @@ def execute_inspection_run(args_namespace: Any) -> None:
                 args_namespace.fiber_type
             ))
             all_image_summaries.append(summary)
-        image_specific_output_subdir = current_run_output_dir / image_file_path.stem
-        current_image_processing_start_time = time.perf_counter() # Timer for this specific image processing attempt
-        
-        try:
-            summary = process_single_image( # Process single image.
-                image_file_path,
-                image_specific_output_subdir,
-                active_profile_config,
-                global_config,
-                loaded_um_per_px,
-                args_namespace.core_dia_um,
-                args_namespace.clad_dia_um,
-                args_namespace.fiber_type
-            )
-            # process_single_image is designed to always return a dict.
-            # Adding a safeguard for unforeseen None returns.
-            if summary is None: 
-                 logging.error(f"Critical internal error: process_single_image returned None for {image_file_path.name}. This should not happen.")
-                 summary = {
-                    "image_filename": image_file_path.name,
-                    "pass_fail_status": "ERROR_UNEXPECTED_NONE_RETURN",
-                    "processing_time_s": round(time.perf_counter() - current_image_processing_start_time, 2),
-                    "total_defect_count": 0,
-                    "core_defect_count": 0,
-                    "cladding_defect_count": 0,
-                    "failure_reason_summary": "Internal error: process_single_image returned None."
-                }
-            all_image_summaries.append(summary) 
-        except Exception as e:
-            logging.error(f"Error processing {image_file_path.name}: {e}")
-            # Create error summary instead of retrying
-            error_summary = {
-                "image_filename": image_file_path.name,
-                "pass_fail_status": "ERROR",
-                "processing_time_s": round(time.perf_counter() - current_image_processing_start_time, 2),
-                "total_defect_count": 0,
-                "core_defect_count": 0,
-                "cladding_defect_count": 0,
-                "failure_reason_summary": f"Processing error: {str(e)}"
-            }
-            all_image_summaries.append(error_summary)
-            continue  # Skip to next image instead of retrying
+
     # --- Final Summary Report ---
-    if all_image_summaries: # If summaries exist.
-        summary_df = pd.DataFrame(all_image_summaries) # Create DataFrame from summaries.
-        summary_report_path = current_run_output_dir / "batch_summary_report.csv" # Define path for summary report.
+    if all_image_summaries:
+        summary_df = pd.DataFrame(all_image_summaries)
+        summary_report_path = current_run_output_dir / "batch_summary_report.csv"
         try:
-            summary_df.to_csv(summary_report_path, index=False, encoding='utf-8') # Save summary report to CSV.
+            summary_df.to_csv(summary_report_path, index=False, encoding='utf-8')
             logging.info(f"Batch summary report saved to: {summary_report_path}")
-        except Exception as e: # Handle errors during saving.
+        except Exception as e:
             logging.error(f"Failed to save batch summary report: {e}")
-    else: # If no summaries (e.g., no images processed or all failed critically before summary).
+    else:
         logging.warning("No image summaries were generated for the batch report.")
 
-    batch_duration = time.perf_counter() - batch_start_time # Calculate total batch processing time.
+    batch_duration = time.perf_counter() - batch_start_time
     logging.info(f"Batch Processing Complete ---")
     logging.info(f"Total images processed: {len(image_paths_to_process)}")
     logging.info(f"Total batch duration: {batch_duration:.2f} seconds.")
     logging.info(f"All reports for this run saved in: {current_run_output_dir}")
 
-# CORRECTED Function Definition: Changed args_namespace type hint to Any [cite: 129, 340]
+# CORRECTED Function Definition: Changed args_namespace type hint to Any
 def main_with_args(args_namespace: Any) -> None:
     """
     Entry point that uses a pre-filled args_namespace object.

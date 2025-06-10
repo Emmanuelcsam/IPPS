@@ -444,7 +444,6 @@ def locate_fiber_structure(
     )
 
 # Enhanced multi-method circle detection
-# Enhanced multi-method circle detection
     if circles is None or 'cladding_center_xy' not in localization_result:
         logging.info("Attempting enhanced multi-method circle detection")
         
@@ -454,6 +453,9 @@ def locate_fiber_structure(
             template_radius = int(min_img_dim * 0.3)
             template = np.zeros((template_radius*2, template_radius*2), dtype=np.uint8)
             cv2.circle(template, (template_radius, template_radius), template_radius, 255, -1)
+#            cv2.circle(template, (template_radius, template_radius), template_radius, 255, -1)
+#            cv2.circle(edge_mask, tuple(largest_contour[pt_idx][0]), 2, (255,), -1)
+
             
             # Match template at multiple scales
             best_match_val = 0
@@ -787,8 +789,9 @@ def locate_fiber_structure(
     search_radius_factor = 0.90 
     if localization_result.get('localization_method') in ['HoughCircles', 'CircleFitLib', 'ContourFitCircle', 'TemplateMatching']:
         cl_r_core_search = int(localization_result['cladding_radius_px'] * search_radius_factor)
-        # Corrected color for cv2.circle
+
         cv2.circle(cladding_mask_for_core_det, (cl_cx_core, cl_cy_core), cl_r_core_search, (255,), -1)
+        cv2.circle(core_mask_inv, (cl_cx_core, cl_cy_core), 5, (0,), -1)
     elif localization_result.get('cladding_ellipse_params'): # If cladding was an ellipse.
         ellipse_p_core = localization_result['cladding_ellipse_params']
         # Scale down ellipse axes for core search.
@@ -1043,7 +1046,10 @@ def generate_zone_masks(
 
         if use_ellipse_for_zone and cladding_ellipse_params is not None: # Ensure cladding_ellipse_params is not None
             # Indexing cladding_ellipse_params is correct, Pylance error is likely false positive
-            base_center_ell = (int(cladding_ellipse_params[0][0]), int(cladding_ellipse_params[0][1]))
+            if isinstance(cladding_ellipse_params[0], tuple):
+                base_center_ell = (int(cladding_ellipse_params[0][0]), int(cladding_ellipse_params[0][1]))
+            else:
+                base_center_ell = tuple(map(int, cladding_ellipse_params[0]))
             # Ensure axes are tuple of floats for cv2.ellipse
             base_minor_axis = float(cladding_ellipse_params[1][0]) 
             base_major_axis = float(cladding_ellipse_params[1][1])

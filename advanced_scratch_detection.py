@@ -121,7 +121,7 @@ class AdvancedScratchDetector:
         combined = np.max(gradient_responses, axis=0)
         
         # Normalize
-        combined = cv2.normalize(combined, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        combined = cv2.normalize(combined, combined, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         
         # Threshold
         _, binary = cv2.threshold(combined, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -173,7 +173,7 @@ class AdvancedScratchDetector:
             enhanced = np.maximum(enhanced, closed)
         
         # Normalize and threshold
-        enhanced = cv2.normalize(enhanced, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        enhanced = cv2.normalize(enhanced, enhanced, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
         return binary
@@ -189,7 +189,7 @@ class AdvancedScratchDetector:
         for sigma in scales:
             try:
                 # Compute Hessian matrix components
-                Hxx, Hxy, Hyy = hessian_matrix(image, sigma=sigma, order='xy')
+                Hxx, Hxy, Hyy = hessian_matrix(image, sigma=int(sigma), order='xy')
                 
                 # Compute eigenvalues correctly - create the full Hessian matrix
                 # hessian_matrix_eigvals expects a single Hessian tensor
@@ -233,7 +233,7 @@ class AdvancedScratchDetector:
         combined = np.max(hessian_responses, axis=0) if hessian_responses else np.zeros_like(image)
         
         # Normalize
-        combined = cv2.normalize(combined, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        combined = cv2.normalize(combined, combined, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         
         # Threshold
         _, binary = cv2.threshold(combined, 30, 255, cv2.THRESH_BINARY)
@@ -267,7 +267,7 @@ class AdvancedScratchDetector:
         max_response = np.max(tophat_responses, axis=0)
         
         # Enhance contrast
-        enhanced = cv2.normalize(max_response, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        enhanced = cv2.normalize(enhanced, enhanced, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         
         # Adaptive thresholding
         binary = cv2.adaptiveThreshold(enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -309,7 +309,7 @@ class AdvancedScratchDetector:
         combined = np.max(filtered_images, axis=0)
         
         # Normalize and threshold
-        combined = cv2.normalize(combined, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        combined = cv2.normalize(combined, combined, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         _, binary = cv2.threshold(combined, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
         return binary

@@ -1,0 +1,19 @@
+[2025-06-10 08:45:08] [INFO] [main:125] Logging configured. Level: INFO. Log file: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250610_084508\logs\inspection_20250610_084508.log
+[2025-06-10 08:45:08] [INFO] [main:397] Inspection System Started.
+[2025-06-10 08:45:08] [INFO] [main:398] Input Directory: C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\sample1
+[2025-06-10 08:45:08] [INFO] [main:399] Output Directory (this run): C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\output\run_20250610_084508
+[2025-06-10 08:45:08] [INFO] [main:400] Using Profile: deep_inspection
+[2025-06-10 08:45:08] [INFO] [main:401] Fiber Type Key for Rules: single_mode_pc
+[2025-06-10 08:45:08] [WARNING] [calibration:251] Calibration file 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json' not found.
+[2025-06-10 08:45:08] [WARNING] [main:439] No calibration data loaded from 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\calibration.json'. Measurements may be in pixels if user dimensions not provided.
+[2025-06-10 08:45:08] [INFO] [main:459] Found 1 images to process in 'C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\sample1'.
+[2025-06-10 08:45:08] [INFO] [main:467] Initializing advanced detection models...
+[2025-06-10 08:45:08] [ERROR] [run:273] An error occurred during the call to the main module's inspection function: cannot access local variable 'PADIM_SPECIFIC_AVAILABLE' where it is not associated with a value
+Traceback (most recent call last):
+  File "C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\run.py", line 236, in main_interactive
+    main_module.execute_inspection_run(cast(Any, simulated_args))
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\main.py", line 490, in execute_inspection_run
+    if PADIM_SPECIFIC_AVAILABLE:
+       ^^^^^^^^^^^^^^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'PADIM_SPECIFIC_AVAILABLE' where it is not associated with a value
