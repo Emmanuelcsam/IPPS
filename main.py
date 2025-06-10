@@ -20,9 +20,11 @@ from typing import Dict, Any, Optional, List # For type hinting
 
 try:
     import torch
+    TORCH_AVAILABLE = True
 except ImportError:
     torch = None
-    logging.warning("PyTorch not available")
+    TORCH_AVAILABLE = False
+    logging.warning("PyTorch not available. PaDiM and SegDecNet models will be disabled.")
 
 try:
     from anomalib_integration import AnomalibDefectDetector
@@ -487,22 +489,17 @@ def execute_inspection_run(args_namespace: Any) -> None:
         # Initialize PaDiM Specific
         if PADIM_SPECIFIC_AVAILABLE:
             try:
-                padim_model = FiberPaDiM(backbone='resnet18', device='cuda' if torch.cuda.is_available() else 'cpu')
-                
-                # Load pre-trained model if available
-                padim_model_path = global_config["algorithm_parameters"].get("padim_model_path")
+                padim_model = FiberPaDiM()
+                padim_model_path = global_algo_params.get("padim_model_path")
                 if padim_model_path and Path(padim_model_path).exists():
-                    checkpoint = torch.load(padim_model_path)
-                    padim_model.patch_means = checkpoint['patch_means']
-                    padim_model.C = checkpoint['C']
-                    padim_model.C_inv = checkpoint['C_inv']
-                    padim_model.R = checkpoint['R']
-                    padim_model.fitted = True
-                    logging.info("Loaded pre-trained PaDiM model")
-                
-                global_config["algorithm_parameters"]["padim_specific_instance"] = padim_model
+                    padim_model.load_model(padim_model_path)
+                    global_algo_params["padim_instance"] = padim_model
+                    logging.info("PaDiM specific model loaded successfully")
+                else:
+                    logging.warning("PaDiM model path not found, using untrained model")
             except Exception as e:
                 logging.warning(f"Failed to initialize PaDiM specific: {e}")
+                PADIM_SPECIFIC_AVAILABLE = False
         
         # Initialize SegDecNet
         if SEGDECNET_AVAILABLE:
@@ -619,19 +616,20 @@ def execute_inspection_run(args_namespace: Any) -> None:
                     "failure_reason_summary": "Internal error: process_single_image returned None."
                 }
             all_image_summaries.append(summary) 
-        except Exception as e: # Handle unexpected errors during single image processing.
-            logging.error(f"Unexpected error processing {image_file_path.name}: {e}", exc_info=True) # Log full traceback
-            failure_summary = { 
+        except Exception as e:
+            logging.error(f"Error processing {image_file_path.name}: {e}")
+            # Create error summary instead of retrying
+            error_summary = {
                 "image_filename": image_file_path.name,
-                "pass_fail_status": "ERROR_UNHANDLED_EXCEPTION",
+                "pass_fail_status": "ERROR",
                 "processing_time_s": round(time.perf_counter() - current_image_processing_start_time, 2),
                 "total_defect_count": 0,
                 "core_defect_count": 0,
                 "cladding_defect_count": 0,
-                "failure_reason_summary": f"Unhandled exception: {str(e)}"
+                "failure_reason_summary": f"Processing error: {str(e)}"
             }
-            all_image_summaries.append(failure_summary)
-            
+            all_image_summaries.append(error_summary)
+            continue  # Skip to next image instead of retrying
     # --- Final Summary Report ---
     if all_image_summaries: # If summaries exist.
         summary_df = pd.DataFrame(all_image_summaries) # Create DataFrame from summaries.

@@ -178,69 +178,67 @@ class AdvancedScratchDetector:
         
         return binary
     
-def _hessian_based_detection(self, image: np.ndarray) -> np.ndarray:
-    """
-    Hessian matrix based scratch detection
-    """
-    # Multi-scale Hessian analysis
-    scales = [1.0, 1.5, 2.0]
-    hessian_responses = []
-    
-    for sigma in scales:
-        try:
-            # Compute Hessian matrix
-            Hxx, Hxy, Hyy = hessian_matrix(image, sigma=sigma, order='xy')
-            
-            # Compute eigenvalues - Pass the matrices separately
-            # Create the Hessian matrix for each pixel
-            h, w = image.shape
-            lambda1 = np.zeros((h, w))
-            lambda2 = np.zeros((h, w))
-            
-            for i in range(h):
-                for j in range(w):
-                    # Construct 2x2 Hessian matrix at this pixel
-                    H = np.array([[Hxx[i, j], Hxy[i, j]], 
-                                  [Hxy[i, j], Hyy[i, j]]])
-                    # Compute eigenvalues
-                    eigvals = np.linalg.eigvalsh(H)
-                    lambda1[i, j] = eigvals[0]
-                    lambda2[i, j] = eigvals[1]
-            
-            # Ridge measure (scratches are ridges)
-            beta = 0.5
-            c = 15
-            
-            # Ensure lambda2 is the larger eigenvalue
-            lambda1_abs = np.abs(lambda1)
-            lambda2_abs = np.abs(lambda2)
-            
-            # Ridge measure
-            Rb = lambda1_abs / (lambda2_abs + 1e-10)
-            S = np.sqrt(lambda1_abs**2 + lambda2_abs**2)
-            
-            # Vesselness measure
-            vesselness = np.exp(-(Rb**2) / (2 * beta**2)) * (1 - np.exp(-(S**2) / (2 * c**2)))
-            
-            # Only keep where lambda2 < 0 (bright ridges on dark background)
-            vesselness[lambda2 >= 0] = 0
-            
-            hessian_responses.append(vesselness)
-        except Exception as e:
-            logging.error(f"Error in hessian scratch detection: {e}")
-            # Return zeros on error
-            hessian_responses.append(np.zeros_like(image))
-    
-    # Combine scales
-    combined = np.max(hessian_responses, axis=0)
-    
-    # Normalize
-    combined = cv2.normalize(combined, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-    
-    # Threshold
-    _, binary = cv2.threshold(combined, 30, 255, cv2.THRESH_BINARY)
-    
-    return binary
+    def _hessian_based_detection(self, image: np.ndarray) -> np.ndarray:
+        """
+        Hessian matrix based scratch detection
+        """
+        # Multi-scale Hessian analysis
+        scales = [1.0, 1.5, 2.0]
+        hessian_responses = []
+        
+        for sigma in scales:
+            try:
+                # Compute Hessian matrix components
+                Hxx, Hxy, Hyy = hessian_matrix(image, sigma=sigma, order='xy')
+                
+                # Compute eigenvalues correctly - create the full Hessian matrix
+                # hessian_matrix_eigvals expects a single Hessian tensor
+                h, w = image.shape
+                hessian_tensor = np.zeros((h, w, 2, 2))
+                hessian_tensor[:, :, 0, 0] = Hxx
+                hessian_tensor[:, :, 0, 1] = Hxy
+                hessian_tensor[:, :, 1, 0] = Hxy
+                hessian_tensor[:, :, 1, 1] = Hyy
+                
+                # Now call with the correct format
+                eigenvalues = hessian_matrix_eigvals(hessian_tensor)
+                lambda1 = eigenvalues[0]
+                lambda2 = eigenvalues[1]
+                
+                # Ridge measure (scratches are ridges)
+                beta = 0.5
+                c = 15
+                
+                # Ensure lambda2 is the larger eigenvalue
+                lambda1_abs = np.abs(lambda1)
+                lambda2_abs = np.abs(lambda2)
+                
+                # Ridge measure
+                Rb = lambda1_abs / (lambda2_abs + 1e-10)
+                S = np.sqrt(lambda1_abs**2 + lambda2_abs**2)
+                
+                # Vesselness measure
+                vesselness = np.exp(-(Rb**2) / (2 * beta**2)) * (1 - np.exp(-(S**2) / (2 * c**2)))
+                
+                # Only keep where lambda2 < 0 (bright ridges on dark background)
+                vesselness[lambda2 >= 0] = 0
+                
+                hessian_responses.append(vesselness)
+            except Exception as e:
+                logging.error(f"Error in hessian scratch detection: {e}")
+                # Return zeros on error
+                hessian_responses.append(np.zeros_like(image))
+        
+        # Combine scales
+        combined = np.max(hessian_responses, axis=0) if hessian_responses else np.zeros_like(image)
+        
+        # Normalize
+        combined = cv2.normalize(combined, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        
+        # Threshold
+        _, binary = cv2.threshold(combined, 30, 255, cv2.THRESH_BINARY)
+        
+        return binary
     
     def _morphological_detection(self, image: np.ndarray) -> np.ndarray:
         """

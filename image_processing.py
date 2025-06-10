@@ -11,15 +11,22 @@ zone mask generation, and the multi-algorithm defect detection engine with fusio
 This version is enhanced with an optional C++ accelerator for the DO2MR algorithm.
 """
 # Standard and third-party library imports
-import cv2 
-import numpy as np 
-from typing import Dict, Any, Optional, List, Tuple 
-import logging 
-from pathlib import Path 
+from typing import Dict, Any, Optional, List, Tuple, Union
+import numpy as np
+import cv2
+import logging
+from pathlib import Path
 import pywt
 from scipy import ndimage
 from skimage.feature import local_binary_pattern
 
+
+try:
+    from skimage.feature import hessian_matrix, hessian_matrix_eigvals
+    SKIMAGE_AVAILABLE = True
+except ImportError:
+    SKIMAGE_AVAILABLE = False
+    logging.warning("scikit-image features not available")
 # --- C++ Accelerator Integration ---
 # Attempt to import the compiled C++ accelerator module.
 # If it's not found, the pure Python implementations will be used as a fallback.
@@ -1427,12 +1434,16 @@ def detect_defects(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Enhanced defect detection using multi-algorithm fusion approach.
-    Uses zone-specific parameters for better accuracy as per research paper.
     """
+    # Validate inputs
+    if processed_image is None or zone_mask is None:
+        logging.error(f"Invalid input to detect_defects: processed_image or zone_mask is None")
+        return np.zeros_like(processed_image), np.zeros_like(processed_image, dtype=np.float32)
+    
     if np.sum(zone_mask) == 0:
         logging.debug(f"Defect detection skipped for empty zone mask in zone '{zone_name}'.")
-        return np.zeros_like(processed_image, dtype=np.uint8), np.zeros_like(processed_image, dtype=np.float32)
-
+        return np.zeros_like(processed_image), np.zeros_like(processed_image, dtype=np.float32)
+    
     h, w = processed_image.shape[:2]
     confidence_map = np.zeros((h, w), dtype=np.float32)
     working_image_input = cv2.bitwise_and(processed_image, processed_image, mask=zone_mask)
