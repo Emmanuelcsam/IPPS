@@ -196,7 +196,6 @@ uv run python matrix_to_img.py intensity_matrix.csv -o reconstructed.png -c hot 
 - **Small Defect Enhancement:** Special algorithms to detect faint defects
 - **Interactive Visualization:** Real-time analysis with napari viewer (Test14)
 - **Performance Optimization:** C++ acceleration for critical operations
-- **IEC 61300-3-35 Compliance:** Industry-standard pass/fail criteria
 
 ## Dependencies
 
