@@ -1,0 +1,16 @@
+echo '{
+  "intensity_method": "luminance",
+  "output_formats": ["numpy", "json"],
+  "difference_method": "gradient_magnitude",
+  "neighborhood": "8-connected",
+  "colormap": "black_to_red",
+  "highlight_all": true,
+  "threshold": 0.0,
+  "gamma": 0.5,
+  "blur": 0,
+  "num_rings": 2,
+  "min_scratch_length": 20,
+  "min_dig_area": 10,
+  "enhancement_factor": 2.0,
+  "create_visualizations": true
+}' > batch_config.json

@@ -1,8 +1,0 @@
-defect_id,zone_name,defect_type,centroid_x_px,centroid_y_px,bbox_x_px,bbox_y_px,bbox_w_px,bbox_h_px,area_px,area_um,perimeter_px,perimeter_um,major_px,major_um,minor_px,minor_um,confidence_score,detection_methods
-1,core,Scratch,583,425,527,368,115,115,10196.5,,391.74725472927094,,115,,115,,0.67,lei|fallback
-2,cladding,Scratch,584,425,441,282,287,287,64690.0,,949.5188941955566,,287,,287,,1.00,do2mr|lei|fallback
-3,ferrule_contact,Scratch,584,425,297,138,575,575,259698.0,,1904.6946420669556,,575,,575,,1.00,do2mr|lei|fallback
-4,adhesive,Scratch,351,627,345,624,11,7,11.0,,32.14213538169861,,11,,7,,0.67,lei|fallback
-5,adhesive,Region,746,157,741,155,9,5,10.0,,22.485281229019165,,3.5682482323055424,,3.5682482323055424,,0.33,fallback
-6,adhesive,Region,494,136,492,133,6,9,10.0,,26.97056245803833,,3.5682482323055424,,3.5682482323055424,,0.33,fallback
-7,adhesive,Region,663,127,656,125,12,6,12.0,,30.14213538169861,,3.9088200952233594,,3.9088200952233594,,0.33,fallback

@@ -1,5 +1,0 @@
-filename,total_defects,core_defects,cladding_defects,ferrule_defects,adhesive_defects,status,processing_time_s,µm_per_px
-ima19.jpg,185,6,41,122,16,FAIL,10.037,
-img38.jpg,0,0,0,0,0,ERROR,9.713,
-img63.jpg,7,1,1,1,4,FAIL,5.955,
-ima18.jpg,32,1,9,19,3,FAIL,8.66,

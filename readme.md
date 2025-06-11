@@ -1,183 +1,216 @@
+# Fiber Optic End Face Inspection System
 
-**ENSURE ALL PREREQUISTES INSTALLED**
+An automated system for detecting and analyzing defects (scratches and digs) in fiber optic end faces using advanced image processing techniques.
 
-- **Installing UV**
-  - powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-  - curl -LsSf https://astral.sh/uv/install.sh \| sh
-  - wget -qO- https://astral.sh/uv/install.sh \| sh
-  - pip install uv
-- **One line install**
-  -`uv venv && uv pip install -r requirements.txt pybind11 opencv-python "napari[all]" anomalib torch torchvision scikit-learn numpy joblib scipy omegaconf openvino openvino-dev timm --upgrade && uv run python setup.py build_ext --inplace`
-- **Steps to install and run program with uv**
-  - `uv venv`
-  - `uv pip install -r requirements.txt`
-  - `uv pip install pybind11`
-  - `uv pip install opencv-python`
-  - `uv pip install "napari[all]"`
-  - `uv pip install --upgrade anomalib`
-  - `uv pip install --upgrade timm`
-  - `uv pip install anomalib torch torchvision scikit-learn numpy opencv-python joblib scipy omegaconf`
-  - `uv pip install openvino openvino-dev`
-  - `uv run python setup.py build_ext --inplace`
-  - `uv run python run.py`
+## Prerequisites
 
-**READ ALL DOCUMENTATION**
+### Installing UV (Python Environment Manager)
+Choose one of the following installation methods:
 
-**ONLY WORKS WHEN DEPENDENCIES ARE IN THE SAME DIRECTORY AS ALL FILES AND ALL CORRELATING FILES ARE IN THE SAME DIRECTORY**
+- **Windows PowerShell:**
+  ```powershell
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
+- **macOS/Linux:**
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  # or
+  wget -qO- https://astral.sh/uv/install.sh | sh
+  ```
+- **Via pip:**
+  ```bash
+  pip install uv
+  ```
 
-## **Files**
+### One-Line Installation
+```bash
+uv venv && uv pip install -r requirements.txt pybind11 opencv-python "napari[all]" anomalib torch torchvision scikit-learn numpy joblib scipy omegaconf openvino openvino-dev timm --upgrade && uv run python setup.py build_ext --inplace
+```
 
-### **Additional Programs**
+### Step-by-Step Installation
+```bash
+uv venv
+uv pip install -r requirements.txt
+uv pip install pybind11
+uv pip install opencv-python
+uv pip install "napari[all]"
+uv pip install --upgrade anomalib
+uv pip install --upgrade timm
+uv pip install anomalib torch torchvision scikit-learn numpy opencv-python joblib scipy omegaconf
+uv pip install openvino openvino-dev
+uv run python setup.py build_ext --inplace
+```
 
-High-quality-ellipse-detection https://github.com/AlanLuSun/High-quality-ellipse-detection
+## Project Structure
 
-segdec-net-jim2019
-https://github.com/skokec/segdec-net-jim2019
+### Test Versions
 
-### **output**
-`Contains all scan results`
+#### Test13
+- **Description:** Fully functional Python implementation with comprehensive defect detection
+- **Performance:** Computationally intensive but operationally complete
+- **Documentation:** See "Fiber Optic Defect Detector Slideshow.pdf" for detailed overview
 
+#### Test14 (LATEST)
+- **Description:** C++ optimized version of Test13
+- **Performance:** Significantly faster execution while maintaining functionality
+- **Usage:** Run with `uv run python run.py`
 
-### **sample1**
-`Contains one single sample image at a time, for individual scan`
+#### Test15 (NEW)
+- **Description:** Modular pipeline approach with enhanced visualization and analysis
+- **Components:**
+  - Intensity matrix conversion
+  - Difference analysis with heatmap generation
+  - Advanced defect detection algorithms
+  - Interactive inspection workflow
 
-### **sample2**
-`Contains multiple sample images at a time, for batch scans`
+### Test15 Modules
 
-### **scratchdateset**
-`Contains scratch image samples for training algorthims`
+| Module | Description |
+|--------|-------------|
+| `main.py` | Interactive inspection system with unified workflow |
+| `image_to_matrix.py` | Converts fiber images to pixel intensity matrices |
+| `heatmap.py` | Generates difference heatmaps highlighting large variations |
+| `inverse_heatmap.py` | Creates heatmaps emphasizing small differences |
+| `pixel_defects.py` | Detects scratches (lines) and digs (dots) while excluding fiber rings |
+| `matrix_to_img.py` | Converts matrix data back to images |
+| `batch_matrix_to_img.py` | Batch conversion of inspection outputs to images |
 
-### **Test1.7**
-`Contains first seven interation of program`
+### Additional Resources
 
-`Test 3 is most functional but lacks batch scan ability`
+- **High-quality-ellipse-detection:** https://github.com/AlanLuSun/High-quality-ellipse-detection
+- **segdec-net-jim2019:** https://github.com/skokec/segdec-net-jim2019
 
-`Test 5 is least functional`
+## Directory Structure
 
-### **Test8.12**
-`Test 8 is a slighlty alterated iteration of Test 7`
+```
+├── output/              # Contains all scan results
+├── sample1/             # Single sample image for individual scan
+├── sample2/             # Multiple sample images for batch scans
+├── scratchdataset/      # Scratch image samples for training algorithms
+├── Test13/              # Python implementation
+├── Test14LATEST/        # C++ optimized version
+└── Test15/              # New modular pipeline
+```
 
-`Test 9-12 are AI iterations of the program`
+## Usage
 
-### **Test13**
-`Test 13 is computationally slow but operationally functional`
+### Test14 (Recommended for Production)
+```bash
+cd Test14LATEST
+uv run python run.py
+```
 
-`Review "Fiber Optic Defect Dector Slideshow.pdf" for full understanding`
+Follow the interactive prompts to:
+1. Select input directory with fiber images
+2. Choose output directory for results
+3. Configure fiber specifications
+4. Select processing profile (deep_inspection or fast_scan)
+5. Choose fiber type for pass/fail rules
 
-### **Test14LATEST**
-`Test 14 is Test 13 recreated and converted to C++`
+### Test15 (New Modular Approach)
 
-`Computationally fast and latest iteration`
+#### Interactive Mode
+```bash
+cd Test15
+uv run python main.py
+```
 
+The system will guide you through:
+- Image selection
+- Quick scan with defaults or detailed configuration
+- Real-time processing with progress updates
+- Comprehensive report generation
 
-- **Current Program Architecture (Test13 & 14)**  
-  - `main.py`  
-    - `config_loader.json`: Loads configuration parameters from a JSON file.  
-    - `calibration.py`: Determines the physical scale (µm/pixel).  
-  - `image_processing.py`  
-    - Preprocessing  
-    - Localization  
-    - Zone Generation  
-    - Defect Detection  
-  - `analysis.py`  
-    - Characterization  
-    - Classification  
-    - Applying Pass/Fail Rules  
-  - `reporting.py`  
-    - Annotated Images  
-    - CSV Reports  
-    - Polar Histograms  
+#### Batch Mode
+```bash
+# Create batch configuration
+echo '{
+  "image_path": "path/to/your/image.png",
+  "output_dir": "inspection_output",
+  "intensity_method": "luminance",
+  "output_formats": ["numpy", "json"],
+  "difference_method": "gradient_magnitude",
+  "neighborhood": "8-connected",
+  "colormap": "black_to_red",
+  "highlight_all": true,
+  "threshold": 0.0,
+  "gamma": 0.5,
+  "blur": 0,
+  "num_rings": 2,
+  "min_scratch_length": 20,
+  "min_dig_area": 10,
+  "enhancement_factor": 2.0,
+  "create_visualizations": true
+}' > batch_config.json
 
+# Run batch inspection
+uv run python main.py --batch batch_config.json
+```
 
+#### Individual Module Usage
+```bash
+# Convert image to intensity matrix
+uv run python image_to_matrix.py input_image.png -o output_dir -f numpy json csv_coords -v
 
+# Generate difference heatmap
+uv run python heatmap.py intensity_matrix.npy -o output_dir -c black_to_red --highlight-all -v
 
+# Detect defects
+uv run python pixel_defects.py --json analysis.json --image heatmap.png -o output_dir
 
+# Convert results back to images
+uv run python matrix_to_img.py intensity_matrix.csv -o reconstructed.png -c hot -v
+```
 
+## Configuration
 
+### Test14 Configuration (config.json)
+- **processing_profiles:** Algorithm parameters for different inspection modes
+- **zone_definitions_iec61300_3_35:** Pass/fail rules for different fiber types
+- **reporting:** Output generation settings
 
-## **Project Structure**
+### Test15 Configuration Options
+- **Intensity Methods:** luminance, average, max, min
+- **Difference Methods:** gradient_magnitude, max_neighbor, sobel, laplacian, canny_strength
+- **Color Maps:** black_to_red, black_red_yellow, heat, custom, highlight
+- **Enhancement:** Adjustable parameters for detecting faint defects
 
-The project is organized into several key modules:
+## Output Files
 
-| File | Description |
-| :---- | :---- |
-| run.py | Interactive Runner: The main entry point to run the inspection via a user-friendly command-line interface. |
-| image\_processing.py | Core Engine: Handles image loading, preprocessing, fiber localization, and the multi-algorithm defect detection fusion. |
-| analysis.py | Rule Engine: Characterizes defects found by the processing engine and applies pass/fail criteria. |
-| reporting.py | Output Generator: Creates all output files, including annotated images, CSV reports, and plots. |
-| config.json | Central Configuration: A JSON file to control all parameters, from algorithm settings to pass/fail rules. |
-| advanced\_scratch\_detection.py | Contains specialized, advanced algorithms for detecting linear scratch defects. |
-| advanced\_visualization.py | Implements the interactive napari viewer for detailed analysis. |
-| accelerator.cpp | The C++ source code for performance-critical analysis functions. |
-| setup.py | A standard Python script to compile the accelerator.cpp extension using pybind11. |
-| requirements.txt | A list of all required Python packages for the project. |
+### Test14 Outputs
+- `*_annotated.png`: Original image with highlighted defects and zones
+- `*_report.csv`: Detailed defect listing with properties
+- `*_histogram.png`: Angular distribution of defects
 
-## **Setup and Installation**
+### Test15 Outputs
+- `*_intensity_matrix.npy/json/csv`: Pixel intensity data
+- `*_heatmap.png`: Difference visualization
+- `*_defects_detected.png`: Blue-highlighted scratches and digs
+- `*_defect_analysis.json`: Comprehensive defect data
+- `*_report.png`: Multi-panel analysis visualization
+- `inspection_report.txt`: Summary report
 
-### **1\. Prerequisites**
+## Key Features
 
-* Python 3.8+  
-* A C++ compiler (e.g., GCC on Linux, MSVC on Windows)  
-* OpenCV with C++ development libraries installed.
+- **Multi-Algorithm Fusion:** Combines multiple detection methods for accuracy
+- **Automatic Ring Detection:** Identifies and excludes fiber core/cladding boundaries
+- **Small Defect Enhancement:** Special algorithms to detect faint defects
+- **Interactive Visualization:** Real-time analysis with napari viewer (Test14)
+- **Performance Optimization:** C++ acceleration for critical operations
+- **IEC 61300-3-35 Compliance:** Industry-standard pass/fail criteria
 
-### **2\. Install Python Dependencies**
+## Dependencies
 
-Install all required Python packages using pip:
+- OpenCV (with C++ development libraries for Test14)
+- NumPy, Pandas, Matplotlib
+- scikit-image, scikit-learn
+- PyTorch (for advanced detection algorithms)
+- napari (for interactive visualization)
+- pybind11 (for C++ bindings)
 
-pip install \-r requirements.txt
+## Notes
 
-### **3\. Compile the C++ Accelerator (Optional, Recommended)**
-
-For a significant performance boost, compile the C++ extension. This requires pybind11 (installed via requirements.txt) and a properly configured C++ environment with access to OpenCV headers and libraries.
-
-* On Linux: Ensure pkg-config can find opencv4.  
-* On Windows: Set the OPENCV\_DIR environment variable to your OpenCV build directory (e.g., C:\\opencv\\build).
-
-Run the following command in the project's root directory:
-
-python setup.py build\_ext \--inplace
-
-If the compilation is successful, a accelerator module will be created, and the program will use it automatically. If it fails or you skip this step, the application will fall back to the slower, pure Python implementation.
-
-## **How to Run**
-
-The inspection process is started through the interactive runner run.py.
-
-python run.py
-
-The script will guide you through the following setup steps:
-
-1. Input Directory: The full path to the folder containing the fiber images you want to inspect.  
-2. Output Directory: The full path where reports and logs will be saved. It will be created if it doesn't exist.  
-3. Fiber Specifications (Optional): You can provide the known core and cladding diameters in microns to enable more accurate, micron-based zone definitions.  
-4. Processing Profile: Choose between deep\_inspection (default) and fast\_scan.  
-5. Fiber Type: Specify the key from config.json that corresponds to the pass/fail rules you want to apply (e.g., single\_mode\_pc).
-
-## **Configuration**
-
-The entire inspection process is controlled by config.json. Key sections include:
-
-* processing\_profiles: Defines the algorithms and parameters for different inspection modes (fast\_scan, deep\_inspection).  
-* algorithm\_parameters: Global settings for specific image processing algorithms.  
-* zone\_definitions\_iec61300\_3\_35: Contains the pass/fail rules for different fiber types. You can define zones (Core, Cladding, etc.) and specify rules such as maximum defect counts and sizes (in microns).  
-* reporting: Controls the output generation, such as image DPI and font sizes.
-
-## **Output**
-
-After an inspection run, the specified output directory will contain:
-
-* A sub-directory for each processed image.  
-* Inside each sub-directory:  
-  * \*\_annotated.png: The original image with defects and zones highlighted.  
-  * \*\_report.csv: A detailed CSV file listing every detected defect and its properties.  
-  * \*\_histogram.png: A polar plot showing the angular distribution of defects.  
-* A main log file for the entire run.
-
-## **Key Dependencies**
-
-* [OpenCV](https://opencv.org/): Core computer vision and image processing tasks.  
-* [NumPy](https://numpy.org/): Fundamental package for scientific computing.  
-* [Matplotlib](https://matplotlib.org/): Used for generating plots like the polar histogram.  
-* [Pandas](https://pandas.pydata.org/): Used for creating and managing the CSV defect reports.  
-* [Napari](https://napari.org/): For the optional interactive visualization.  
-* [pybind11](https://github.com/pybind/pybind11): For creating the C++/Python bindings.
+- Ensure all files and dependencies are in the same directory
+- Test14 requires C++ compiler for optimal performance
+- Test15 provides more modular control over the inspection process
+- Both systems support batch processing of multiple images
