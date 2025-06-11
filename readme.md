@@ -106,7 +106,7 @@ Follow the interactive prompts to:
 4. Select processing profile (deep_inspection or fast_scan)
 5. Choose fiber type for pass/fail rules
 
-### Test15 (New Modular Approach)
+### Test15
 
 #### Interactive Mode
 ```bash
