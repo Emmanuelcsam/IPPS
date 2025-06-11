@@ -1,2 +1,0 @@
-image_filename,pass_fail_status,processing_time_s,total_defect_count,core_defect_count,cladding_defect_count,failure_reason_summary
-ima12.jpg,FAIL,271.51,1,1,0,Zone 'Core': Too many Pits/Digs (1 > 0).

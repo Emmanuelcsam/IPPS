@@ -1,3 +1,0 @@
-image_filename,pass_fail_status,processing_time_s,total_defect_count,core_defect_count,cladding_defect_count,failure_reason_summary
-ima12.jpg,ERROR_PROCESSING,0.0,0,0,0,name 'defect' is not defined
-ima12.jpg,ERROR_UNHANDLED_EXCEPTION,11.59,0,0,0,Unhandled exception: name 'defect' is not defined

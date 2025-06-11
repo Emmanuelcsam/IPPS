@@ -1,4 +1,0 @@
-defect_id,zone,classification,centroid_x_px,centroid_y_px,width_px,area_px
-40_s_D1,Cladding,Pit/Dig,115.23974571105111,459.893494731342,113.0,11483
-40_s_D2,Contact,Pit/Dig,72.63636363636364,454.27272727272725,6.363960266113281,44
-40_s_D3,Contact,Pit/Dig,62.0,471.0,1.4142134189605713,5
