@@ -35,7 +35,7 @@ def analyze_fiber_optic(image_path):
             print("No circles detected")
             return
         
-        circles = np.uint16(np.around(circles[0]))
+        circles = np.around(circles[0]).astype(np.uint16)
         circles = sorted(circles, key=lambda x: x[2])  # Sort by radius
         
         # Process core (smallest circle)
@@ -45,12 +45,12 @@ def analyze_fiber_optic(image_path):
             
             # Create core mask and analyze
             mask = np.zeros_like(img)
-            cv2.circle(mask, (x, y), r, 255, -1)
+            cv2.circle(mask, (x, y), r, (255,), -1)
             core_region = cv2.bitwise_and(img, img, mask=mask)
             
             pixels = core_region[core_region > 0]
             if len(pixels) > 0:
-                print(f"Core stats: mean={np.mean(pixels):.1f}, std={np.std(pixels):.1f}")
+                print(f"Core stats: mean={pixels.mean():.1f}, std={pixels.std():.1f}")
             else:
                 print("Core stats: No pixels found")
         
@@ -61,15 +61,15 @@ def analyze_fiber_optic(image_path):
             
             # Create annular mask
             outer_mask = np.zeros_like(img)
-            cv2.circle(outer_mask, (x2, y2), r2, 255, -1)
+            cv2.circle(outer_mask, (x2, y2), r2, (255,), -1)
             inner_mask = np.zeros_like(img)
-            cv2.circle(inner_mask, (x, y), r, 255, -1)
+            cv2.circle(inner_mask, (x, y), r, (255,), -1)
             clad_mask = cv2.subtract(outer_mask, inner_mask)
             
             clad_region = cv2.bitwise_and(img, img, mask=clad_mask)
             pixels = clad_region[clad_region > 0]
             if len(pixels) > 0:
-                print(f"Cladding stats: mean={np.mean(pixels):.1f}, std={np.std(pixels):.1f}")
+                print(f"Cladding stats: mean={pixels.mean():.1f}, std={pixels.std():.1f}")
             else:
                 print("Cladding stats: No pixels found")
         

@@ -56,7 +56,9 @@ def process_batch(pattern, output_dir='batch_output'):
         cv2.imwrite(f'{output_dir}/{base}_inner.png', cv2.UMat(inner_img))
         cv2.imwrite(f'{output_dir}/{base}_ring.png', cv2.UMat(ring_img))
         
-        print(f"  - Success: r_inner={inner[2]}, r_outer={outer[2]}")
+        # Safely handle missing outer circle
+        r_outer_val = outer[2] if outer is not None else 'N/A'
+        print(f"  - Success: r_inner={inner[2]}, r_outer={r_outer_val}")
         success += 1
     
     # Summary
