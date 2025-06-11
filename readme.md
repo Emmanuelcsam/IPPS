@@ -50,7 +50,7 @@ uv run python setup.py build_ext --inplace
 - **Performance:** Computationally intensive but operationally complete
 - **Documentation:** See "Fiber Optic Defect Detector Slideshow.pdf" for detailed overview
 
-#### Test14 (LATEST)
+#### Test14
 - **Description:** C++ optimized version of Test13
 - **Performance:** Significantly faster execution while maintaining functionality
 - **Usage:** Run with `uv run python run.py`
