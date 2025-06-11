@@ -56,7 +56,7 @@ uv run python setup.py build_ext --inplace
 - **Usage:** Run with `uv run python run.py`
 
 #### Test15 (NEW)
-- **Description:** Modular pipeline approach with enhanced visualization and analysis
+- **Description:** Reduces photos to matrices and assess defects based on direct computations 
 - **Components:**
   - Intensity matrix conversion
   - Difference analysis with heatmap generation
