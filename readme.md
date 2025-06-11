@@ -93,7 +93,7 @@ uv run python setup.py build_ext --inplace
 
 ## Usage
 
-### Test14 (Recommended for Production)
+### Test14 
 ```bash
 cd Test14LATEST
 uv run python run.py
