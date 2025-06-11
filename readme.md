@@ -61,7 +61,6 @@ uv run python setup.py build_ext --inplace
   - Intensity matrix conversion
   - Difference analysis with heatmap generation
   - Advanced defect detection algorithms
-  - Interactive inspection workflow
 
 ### Test15 Modules
 
