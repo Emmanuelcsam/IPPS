@@ -48,7 +48,7 @@ def correct_illumination(image):
     
     # Subtract background
     corrected = cv2.subtract(image, background)
-    corrected = cv2.add(corrected, 128)  # Shift to mid-gray
+    corrected = cv2.add(corrected, np.full_like(corrected, 128))  # Shift to mid-gray
     
     return corrected
 

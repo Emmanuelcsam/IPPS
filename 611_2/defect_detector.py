@@ -37,7 +37,7 @@ def do2mr_detection(image, zone_mask, gamma=1.5, kernel_size=5):
     residual = cv2.medianBlur(residual, 3)
     
     # Calculate threshold using robust statistics
-    zone_pixels = residual[zone_mask > 0]
+    zone_pixels = residual[zone_mask > 0].astype(np.float64)
     if len(zone_pixels) < 100:
         return np.zeros_like(image)
     
@@ -46,8 +46,8 @@ def do2mr_detection(image, zone_mask, gamma=1.5, kernel_size=5):
     mad = np.median(np.abs(zone_pixels - median_val))
     std_robust = 1.4826 * mad  # Conversion factor
     
-    # Adaptive threshold
-    threshold = median_val + gamma * std_robust
+    # Adaptive threshold (cast to Python float)
+    threshold = float(median_val + gamma * std_robust)
     
     # Apply threshold
     _, defect_mask = cv2.threshold(residual, threshold, 255, cv2.THRESH_BINARY)
@@ -103,8 +103,8 @@ def lei_scratch_detection(image, zone_mask, kernel_lengths=[7, 11, 15], angle_st
             # Update maximum response
             scratch_map = np.maximum(scratch_map, response)
     
-    # Normalize
-    scratch_map = cv2.normalize(scratch_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    # Normalize (use scratch_map itself as the destination)
+    scratch_map = cv2.normalize(scratch_map, scratch_map, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
     
     # Adaptive threshold
     binary = cv2.adaptiveThreshold(scratch_map, 255, 
@@ -216,8 +216,8 @@ if __name__ == "__main__":
     test_img = np.ones((200, 200), dtype=np.uint8) * 128
     
     # Add some defects
-    cv2.circle(test_img, (50, 50), 3, 200, -1)  # Bright spot
-    cv2.line(test_img, (100, 20), (120, 180), 80, 1)  # Scratch
+    cv2.circle(test_img, (50, 50), 3, (200,), -1)  # Bright spot
+    cv2.line(test_img, (100, 20), (120, 180), (80,), 1)  # Scratch
     
     # Create test zone mask
     zone_mask = np.ones((200, 200), dtype=np.uint8) * 255

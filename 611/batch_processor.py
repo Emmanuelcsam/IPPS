@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Batch process multiple washer images
+Batch process multiple circle images
 Usage: python batch_processor.py <directory_or_pattern>
 """
 
@@ -8,11 +8,11 @@ import cv2
 import glob
 import os
 from pathlib import Path
-from circle_detector import detect_washer_circles
-from washer_splitter import split_washer
+from circle_detector import inner_outer_split
+from split_to_mask import split_circle
 
 def process_batch(pattern, output_dir='batch_output'):
-    """Process multiple washer images"""
+    """Process multiple circle images"""
     # Get file list
     if os.path.isdir(pattern):
         files = glob.glob(os.path.join(pattern, '*.jpg')) + \
@@ -39,18 +39,22 @@ def process_batch(pattern, output_dir='batch_output'):
             continue
         
         # Detect and split
-        inner, outer = detect_washer_circles(img)
+        inner, outer = inner_outer_split(img)
         if inner is None:
             print("  - Failed: No circles detected")
             failed.append(img_path)
             continue
         
-        inner_img, ring_img = split_washer(img, inner, outer)
+        inner_img, ring_img = split_circle(img, inner, outer)
+        if inner_img is None or ring_img is None:
+            print("  - Failed: Split returned no image")
+            failed.append(img_path)
+            continue
         
         # Save results
         base = Path(img_path).stem
-        cv2.imwrite(f'{output_dir}/{base}_inner.png', inner_img)
-        cv2.imwrite(f'{output_dir}/{base}_ring.png', ring_img)
+        cv2.imwrite(f'{output_dir}/{base}_inner.png', cv2.UMat(inner_img))
+        cv2.imwrite(f'{output_dir}/{base}_ring.png', cv2.UMat(ring_img))
         
         print(f"  - Success: r_inner={inner[2]}, r_outer={outer[2]}")
         success += 1
@@ -69,7 +73,7 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:
         print("Usage: python batch_processor.py <directory_or_pattern>")
-        print("Example: python batch_processor.py ./washers/")
+        print("Example: python batch_processor.py ./circles/")
         print("Example: python batch_processor.py './images/*.jpg'")
     else:
         process_batch(sys.argv[1])

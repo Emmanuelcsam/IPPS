@@ -12,7 +12,7 @@ def detect_circles(image_path, dp=1.0, min_dist=100, param1=50, param2=30, min_r
     )
     
     if circles is not None:
-        circles = np.uint16(np.around(circles[0]))
+        circles = np.around(circles[0]).astype(np.uint16)
         for i, (x, y, r) in enumerate(circles):
             print(f"Circle {i}: Center=({x},{y}), Radius={r}")
         return circles
@@ -29,8 +29,8 @@ def draw_circles(image_path, circles):
     return img
 
 if __name__ == "__main__":
-    # Example usage
-    circles = detect_circles("fiber_optic_image.jpg")
+
+    circles = detect_circles(r"C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples2\img38.jpg")
     if len(circles) > 0:
-        result = draw_circles("fiber_optic_image.jpg", circles)
+        result = draw_circles(r"C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples2\img38.jpg", circles)
         cv2.imwrite("circles_detected.jpg", result)

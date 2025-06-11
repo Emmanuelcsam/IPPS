@@ -20,7 +20,7 @@ def circle_extract(image: np.ndarray, x0: np.int16, y0: np.int16, radius: np.flo
  
  
 def main():
-    img = cv.imread('endface.jpg', cv.IMREAD_GRAYSCALE)
+    img = cv.imread('C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples2\img38.jpg', cv.IMREAD_GRAYSCALE)
    
     assert img is not None, "file could not be read, check with os.path.exists()"
    

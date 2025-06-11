@@ -62,13 +62,13 @@ def create_side_by_side(images, labels=None):
 # Standalone usage example
 if __name__ == "__main__":
     import sys
-    from circle_detector import detect_washer_circles
-    from washer_splitter import split_washer
+    from circle_detector import inner_outer_split
+    from split_to_mask import split_circle
     
     if len(sys.argv) > 1:
         img = cv2.imread(sys.argv[1])
-        inner, outer = detect_washer_circles(img)
+        inner, outer = inner_outer_split(img)
         
         if inner is not None:
-            inner_img, ring_img = split_washer(img, inner, outer)
+            inner_img, ring_img = split_circle(img, inner, outer)
             display_results(img, inner_img, ring_img, inner, outer)

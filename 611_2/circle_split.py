@@ -3,7 +3,7 @@ import numpy as np
 import os
 from pathlib import Path
 
-class WasherSplitter:
+class CircleSplitter:
     def __init__(self, image_path):
         """Initialize with image path"""
         self.image_path = image_path
@@ -29,7 +29,8 @@ class WasherSplitter:
         )
         
         if circles is not None:
-            circles = np.uint16(np.around(circles))
+            # Round values then cast to uint16 on the entire array so indexing works
+            circles = np.around(circles).astype(np.uint16)
             return circles[0]
         return None
     
@@ -68,9 +69,9 @@ class WasherSplitter:
         
         return valid_contours[:2] if len(valid_contours) >= 2 else None
     
-    def split_washer(self, method='auto'):
+    def split_circle(self, method='auto'):
         """
-        Split washer into inner circle and outer ring
+        Split circle into inner circle and outer ring
         
         Args:
             method: 'hough', 'contour', or 'auto' (tries both)
@@ -108,9 +109,9 @@ class WasherSplitter:
         
         # Draw filled circles on masks
         cv2.circle(inner_mask, (int(inner_circle[0]), int(inner_circle[1])), 
-                   int(inner_circle[2]), 255, -1)
+                   int(inner_circle[2]), (255,), -1)
         cv2.circle(outer_mask, (int(outer_circle[0]), int(outer_circle[1])), 
-                   int(outer_circle[2]), 255, -1)
+                   int(outer_circle[2]), (255,), -1)
         
         # Create ring mask (outer minus inner)
         ring_mask = cv2.subtract(outer_mask, inner_mask)
@@ -136,14 +137,14 @@ class WasherSplitter:
         # Get base filename
         base_name = Path(self.image_path).stem
         
-        # Split the washer
-        inner, ring, visualization = self.split_washer()
+        # Split the circle
+        inner, ring, visualization = self.split_circle()
         
-        if inner is None:
-            print("Failed to split the washer image!")
+        if inner is None or ring is None or visualization is None:
+            print("Failed to split the circle image!")
             return False
         
-        # Save images
+        # Save images directly from NumPy arrays
         cv2.imwrite(os.path.join(output_dir, f'{base_name}_inner.png'), inner)
         cv2.imwrite(os.path.join(output_dir, f'{base_name}_ring.png'), ring)
         cv2.imwrite(os.path.join(output_dir, f'{base_name}_visualization.png'), visualization)
@@ -157,22 +158,32 @@ class WasherSplitter:
     
     def display_results(self):
         """Display the results in windows"""
-        inner, ring, visualization = self.split_washer()
+        inner, ring, visualization = self.split_circle()
         
         if inner is None:
-            print("Failed to split the washer image!")
+            print("Failed to split the circle image!")
             return
         
-        # Resize for display if images are too large
+        # inner, ring, and visualization are NumPy arrays; no UMat conversion is needed
+        
+        # Resize for display if images are too large using UMat for compatibility
         max_display_width = 800
+        # Convert to UMat for resize and imshow compatibility
+        inner_umat = cv2.UMat(inner)  # type: ignore
+        ring_umat = cv2.UMat(ring)    # type: ignore
+        vis_umat = cv2.UMat(visualization)  # type: ignore
         if self.width > max_display_width:
             scale = max_display_width / self.width
             new_width = int(self.width * scale)
             new_height = int(self.height * scale)
             
-            inner = cv2.resize(inner, (new_width, new_height))
-            ring = cv2.resize(ring, (new_width, new_height))
-            visualization = cv2.resize(visualization, (new_width, new_height))
+            inner_umat = cv2.resize(inner_umat, (new_width, new_height))
+            ring_umat = cv2.resize(ring_umat, (new_width, new_height))
+            vis_umat = cv2.resize(vis_umat, (new_width, new_height))
+        # Use UMat directly for display
+        inner = inner_umat
+        ring = ring_umat
+        visualization = vis_umat
         
         # Display images
         cv2.imshow('Original with Detected Circles', visualization)
@@ -185,9 +196,9 @@ class WasherSplitter:
 
 
 def main():
-    """Main function to run the washer splitter"""
+    """Main function to run the circle splitter"""
     # Configuration
-    image_path = input("Enter the path to your washer image: ").strip()
+    image_path = input("Enter the path to your circle image: ").strip()
     
     # Remove quotes if present
     image_path = image_path.strip('"').strip("'")
@@ -198,7 +209,7 @@ def main():
         return
     
     # Create splitter instance
-    splitter = WasherSplitter(image_path)
+    splitter = CircleSplitter(image_path)
     
     # Ask user for action
     print("\nWhat would you like to do?")

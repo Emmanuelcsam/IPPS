@@ -4,7 +4,7 @@ import numpy as np
 def create_circle_mask(shape, center, radius):
     """Create a circular mask"""
     mask = np.zeros(shape[:2], np.uint8)
-    cv2.circle(mask, center, radius, 255, -1)
+    cv2.circle(mask, center, radius, (255,), -1)
     return mask
 
 def split_circle(img, inner_circle, outer_circle):
@@ -39,7 +39,7 @@ if __name__ == "__main__":
         img = cv2.imread(sys.argv[1])
         inner, outer = inner_outer_split(img)
         
-        if inner is not None:
+        if inner is not None and outer is not None:
             inner_img, ring_img = split_circle(img, inner, outer)
             
             #crop
@@ -50,6 +50,8 @@ if __name__ == "__main__":
             inner_cropped = crop_to_content(inner_img, inner_mask)
             ring_cropped = crop_to_content(ring_img, ring_mask)
             
-            cv2.imwrite("inner.png", inner_cropped)
-            cv2.imwrite("ring.png", ring_cropped)
+            if inner_cropped is not None:
+                cv2.imwrite("inner.png", inner_cropped)
+            if ring_cropped is not None:
+                cv2.imwrite("ring.png", ring_cropped)
             print("Saved inner.png and ring.png")

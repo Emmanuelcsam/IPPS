@@ -1,6 +1,19 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
+
+def load_image(image_path):
+    """Load image from file path"""
+    path = Path(image_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Image not found: {image_path}")
+    
+    image = cv2.imread(str(path))
+    if image is None:
+        raise ValueError(f"Failed to load image: {image_path}")
+    
+    return image
 
 def plot_histogram(image_path, mask_path=None, title="Intensity Histogram"):
     """Plot histogram of image intensities."""
@@ -57,10 +70,22 @@ def quick_view(image_paths, titles=None, cmap='gray'):
     plt.show()
 
 if __name__ == "__main__":
-    # Example usage
-    # plot_histogram("fiber_optic_image.jpg", title="Fiber Optic Intensity")
-    # visualize_comparison("fiber_optic_image.jpg", "defects_edges.jpg", "Original", "Defects")
+    
+    image_path = r"C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples2\img38.jpg"
+    try:
+        image = load_image(image_path)
+        print(f"Successfully loaded image from {image_path} with shape {image.shape}")
+        
+        cv2.imshow("Loaded Image", image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}")    
+
+    plot_histogram("fiber_optic_image.jpg", title="Fiber Optic Intensity")
+    visualize_comparison("fiber_optic_image.jpg", "defects_edges.jpg", "Original", "Defects")
     
     # View multiple results
     quick_view(["fiber_optic_image.jpg", "core_region.jpg", "defects_edges.jpg"],
                ["Original", "Core Region", "Defects"])
+

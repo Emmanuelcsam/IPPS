@@ -33,8 +33,9 @@ def auto_tune_circles(image_path, target_circles=2):
                         best_circles = circles[0]
                         best_params = (dp, p1, p2)
     
-    if best_circles is not None:
+    if best_params is not None:
         dp, p1, p2 = best_params
+        assert best_circles is not None
         print(f"Best match: {len(best_circles)} circles with dp={dp}, param1={p1}, param2={p2}")
         return best_circles
     
@@ -56,7 +57,7 @@ def interactive_tune(image_path):
         
         result = img.copy()
         if circles is not None:
-            circles = np.uint16(np.around(circles[0]))
+            circles = np.around(circles[0]).astype(np.uint16)
             for x, y, r in circles:
                 cv2.circle(result, (x, y), r, (0, 255, 0), 2)
                 cv2.circle(result, (x, y), 2, (0, 0, 255), 3)
@@ -85,8 +86,6 @@ def interactive_tune(image_path):
     print(f"Final parameters: dp={dp/10}, param1={param1}, param2={param2}")
 
 if __name__ == "__main__":
-    # Auto-tune
-    circles = auto_tune_circles("fiber_optic_image.jpg", target_circles=2)
+
+    circles = auto_tune_circles(r"C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples2\img38.jpg", target_circles=2)
     
-    # Or use interactive tuning
-    # interactive_tune("fiber_optic_image.jpg")

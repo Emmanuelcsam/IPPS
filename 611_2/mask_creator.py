@@ -4,7 +4,7 @@ import numpy as np
 def create_circular_mask(shape, center, radius):
     """Create circular mask."""
     mask = np.zeros(shape[:2], dtype=np.uint8)
-    cv2.circle(mask, center, radius, 255, -1)
+    cv2.circle(mask, center, radius, (255,), -1)
     return mask
 
 def create_annular_mask(shape, center, inner_r, outer_r):
@@ -18,10 +18,10 @@ def apply_mask(image, mask):
     return cv2.bitwise_and(image, image, mask=mask)
 
 if __name__ == "__main__":
-    # Example usage
+
     img = cv2.imread("fiber_optic_image.jpg", cv2.IMREAD_GRAYSCALE)
     
-    # Example: isolate core (assuming center at image center)
+    # isolate core (assuming center at image center)
     h, w = img.shape
     center = (w//2, h//2)
     

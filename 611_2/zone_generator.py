@@ -6,7 +6,19 @@ Creates masks for fiber zones (core and cladding)
 import cv2
 import numpy as np
 
+from pathlib import Path
 
+def load_image(image_path):
+    """Load image from file path"""
+    path = Path(image_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Image not found: {image_path}")
+    
+    image = cv2.imread(str(path))
+    if image is None:
+        raise ValueError(f"Failed to load image: {image_path}")
+    
+    return image
 def create_circular_mask(image_shape, center, radius):
     """Create a circular mask"""
     h, w = image_shape[:2]
@@ -81,22 +93,35 @@ def create_boundary_exclusion_mask(image_shape, fiber_params, boundary_width=3):
         
         # Core-cladding boundary exclusion
         cv2.circle(exclusion_mask, (cx, cy), 
-                  int(core_radius + boundary_width), 255, -1)
+                  int(core_radius + boundary_width), (255,), -1)
         cv2.circle(exclusion_mask, (cx, cy), 
-                  int(max(0, core_radius - boundary_width)), 0, -1)
+                  int(max(0, core_radius - boundary_width)), (0,), -1)
         
         # Cladding outer boundary exclusion
         if cladding_radius > 0:
             cv2.circle(exclusion_mask, (cx, cy), 
-                      int(min(h//2, cladding_radius + boundary_width)), 255, -1)
+                      int(min(h//2, cladding_radius + boundary_width)), (255,), -1)
             cv2.circle(exclusion_mask, (cx, cy), 
-                      int(max(0, cladding_radius - boundary_width)), 0, -1)
+                      int(max(0, cladding_radius - boundary_width)), (0,), -1)
     
     return exclusion_mask
 
 
 # Test function
 if __name__ == "__main__":
+    
+    
+    image_path = r"C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples2\img38.jpg"
+    try:
+        image = load_image(image_path)
+        print(f"Successfully loaded image from {image_path} with shape {image.shape}")
+        
+        cv2.imshow("Loaded Image", image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}")    
+    
     # Test parameters
     test_shape = (200, 200)
     test_fiber_params = {

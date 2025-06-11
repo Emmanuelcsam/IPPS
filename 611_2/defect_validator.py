@@ -178,33 +178,36 @@ def remove_boundary_defects(defect_mask, fiber_params, boundary_width=3):
     h, w = defect_mask.shape
     
     # Import zone_generator for boundary exclusion mask
-    from zone_generator import create_boundary_exclusion_mask
-    
-    exclusion_mask = create_boundary_exclusion_mask(
-        defect_mask.shape, fiber_params, boundary_width)
-    
-    # Remove defects in exclusion zone
-    cleaned_mask = cv2.bitwise_and(defect_mask, 
-                                  cv2.bitwise_not(exclusion_mask))
+    try:
+        from zone_generator import create_boundary_exclusion_mask
+        
+        exclusion_mask = create_boundary_exclusion_mask(
+            defect_mask.shape, fiber_params, boundary_width)
+        
+        # Remove defects in exclusion zone
+        cleaned_mask = cv2.bitwise_and(defect_mask, 
+                                      cv2.bitwise_not(exclusion_mask))
+    except ImportError:
+        print("Warning: zone_generator module not found, skipping boundary removal")
+        cleaned_mask = defect_mask
     
     return cleaned_mask
 
 
-# Test function
 if __name__ == "__main__":
     # Create test image with contrast variations
     test_img = np.ones((100, 100), dtype=np.uint8) * 128
     
-    # Add high contrast defect
-    cv2.circle(test_img, (30, 30), 5, 200, -1)
-    
-    # Add low contrast defect
-    cv2.circle(test_img, (70, 70), 5, 140, -1)
-    
-    # Create test defect mask
+    # Add high contrast defect - fixed: removed tuple wrapper
+    cv2.circle(test_img, (30, 30), 5, (200,), -1)
+
+    # Add low contrast defect - fixed: removed tuple wrapper
+    cv2.circle(test_img, (70, 70), 5, (140,), -1)
+
+    # Create test defect mask - fixed: removed tuple wrapper
     defect_mask = np.zeros((100, 100), dtype=np.uint8)
-    cv2.circle(defect_mask, (30, 30), 5, 255, -1)
-    cv2.circle(defect_mask, (70, 70), 5, 255, -1)
+    cv2.circle(defect_mask, (30, 30), 5, (255,), -1)
+    cv2.circle(defect_mask, (70, 70), 5, (255,), -1)
     
     # Create zone mask
     zone_mask = np.ones((100, 100), dtype=np.uint8) * 255

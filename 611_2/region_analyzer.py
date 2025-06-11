@@ -30,8 +30,6 @@ def quick_stats(image_path, mask_path=None):
     return stats
 
 if __name__ == "__main__":
-    # Example usage
-    stats = quick_stats("fiber_optic_image.jpg")
+
+    stats = quick_stats(r"C:\Users\Saem1001\Documents\GitHub\OpenCV-Practice\samples2\img38.jpg")
     
-    # Or with a mask
-    # stats = quick_stats("fiber_optic_image.jpg", "core_mask.jpg")

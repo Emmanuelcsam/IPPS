@@ -48,7 +48,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         img = cv2.imread(sys.argv[1])
         inner, outer = inner_outer_split(img)
-        if inner is not None:
+        if inner is not None and outer is not None:
             print(f"Inner: center=({inner[0]}, {inner[1]}), r={inner[2]}")
             print(f"Outer: center=({outer[0]}, {outer[1]}), r={outer[2]}")
         else:
