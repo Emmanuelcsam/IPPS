@@ -1,7 +1,7 @@
 # Image Processing Pipeline Studio - OpenCV Practice
 
 
-### Image Processing Pipeline GUI (`App/`)
+### Image Processing Pipeline GUI 
 A powerful visual interface that allows you to:
 - **Build Custom Pipelines**: Drag-and-drop interface for creating processing workflows
 - **Real-time Processing**: See which script is executing with live feedback
@@ -43,7 +43,7 @@ uv run python image_processor_gui.py
 
 ```
 OpenCV-Practice/
-├── App/                        # Main application directory (NEW)
+├── app/                        # Main application directory (NEW)
 │   ├── scripts/               # Image processing functions
 │   │   └── cleaned/          # Auto-cleaned script versions
 │   ├── images/               # Input images
