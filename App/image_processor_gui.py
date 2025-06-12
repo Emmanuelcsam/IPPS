@@ -20,6 +20,8 @@ Key Features:
 import sys
 import os
 import re
+import subprocess
+import shutil
 import json
 import importlib.util
 import inspect
@@ -464,18 +466,38 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.current_image = None
+
+        # ——— State placeholders ———
+        self.current_image   = None
         self.processed_image = None
-        
+
+        # ——— Recent & favorite functions ———
+        self.recent_functions   = []      # up to 20 most-recently used
+        self.favorite_functions = set()   # persisted in favorites.json
+        self._favorites_file    = Path("favorites.json")
+
+        if self._favorites_file.exists():
+            try:
+                with open(self._favorites_file, "r") as f:
+                    favs = json.load(f)
+                    # ensure it’s a list before converting
+                    if isinstance(favs, list):
+                        self.favorite_functions = set(favs)
+            except (json.JSONDecodeError, IOError):
+                # corrupted file or IO issues → start fresh
+                self.favorite_functions = set()
+
+        # ——— Core components ———
         self.function_loader = FunctionLoader()
-        self.worker = PipelineWorker()
-        
-        # Connect worker signals
-        self.worker.progress.connect(self.update_progress)
-        self.worker.finished.connect(self.on_processing_finished)
-        self.worker.error.connect(self.on_processing_error)
-        self.worker.script_executing.connect(self.update_executing_script)
-        
+        self.worker          = PipelineWorker()
+
+        # ——— Wire up worker signals ———
+        self.worker.progress          .connect(self.update_progress)
+        self.worker.finished          .connect(self.on_processing_finished)
+        self.worker.error             .connect(self.on_processing_error)
+        self.worker.script_executing  .connect(self.update_executing_script)
+
+        # ——— Build UI & load functions ———
         self.init_ui()
         self.load_functions()
         
@@ -594,7 +616,15 @@ class MainWindow(QMainWindow):
         # Function Library Group
         group = QGroupBox("Function Library")
         group_layout = QVBoxLayout(group)
-        
+        filter_layout = QHBoxLayout()
+        self.show_recent_cb = QCheckBox("Show Recent")
+        self.show_fav_cb    = QCheckBox("Show Favorites")
+        self.show_recent_cb.stateChanged.connect(self._apply_filters)
+        self.show_fav_cb.stateChanged.connect(self._apply_filters)
+        filter_layout.addWidget(self.show_recent_cb)
+        filter_layout.addWidget(self.show_fav_cb)
+        group_layout.insertLayout(1, filter_layout)  # insert just below the search row
+
         # Search
         search_layout = QHBoxLayout()
         search_layout.addWidget(QLabel("Search:"))
@@ -618,7 +648,10 @@ class MainWindow(QMainWindow):
         self.function_table.setHorizontalHeaderLabels(["Script File", "Category"])
         self.function_table.horizontalHeader().setStretchLastSection(True)
         self.function_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.function_table.itemDoubleClicked.connect(self.add_to_pipeline)
+        #self.function_table.itemDoubleClicked.connect(self.add_to_pipeline)
+        self.function_table.itemDoubleClicked.connect(self._open_function_file)
+
+        
         self.function_table.itemSelectionChanged.connect(self.show_function_details)
         group_layout.addWidget(self.function_table)
         
@@ -637,6 +670,17 @@ class MainWindow(QMainWindow):
         refresh_btn = QPushButton("Refresh Functions")
         refresh_btn.clicked.connect(self.load_functions)
         group_layout.addWidget(refresh_btn)
+        
+        
+        # ——— New: toggle favorite on selected function ———
+        fav_btn = QPushButton("★ Toggle Favorite")
+        fav_btn.clicked.connect(self._toggle_favorite)
+        group_layout.addWidget(fav_btn)
+
+        # ——— New: full‑cache refresh ———
+        full_refresh_btn = QPushButton("🔄 Full Refresh Cache")
+        full_refresh_btn.clicked.connect(self._full_refresh_cache)
+        group_layout.addWidget(full_refresh_btn)
         
         layout.addWidget(group)
         return panel
@@ -802,30 +846,53 @@ class MainWindow(QMainWindow):
             f"Loaded {len(self.function_loader.functions)} functions", 3000
         )
         
+    # def populate_function_table(self, filter_text="", category="All"):
+    #     """Populate the function table"""
+    #     self.function_table.setRowCount(0)
+    #
+    #     for func_name, func_info in sorted(self.function_loader.function_info.items()):
+    #         # Apply filters
+    #         if filter_text and filter_text.lower() not in func_name.lower():
+    #             continue
+    #         if category != "All" and func_info['category'] != category:
+    #             continue
+    #
+    #         row = self.function_table.rowCount()
+    #         self.function_table.insertRow(row)
+    #
+    #         # Script name
+    #         name_item = QTableWidgetItem(func_name)
+    #         name_item.setData(Qt.UserRole, func_name)
+    #         self.function_table.setItem(row, 0, name_item)
+    #
+    #         # Category
+    #         category_item = QTableWidgetItem(func_info['category'])
+    #         self.function_table.setItem(row, 1, category_item)
+    #    self.function_table.resizeColumnsToContents()
+    
+    
     def populate_function_table(self, filter_text="", category="All"):
-        """Populate the function table"""
         self.function_table.setRowCount(0)
-        
-        for func_name, func_info in sorted(self.function_loader.function_info.items()):
-            # Apply filters
+        for func_name, info in sorted(self.function_loader.function_info.items()):
+            # text & category filters
             if filter_text and filter_text.lower() not in func_name.lower():
                 continue
-            if category != "All" and func_info['category'] != category:
+            if category != "All" and info['category'] != category:
                 continue
-                
+            # recent / favorite filters
+            if self.show_recent_cb.isChecked() and func_name not in self.recent_functions:
+                continue
+            if self.show_fav_cb.isChecked() and func_name not in self.favorite_functions:
+                continue
+
             row = self.function_table.rowCount()
             self.function_table.insertRow(row)
-            
-            # Script name
             name_item = QTableWidgetItem(func_name)
             name_item.setData(Qt.UserRole, func_name)
             self.function_table.setItem(row, 0, name_item)
-            
-            # Category
-            category_item = QTableWidgetItem(func_info['category'])
-            self.function_table.setItem(row, 1, category_item)
-            
+            self.function_table.setItem(row, 1, QTableWidgetItem(info['category']))
         self.function_table.resizeColumnsToContents()
+
         
     def update_categories(self):
         """Update category combo box"""
@@ -839,17 +906,20 @@ class MainWindow(QMainWindow):
             self.category_combo.addItem(category)
             
     def filter_functions(self, text):
-        """Filter functions by search text"""
-        self.populate_function_table(
-            filter_text=text,
-            category=self.category_combo.currentText()
-        )
-        
+        """Called when the search input changes."""
+        self._apply_filters()
+
     def filter_by_category(self, category):
-        """Filter functions by category"""
+        """Called when the category combo changes."""
+        self._apply_filters()
+
+    def _apply_filters(self):
+        """Read current search text and category, then repopulate."""
+        current_text = self.search_input.text()
+        current_category = self.category_combo.currentText()
         self.populate_function_table(
-            filter_text=self.search_input.text(),
-            category=category
+            filter_text=current_text,
+            category=current_category
         )
         
     def show_function_details(self):
@@ -1046,33 +1116,43 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Failed to save image: {e}")
                 
     def process_image(self):
-        """Process image through pipeline"""
+        """Process the current image through the pipeline, and track recently used functions."""
+        # 1) Pre-flight checks
         if self.current_image is None:
             QMessageBox.warning(self, "Warning", "Please load an image first")
             return
-            
         if self.pipeline_list.count() == 0:
             QMessageBox.warning(self, "Warning", "Pipeline is empty")
             return
-            
-        # Get pipeline data
-        pipeline_data = []
-        for i in range(self.pipeline_list.count()):
-            item = self.pipeline_list.item(i)
-            pipeline_data.append(item.data(Qt.UserRole))
-            
-        # Start processing
+
+        # 2) Gather pipeline steps
+        pipeline_data = [
+            self.pipeline_list.item(i).data(Qt.UserRole)
+            for i in range(self.pipeline_list.count())
+        ]
+
+        # 3) Update 'recent_functions' (newest first, max 20)
+        for step in pipeline_data:
+            name = step['name']
+            if name in self.recent_functions:
+                self.recent_functions.remove(name)
+            self.recent_functions.insert(0, name)
+        self.recent_functions = self.recent_functions[:20]
+
+        # 4) Update UI to show we're processing
         self.process_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.executing_label.setVisible(True)
         self.current_script_label.setText("Starting pipeline...")
-        
+
+        # 5) Configure and start the worker thread
         self.worker.set_data(
-            self.current_image,
-            pipeline_data,
-            self.function_loader.functions
+            image=self.current_image,
+            pipeline=pipeline_data,
+            functions=self.function_loader.functions
         )
         self.worker.start()
+
         
     def update_progress(self, percentage, message):
         """Update progress bar and status"""
@@ -1263,6 +1343,65 @@ class MainWindow(QMainWindow):
                 self.image_info_label.setText(
                     info_text.replace(" (Viewing Original)", "")
                 )
+                
+    def _toggle_favorite(self):
+        """Add or remove the selected function from favorites."""
+        row = self.function_table.currentRow()
+        if row < 0:
+            return
+        func_name = self.function_table.item(row, 0).data(Qt.UserRole)
+        if func_name in self.favorite_functions:
+            self.favorite_functions.remove(func_name)
+        else:
+            self.favorite_functions.add(func_name)
+        # persist to disk immediately
+        with open(self._favorites_file, "w") as f:
+            json.dump(sorted(self.favorite_functions), f)
+        self._apply_filters()
+        self.status_bar.showMessage(
+            f"{func_name} {'removed from' if func_name not in self.favorite_functions else 'added to'} favorites",
+            3000
+        )
+
+    def _full_refresh_cache(self):
+        """Delete the cleaned scripts cache and reload everything."""
+        cleaned_dir = Path(self.function_loader.dir) / "cleaned"
+        if cleaned_dir.exists():
+            shutil.rmtree(cleaned_dir)
+        self.load_functions()
+        self.status_bar.showMessage("Cache fully refreshed", 3000)
+
+    def _open_function_file(self, item):
+        """Open the .py file for this function using the OS default editor."""
+        func_name = item.data(Qt.UserRole)
+        script_path = Path(self.function_loader.dir) / func_name
+
+        if not script_path.exists():
+            QMessageBox.warning(self, "File Not Found",
+                                f"Cannot locate {script_path}")
+            return
+
+        try:
+            if sys.platform.startswith("win"):
+                # Windows: use the default file‐association opener
+                os.startfile(str(script_path))
+
+            elif sys.platform.startswith("darwin"):
+                # macOS
+                subprocess.Popen(["open", str(script_path)])
+
+            else:
+                # Linux / other UNIX
+                subprocess.Popen(["xdg-open", str(script_path)])
+
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Error Opening File",
+                f"Failed to open {script_path}:\n{e}"
+            )
+
+
 
 def main():
     """Main entry point"""
