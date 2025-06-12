@@ -523,6 +523,27 @@ class MainWindow(QMainWindow):
             QPushButton#ProcessBtn:hover {
                 background-color: #45a049;
             }
+            QPushButton#ResetBtn {
+                background-color: #FF5722;
+            }
+            QPushButton#ResetBtn:hover {
+                background-color: #E64A19;
+            }
+            QPushButton#UndoBtn {
+                background-color: #FF9800;
+            }
+            QPushButton#UndoBtn:hover {
+                background-color: #F57C00;
+            }
+            QPushButton#ToggleBtn {
+                background-color: #9C27B0;
+            }
+            QPushButton#ToggleBtn:hover {
+                background-color: #7B1FA2;
+            }
+            QPushButton#ToggleBtn:checked {
+                background-color: #E91E63;
+            }
             QListWidget::item:selected {
                 background-color: #2196F3;
                 color: white;
@@ -638,6 +659,27 @@ class MainWindow(QMainWindow):
         save_btn.clicked.connect(self.save_image)
         toolbar.addWidget(save_btn)
         
+        toolbar.addWidget(QLabel(" | "))
+        
+        # Reset button
+        self.reset_btn = QPushButton("Reset to Original")
+        self.reset_btn.setObjectName("ResetBtn")
+        self.reset_btn.clicked.connect(self.reset_to_original)
+        self.reset_btn.setEnabled(False)
+        self.reset_btn.setToolTip("Reset to original image (Ctrl+R)")
+        self.reset_btn.setShortcut("Ctrl+R")
+        toolbar.addWidget(self.reset_btn)
+        
+        # Toggle original view button
+        self.toggle_original_btn = QPushButton("View Original")
+        self.toggle_original_btn.setObjectName("ToggleBtn")
+        self.toggle_original_btn.setCheckable(True)
+        self.toggle_original_btn.toggled.connect(self.toggle_original_view)
+        self.toggle_original_btn.setEnabled(False)
+        self.toggle_original_btn.setToolTip("Toggle original/processed view (Space)")
+        self.toggle_original_btn.setShortcut("Space")
+        toolbar.addWidget(self.toggle_original_btn)
+        
         toolbar.addStretch()
         
         # Zoom controls
@@ -702,6 +744,14 @@ class MainWindow(QMainWindow):
         remove_btn = QPushButton("Remove")
         remove_btn.clicked.connect(self.remove_from_pipeline)
         controls.addWidget(remove_btn)
+        
+        self.undo_btn = QPushButton("Undo Last")
+        self.undo_btn.setObjectName("UndoBtn")
+        self.undo_btn.clicked.connect(self.undo_last_step)
+        self.undo_btn.setEnabled(False)
+        self.undo_btn.setToolTip("Undo last processing step (Ctrl+Z)")
+        self.undo_btn.setShortcut("Ctrl+Z")
+        controls.addWidget(self.undo_btn)
         
         clear_btn = QPushButton("Clear All")
         clear_btn.clicked.connect(self.clear_pipeline)
@@ -949,7 +999,7 @@ class MainWindow(QMainWindow):
     def clear_pipeline(self):
         """Clear entire pipeline"""
         self.pipeline_list.clear()
-        
+        self.undo_btn.setEnabled(False)
     def load_image(self):
         """Load an image file"""
         path, _ = QFileDialog.getOpenFileName(
@@ -964,6 +1014,10 @@ class MainWindow(QMainWindow):
                 return
                 
             self.image_viewer.set_image(self.current_image)
+            
+            # Enable reset and toggle buttons
+            self.reset_btn.setEnabled(True)
+            self.toggle_original_btn.setEnabled(True)
             
             # Update info
             h, w = self.current_image.shape[:2]
@@ -1040,6 +1094,13 @@ class MainWindow(QMainWindow):
         self.process_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
         self.executing_label.setVisible(False)
+        
+        # Enable undo button after successful processing
+        self.undo_btn.setEnabled(True)
+        
+        # Make sure toggle button shows correct state
+        if self.toggle_original_btn.isChecked():
+            self.toggle_original_btn.setChecked(False)
         
         self.current_script_label.setText("✓ Processing complete!")
         self.status_bar.showMessage("Processing finished successfully!", 5000)
@@ -1140,6 +1201,70 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to load pipeline: {e}")
 
+
+        def reset_to_original(self):
+        """Reset the displayed image to the original loaded image"""
+        if self.current_image is not None:
+            self.processed_image = None
+            self.image_viewer.set_image(self.current_image)
+            
+            # Update UI state
+            self.undo_btn.setEnabled(False)
+            self.toggle_original_btn.setChecked(False)
+            
+            # Update info
+            h, w = self.current_image.shape[:2]
+            c = self.current_image.shape[2] if len(self.current_image.shape) > 2 else 1
+            self.image_info_label.setText(
+                f"Reset to Original | Size: {w}×{h} | Channels: {c} | "
+                f"Type: {self.current_image.dtype}"
+            )
+            self.current_script_label.setText("Reset to original image")
+            self.status_bar.showMessage("Reset to original image", 3000)
+    
+    def undo_last_step(self):
+        """Remove the last step from pipeline and reprocess"""
+        if self.pipeline_list.count() == 0:
+            return
+            
+        # Remove last item from pipeline
+        last_item = self.pipeline_list.takeItem(self.pipeline_list.count() - 1)
+        
+        # If pipeline is now empty, reset to original
+        if self.pipeline_list.count() == 0:
+            self.reset_to_original()
+            return
+            
+        # Reprocess with updated pipeline
+        self.status_bar.showMessage("Undoing last step and reprocessing...", 1000)
+        self.process_image()
+    
+    def toggle_original_view(self, checked):
+        """Toggle between original and processed image view"""
+        if self.current_image is None:
+            return
+            
+        if checked:
+            # Show original image
+            self.image_viewer.set_image(self.current_image)
+            self.toggle_original_btn.setText("View Processed")
+            self.image_info_label.setText(
+                self.image_info_label.text() + " (Viewing Original)"
+            )
+        else:
+            # Show processed image (if available)
+            if self.processed_image is not None:
+                self.image_viewer.set_image(self.processed_image)
+            else:
+                self.image_viewer.set_image(self.current_image)
+            self.toggle_original_btn.setText("View Original")
+            
+            # Remove the "(Viewing Original)" text if present
+            info_text = self.image_info_label.text()
+            if "(Viewing Original)" in info_text:
+                self.image_info_label.setText(
+                    info_text.replace(" (Viewing Original)", "")
+                )
 
 def main():
     """Main entry point"""
