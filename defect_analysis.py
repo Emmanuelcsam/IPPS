@@ -21,7 +21,7 @@ class FiberOpticDefectDetector:
         
     def detect_defects(self, image):
         """
-        Main detection pipeline combining multiple sophisticated methods.
+        Main detection.
         """
         # Ensure grayscale
         if len(image.shape) == 3:
@@ -57,7 +57,7 @@ class FiberOpticDefectDetector:
     
     def _advanced_preprocessing(self, image):
         """
-        Sophisticated preprocessing using multiple techniques.
+        Preprocessing
         """
         # 1. Anisotropic diffusion (Perona-Malik)
         diffused = self._anisotropic_diffusion(image.astype(np.float64))
@@ -210,7 +210,7 @@ class FiberOpticDefectDetector:
     
     def _detect_scratches_multimethod(self, image):
         """
-        Detect scratches using multiple sophisticated methods.
+        Detect scratches using multiple methods.
         """
         methods = []
         
@@ -438,7 +438,7 @@ class FiberOpticDefectDetector:
             sinogram[:, i] = np.sum(rotated, axis=1)
             
         return sinogram
-    
+
     def _draw_line_from_radon(self, mask, rho, theta, shape):
         """
         Draw line from Radon parameters.
@@ -447,19 +447,38 @@ class FiberOpticDefectDetector:
         cos_t = np.cos(theta)
         sin_t = np.sin(theta)
         
-        if abs(cos_t) > abs(sin_t):
-            # More horizontal
+        # Handle edge cases for nearly horizontal or vertical lines
+        epsilon = 1e-10
+        
+        if abs(sin_t) < epsilon:
+            # Nearly horizontal line (theta ≈ 0 or π)
+            x = int(rho / cos_t) if abs(cos_t) > epsilon else 0
+            if 0 <= x < w:
+                mask[:, x] = 1
+        elif abs(cos_t) < epsilon:
+            # Nearly vertical line (theta ≈ π/2)
+            y = int(rho / sin_t) if abs(sin_t) > epsilon else 0
+            if 0 <= y < h:
+                mask[y, :] = 1
+        elif abs(cos_t) > abs(sin_t):
+            # More horizontal than vertical
             for x in range(w):
-                y = int((rho - x * cos_t) / sin_t)
+                y_float = (rho - x * cos_t) / sin_t
+                if not np.isfinite(y_float):
+                    continue
+                y = int(round(y_float))
                 if 0 <= y < h:
                     mask[y, x] = 1
         else:
-            # More vertical
+            # More vertical than horizontal
             for y in range(h):
-                x = int((rho - y * sin_t) / cos_t)
+                x_float = (rho - y * sin_t) / cos_t
+                if not np.isfinite(x_float):
+                    continue
+                x = int(round(x_float))
                 if 0 <= x < w:
                     mask[y, x] = 1
-    
+
     def _directional_filter_bank(self, image, n_orientations=16):
         """
         Directional filter bank using steerable filters.
@@ -696,11 +715,11 @@ class FiberOpticDefectDetector:
         
         # MSER detector
         mser = cv2.MSER_create(
-            _delta=5,
-            _min_area=10,
-            _max_area=1000,
-            _max_variation=0.25,
-            _min_diversity=0.2
+            delta=5,
+            min_area=10,
+            max_area=1000,
+            max_variation=0.25,
+            min_diversity=0.2
         )
         
         # Detect regions
@@ -971,7 +990,7 @@ class FiberOpticDefectDetector:
                     
         return refined
 
-# Usage example
+
 def detect_fiber_defects(image_path):
     """
     Detect defects in fiber optic end face image.
@@ -1042,6 +1061,6 @@ def visualize_results(image, results):
     plt.show()
 
 if __name__ == "__main__":
-    # Example usage
-    results = detect_fiber_defects(r"C:\Users\Saem1001\Documents\GitHub\IPPS\review\output_veridian\img63_core.png")
+    # usage
+    results = detect_fiber_defects("/home/jarvis/Documents/GitHub/IPPS/image_batch/img38.jpg")
     pass
