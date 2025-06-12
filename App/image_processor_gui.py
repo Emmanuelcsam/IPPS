@@ -15,8 +15,6 @@ Key Features:
 - Pipeline save/load functionality
 - Asynchronous processing to prevent UI freezing
 
-Author: Enhanced Version
-Date: 2025-06-12
 """
 
 import sys
