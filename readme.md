@@ -1,6 +1,14 @@
-# Fiber Optic End Face Inspection System
+# Image Processing Pipeline Studio - OpenCV Practice
 
-An automated system for detecting and analyzing defects (scratches and digs) in fiber optic end faces using advanced image processing techniques.
+
+### Image Processing Pipeline GUI (`App/`)
+A powerful visual interface that allows you to:
+- **Build Custom Pipelines**: Drag-and-drop interface for creating processing workflows
+- **Real-time Processing**: See which script is executing with live feedback
+- **Parameter Editing**: Double-click to adjust function parameters with auto-generated UI
+- **Advanced Viewer**: Zoom (mouse wheel) and pan (middle-click) functionality
+- **Search & Filter**: Find functions by name or category
+- **Save/Load Pipelines**: Store and reuse your processing workflows
 
 ## Prerequisites
 
@@ -14,201 +22,173 @@ Choose one of the following installation methods:
 - **macOS/Linux:**
   ```bash
   curl -LsSf https://astral.sh/uv/install.sh | sh
-  # or
-  wget -qO- https://astral.sh/uv/install.sh | sh
-  ```
-- **Via pip:**
-  ```bash
-  pip install uv
   ```
 
-### One-Line Installation
+### Quick Setup
 ```bash
-uv venv && uv pip install -r requirements.txt pybind11 opencv-python "napari[all]" anomalib torch torchvision scikit-learn numpy joblib scipy omegaconf openvino openvino-dev timm --upgrade && uv run python setup.py build_ext --inplace
-```
+# Navigate to the App directory
+cd App
 
-### Step-by-Step Installation
-```bash
-uv venv
-uv pip install -r requirements.txt
-uv pip install pybind11
-uv pip install opencv-python
-uv pip install "napari[all]"
-uv pip install --upgrade anomalib
-uv pip install --upgrade timm
-uv pip install anomalib torch torchvision scikit-learn numpy opencv-python joblib scipy omegaconf
-uv pip install openvino openvino-dev
-uv run python setup.py build_ext --inplace
+# Create environment and install dependencies
+uv venv && uv pip install -r requirements.txt
+
+# Run setup script
+uv run python setup_gui.py
+
+# Launch the GUI
+uv run python image_processor_gui.py
 ```
 
 ## Project Structure
 
-### Test Versions
-
-#### Test13
-- **Description:** Fully functional Python implementation with comprehensive defect detection
-- **Performance:** Computationally intensive but operationally complete
-- **Documentation:** See "Fiber Optic Defect Detector Slideshow.pdf" for detailed overview
-
-#### Test14
-- **Description:** C++ optimized version of Test13
-- **Performance:** Significantly faster execution while maintaining functionality
-- **Usage:** Run with `uv run python run.py`
-
-#### Test15 (NEW)
-- **Description:** Reduces photos to matrices and assess defects based on direct computations 
-- **Components:**
-  - Intensity matrix conversion
-  - Difference analysis with heatmap generation
-  - Advanced defect detection algorithms
-
-### Test15 Modules
-
-| Module | Description |
-|--------|-------------|
-| `main.py` | Interactive inspection system with unified workflow |
-| `image_to_matrix.py` | Converts fiber images to pixel intensity matrices |
-| `heatmap.py` | Generates difference heatmaps highlighting large variations |
-| `inverse_heatmap.py` | Creates heatmaps emphasizing small differences |
-| `pixel_defects.py` | Detects scratches (lines) and digs (dots) while excluding fiber rings |
-| `matrix_to_img.py` | Converts matrix data back to images |
-| `batch_matrix_to_img.py` | Batch conversion of inspection outputs to images |
-
-### Additional Resources
-
-- **High-quality-ellipse-detection:** https://github.com/AlanLuSun/High-quality-ellipse-detection
-- **segdec-net-jim2019:** https://github.com/skokec/segdec-net-jim2019
-
-## Directory Structure
-
 ```
-├── output/              # Contains all scan results
-├── sample1/             # Single sample image for individual scan
-├── sample2/             # Multiple sample images for batch scans
-├── scratchdataset/      # Scratch image samples for training algorithms
-├── Test13/              # Python implementation
-├── Test14LATEST/        # C++ optimized version
-└── Test15/              # New modular pipeline
+OpenCV-Practice/
+├── App/                        # Main application directory (NEW)
+│   ├── scripts/               # Image processing functions
+│   │   └── cleaned/          # Auto-cleaned script versions
+│   ├── images/               # Input images
+│   ├── output/               # Processing results
+│   ├── pipelines/            # Saved pipeline configurations
+│   ├── image_processor_gui.py    # Main GUI application
+│   ├── enhanced_script_cleaner.py # Script cleaning utility
+│   ├── setup_gui.py              # Initial setup script
+│   └── requirements.txt          # Python dependencies
+│
+├── guides/                    # Comprehensive documentation (NEW)
+│   ├── script_writing_guide.md   # How to write compatible scripts
+│   ├── quick_reference.md        # Quick reference card
+│   ├── quick_start_guide.md      # Getting started guide
+│   ├── example_custom_script.py  # Example processing script
+│   ├── minimal_script_template.py # Basic script template
+│   └── validate_script.py        # Script validation tool
+│
+├── all_modules_unchanged/     # Original unmodified scripts
+├── Additional_programs/       # Supplementary tools
+├── scratchdataset/           # Sample scratch detection images
+├── results/                  # Analysis outputs
+└── old_process/             # Legacy processing methods
 ```
-
-## Usage
-
-### Test14 
-```bash
-cd Test14LATEST
-uv run python run.py
-```
-
-Follow the interactive prompts to:
-1. Select input directory with fiber images
-2. Choose output directory for results
-3. Configure fiber specifications
-4. Select processing profile (deep_inspection or fast_scan)
-5. Choose fiber type for pass/fail rules
-
-### Test15
-
-#### Interactive Mode
-```bash
-cd Test15
-uv run python main.py
-```
-
-The system will guide you through:
-- Image selection
-- Quick scan with defaults or detailed configuration
-- Real-time processing with progress updates
-- Comprehensive report generation
-
-#### Batch Mode
-```bash
-# Create batch configuration
-echo '{
-  "image_path": "path/to/your/image.png",
-  "output_dir": "inspection_output",
-  "intensity_method": "luminance",
-  "output_formats": ["numpy", "json"],
-  "difference_method": "gradient_magnitude",
-  "neighborhood": "8-connected",
-  "colormap": "black_to_red",
-  "highlight_all": true,
-  "threshold": 0.0,
-  "gamma": 0.5,
-  "blur": 0,
-  "num_rings": 2,
-  "min_scratch_length": 20,
-  "min_dig_area": 10,
-  "enhancement_factor": 2.0,
-  "create_visualizations": true
-}' > batch_config.json
-
-# Run batch inspection
-uv run python main.py --batch batch_config.json
-```
-
-#### Individual Module Usage
-```bash
-# Convert image to intensity matrix
-uv run python image_to_matrix.py input_image.png -o output_dir -f numpy json csv_coords -v
-
-# Generate difference heatmap
-uv run python heatmap.py intensity_matrix.npy -o output_dir -c black_to_red --highlight-all -v
-
-# Detect defects
-uv run python pixel_defects.py --json analysis.json --image heatmap.png -o output_dir
-
-# Convert results back to images
-uv run python matrix_to_img.py intensity_matrix.csv -o reconstructed.png -c hot -v
-```
-
-## Configuration
-
-### Test14 Configuration (config.json)
-- **processing_profiles:** Algorithm parameters for different inspection modes
-- **zone_definitions_iec61300_3_35:** Pass/fail rules for different fiber types
-- **reporting:** Output generation settings
-
-### Test15 Configuration Options
-- **Intensity Methods:** luminance, average, max, min
-- **Difference Methods:** gradient_magnitude, max_neighbor, sobel, laplacian, canny_strength
-- **Color Maps:** black_to_red, black_red_yellow, heat, custom, highlight
-- **Enhancement:** Adjustable parameters for detecting faint defects
-
-## Output Files
-
-### Test14 Outputs
-- `*_annotated.png`: Original image with highlighted defects and zones
-- `*_report.csv`: Detailed defect listing with properties
-- `*_histogram.png`: Angular distribution of defects
-
-### Test15 Outputs
-- `*_intensity_matrix.npy/json/csv`: Pixel intensity data
-- `*_heatmap.png`: Difference visualization
-- `*_defects_detected.png`: Blue-highlighted scratches and digs
-- `*_defect_analysis.json`: Comprehensive defect data
-- `*_report.png`: Multi-panel analysis visualization
-- `inspection_report.txt`: Summary report
 
 ## Key Features
 
-- **Multi-Algorithm Fusion:** Combines multiple detection methods for accuracy
-- **Automatic Ring Detection:** Identifies and excludes fiber core/cladding boundaries
-- **Small Defect Enhancement:** Special algorithms to detect faint defects
-- **Interactive Visualization:** Real-time analysis with napari viewer (Test14)
-- **Performance Optimization:** C++ acceleration for critical operations
+### 1. **Automatic Script Cleaning**
+- Handles Unicode errors automatically
+- Removes hardcoded paths
+- Creates standardized `process_image()` wrappers
+
+### 2. **Visual Pipeline Builder**
+- Drag-and-drop to reorder processing steps
+- Real-time display of executing script names
+- Save/load pipeline configurations as JSON
+
+### 3. **Dynamic Function Loading**
+- Automatically detects scripts in the `scripts/` directory
+- Categorizes functions (Filtering, Edge Detection, etc.)
+- Search by keyword functionality
+
+### 4. **Advanced Parameter Control**
+- Type-based UI generation:
+  - `int` → SpinBox
+  - `float` → DoubleSpinBox
+  - `bool` → CheckBox
+  - `str` → LineEdit
+
+## Usage
+
+### Running the GUI
+```bash
+cd App
+uv run python image_processor_gui.py
+```
+
+### Cleaning Legacy Scripts
+If you have scripts with Unicode errors or hardcoded paths:
+```bash
+cd App
+uv run python enhanced_script_cleaner.py --source ../all_modules_unchanged --output scripts
+```
+
+### Writing New Scripts
+Scripts must follow this structure:
+```python
+"""Description of what this script does"""
+import cv2
+import numpy as np
+
+def process_image(image: np.ndarray, param1: int = 10) -> np.ndarray:
+    """
+    Process the image.
+    
+    Args:
+        image: Input image
+        param1: Parameter description
+        
+    Returns:
+        Processed image
+    """
+    result = image.copy()
+    # Your processing code here
+    return result
+```
+
+See `guides/script_writing_guide.md` for detailed instructions.
+
+### Validating Scripts
+```bash
+cd guides
+uv run python validate_script.py ../App/scripts/your_script.py
+```
+
+## Documentation
+
+### In the `guides/` Directory:
+- **script_writing_guide.md**: Comprehensive guide for creating compatible scripts
+- **quick_start_guide.md**: Step-by-step getting started instructions
+- **quick_reference.md**: One-page summary of key concepts
+- **example_custom_script.py**: Full-featured example with multiple parameters
+- **minimal_script_template.py**: Basic template to start from
+
+### PDF Resources:
+- **Breakdowns.pdf**: OpenCV function breakdowns and tutorials
+- **research.pdf**: Academic paper on fiber optic defect detection
+
+## Workflow Example
+
+1. **Launch the GUI**: `uv run python image_processor_gui.py`
+2. **Load an image**: Click "Load Image" button
+3. **Build a pipeline**:
+   - Search for "blur" in the function library
+   - Double-click to add to pipeline
+   - Add more functions (edge detection, threshold, etc.)
+4. **Process**: Click "PROCESS IMAGE"
+5. **Save results**: Save the processed image or pipeline configuration
 
 ## Dependencies
 
-- OpenCV (with C++ development libraries for Test14)
-- NumPy, Pandas, Matplotlib
-- scikit-image, scikit-learn
-- PyTorch (for advanced detection algorithms)
-- napari (for interactive visualization)
-- pybind11 (for C++ bindings)
+Core requirements (automatically installed via setup):
+- OpenCV (cv2)
+- NumPy
+- PyQt5
+- Pillow
 
 ## Notes
 
-- Ensure all files and dependencies are in the same directory
-- Test14 requires C++ compiler for optimal performance
-- Test15 provides more modular control over the inspection process
-- Both systems support batch processing of multiple images
+- The GUI displays the exact filename of each executing script for easy debugging
+- Scripts can still run standalone outside the GUI
+- All processing is done on image copies to preserve originals
+- The system supports both grayscale and color images
+
+## Contributing
+
+When adding new processing functions:
+1. Follow the script template in `guides/minimal_script_template.py`
+2. Validate using `guides/validate_script.py`
+3. Place in `App/scripts/` directory
+4. Use descriptive filenames (they appear in the GUI)
+
+## Support
+
+For issues or questions:
+1. Check the guides in the `guides/` directory
+2. Validate your scripts with the validation tool
+3. Ensure all dependencies are installed via `requirements.txt`
