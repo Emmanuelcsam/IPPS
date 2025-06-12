@@ -1200,7 +1200,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Failed to load pipeline: {e}")
 
 
-        def reset_to_original(self):
+    def reset_to_original(self):
         """Reset the displayed image to the original loaded image"""
         if self.current_image is not None:
             self.processed_image = None
