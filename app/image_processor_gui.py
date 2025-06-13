@@ -471,6 +471,7 @@ class MainWindow(QMainWindow):
         self.current_image   = None
         self.processed_image = None
 
+        self.current_scripts_dir = "scripts"  # Default directory
         # ——— Recent & favorite functions ———
         self.recent_functions   = []      # up to 20 most-recently used
         self.favorite_functions = set()   # persisted in favorites.json
@@ -487,8 +488,19 @@ class MainWindow(QMainWindow):
                 # corrupted file or IO issues → start fresh
                 self.favorite_functions = set()
 
+
+        self._scripts_dir_file = Path("last_scripts_dir.txt")
+        if self._scripts_dir_file.exists():
+            try:
+                with open(self._scripts_dir_file, "r") as f:
+                    saved_dir = f.read().strip()
+                    if Path(saved_dir).exists():
+                        self.current_scripts_dir = saved_dir
+            except:
+                pass  # Use default if reading fails
+
         # ——— Core components ———
-        self.function_loader = FunctionLoader()
+        self.function_loader = FunctionLoader(self.current_scripts_dir)
         self.worker          = PipelineWorker()
 
         # ——— Wire up worker signals ———
@@ -671,7 +683,13 @@ class MainWindow(QMainWindow):
         refresh_btn.clicked.connect(self.load_functions)
         group_layout.addWidget(refresh_btn)
         
-        
+        folder_btn = QPushButton("📁 Choose Scripts Folder")
+        folder_btn.clicked.connect(self.choose_scripts_folder)
+        folder_btn.setToolTip(f"Current: {self.current_scripts_dir}")
+        group_layout.addWidget(folder_btn)
+
+        # Store reference to update tooltip later
+        self.folder_btn = folder_btn
         # ——— New: toggle favorite on selected function ———
         fav_btn = QPushButton("★ Toggle Favorite")
         fav_btn.clicked.connect(self._toggle_favorite)
@@ -842,10 +860,46 @@ class MainWindow(QMainWindow):
         self.function_loader.scan()
         self.populate_function_table()
         self.update_categories()
+        
+        # Add this to update the folder button tooltip
+        if hasattr(self, 'folder_btn'):
+            folder_name = os.path.basename(self.current_scripts_dir) or self.current_scripts_dir
+            self.folder_btn.setToolTip(f"Current: {self.current_scripts_dir}")
+        
         self.status_bar.showMessage(
-            f"Loaded {len(self.function_loader.functions)} functions", 3000
+            f"Loaded {len(self.function_loader.functions)} functions from '{os.path.basename(self.current_scripts_dir) or self.current_scripts_dir}'", 
+            3000
         )
         
+    def choose_scripts_folder(self):
+        """Let user choose a different scripts folder"""
+        folder = QFileDialog.getExistingDirectory(
+            self, 
+            "Select Scripts Folder",
+            self.current_scripts_dir,
+            QFileDialog.ShowDirsOnly
+        )
+        
+        if folder:
+            self.current_scripts_dir = folder
+            
+            # Save the selection (add this)
+            try:
+                with open(self._scripts_dir_file, "w") as f:
+                    f.write(folder)
+            except:
+                pass
+            
+            # Update the function loader with new directory
+            self.function_loader = FunctionLoader(self.current_scripts_dir)
+            # Reload functions from new directory
+            self.load_functions()
+            
+            # Update status to show current folder
+            folder_name = os.path.basename(folder) or folder
+            self.status_bar.showMessage(
+                f"Scripts folder changed to: {folder_name}", 5000
+            ) 
     # def populate_function_table(self, filter_text="", category="All"):
     #     """Populate the function table"""
     #     self.function_table.setRowCount(0)
