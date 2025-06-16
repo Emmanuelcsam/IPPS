@@ -1,1 +1,1 @@
-C:/Users/Saem1001/Documents/GitHub/IPPS/App/scripts
+C:/Users/Saem1001/Documents/GitHub/IPPS/app/scripts/thresholding
