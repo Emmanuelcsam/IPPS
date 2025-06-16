@@ -162,7 +162,7 @@ def process_fiber_image_veridian(image_path, output_dir='output_veridian'):
 
 if __name__ == '__main__':
     image_filenames = [
-        r'C:\Users\Saem1001\Documents\GitHub\IPPS\App\images\img63.jpg'
+        r'C:\Users\Saem1001\Documents\GitHub\IPPS\App\images\img38.jpg'
     ]
     for filename in image_filenames:
         # Check if file exists before processing
