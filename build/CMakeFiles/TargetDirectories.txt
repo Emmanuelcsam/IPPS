@@ -1,7 +1,0 @@
-/home/jarvis/Documents/GitHub/IPPS/build/CMakeFiles/fiber_defect_detector.dir
-/home/jarvis/Documents/GitHub/IPPS/build/CMakeFiles/edit_cache.dir
-/home/jarvis/Documents/GitHub/IPPS/build/CMakeFiles/rebuild_cache.dir
-/home/jarvis/Documents/GitHub/IPPS/build/CMakeFiles/list_install_components.dir
-/home/jarvis/Documents/GitHub/IPPS/build/CMakeFiles/install.dir
-/home/jarvis/Documents/GitHub/IPPS/build/CMakeFiles/install/local.dir
-/home/jarvis/Documents/GitHub/IPPS/build/CMakeFiles/install/strip.dir

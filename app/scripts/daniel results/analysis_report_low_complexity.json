@@ -1,0 +1,37 @@
+{
+  "timestamp": "2025-06-16T16:03:55.689403",
+  "image_info": {
+    "shape": [
+      800,
+      800
+    ],
+    "dtype": "uint8",
+    "path": "test_fiber_low_complexity.png",
+    "mean_intensity": 160.068925,
+    "std_intensity": 6.02126564514264
+  },
+  "fiber_metrics": {
+    "localization": {
+      "center": [
+        399,
+        400
+      ],
+      "cladding_radius_px": 279,
+      "core_radius_px": 20,
+      "method": "largest_component"
+    },
+    "core_diameter_um": 20.0,
+    "cladding_diameter_um": 279.0
+  },
+  "defects": [
+    {
+      "id": 0,
+      "type": "CONTAMINATION",
+      "severity": "LOW",
+      "confidence": 0.7999999999999999,
+      "location": [
+        382,
+        398
+      ],
+      "bbox": [
+        

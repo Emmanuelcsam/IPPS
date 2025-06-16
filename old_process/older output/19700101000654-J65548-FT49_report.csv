@@ -1,0 +1,2 @@
+defect_id,zone,classification,centroid_x_px,centroid_y_px,length_um,width_um,width_px,area_px,bbox_x_px,bbox_y_px,bbox_w_px,bbox_h_px
+19700101000654-J65548-FT49_D1,Core,Pit/Dig,606.0437241139052,412.5197572997174,,,638.0,310012,287,93,639,639
