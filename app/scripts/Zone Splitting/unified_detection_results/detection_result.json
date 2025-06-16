@@ -1,0 +1,32 @@
+{
+  "center": [
+    586.8455329690483,
+    426.19297764675855
+  ],
+  "radius_core": 130.32911026534688,
+  "radius_cladding": 184.71918162989684,
+  "confidence": 0.030695469919842826,
+  "uncertainty": {
+    "position": 1.9342101954058162,
+    "radius": 8.731433531545516,
+    "fusion_std_center": [
+      4.29872227001124,
+      0.16243348785491207
+    ],
+    "fusion_std_radii": [
+      1.0854191368117938,
+      19.389647369531588
+    ],
+    "total": 8.943103521474477
+  },
+  "method_used": "fusion_adaptive_ensemble_hierarchical_fusion",
+  "computation_time": 1.9266562461853027,
+  "quality_metrics": {
+    "edge_alignment": 0.0,
+    "symmetry": 0.97300905051458,
+    "contrast": 0.14778964078291468,
+    "completeness": 0.0,
+    "overall": 0.28019967282437364,
+    "rating": "Poor"
+  }
+}

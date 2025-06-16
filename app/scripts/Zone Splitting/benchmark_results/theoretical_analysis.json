@@ -1,0 +1,50 @@
+{
+  "cramer_rao": {
+    "noise_level": 0.011628075989476551,
+    "snr": 61.366641286591175,
+    "min_std_radius": 4.0292561214169646e-05,
+    "min_std_center": 2.8491143265913424e-05
+  },
+  "information_theory": {
+    "entropy": 4.025457230484514,
+    "channel_capacity": 5.939574242618658,
+    "effective_bits": 0.5031821538105643
+  },
+  "sampling": {
+    "nyquist_samples": 1357.1680263507906,
+    "actual_samples": 1357.1680263507906,
+    "oversampling_factor": 1.0
+  },
+  "complexity": {
+    "hough_transform": "O(995328 \u00d7 n_radii \u00d7 n_angles)",
+    "least_squares": "O(995328)",
+    "level_set_pde": "O(995328 \u00d7 n_iterations)",
+    "optimal_transport": "O(995328\u00b2 log 995328)",
+    "spectral_methods": "O(995328^1.5)",
+    "fourier_methods": "O(995328 log 995328)"
+  },
+  "selection_guide": {
+    "high_noise": [
+      "persistent_homology",
+      "level_set_pde",
+      "ensemble_bayesian"
+    ],
+    "real_time": [
+      "hough_transform",
+      "least_squares_algebraic"
+    ],
+    "high_accuracy": [
+      "cramer_rao_optimal",
+      "ensemble_bayesian",
+      "multi_scale_variational"
+    ],
+    "unknown_parameters": [
+      "optimal_transport",
+      "spectral_graph",
+      "information_geometry"
+    ],
+    "theoretical_best": [
+      "cramer_rao_optimal"
+    ]
+  }
+}
