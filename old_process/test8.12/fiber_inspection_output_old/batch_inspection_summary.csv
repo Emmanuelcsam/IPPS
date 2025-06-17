@@ -1,0 +1,5 @@
+Filename,Timestamp,Operating_Mode,Status,Total_Defects,Core_Defects,Cladding_Defects,Ferrule_Defects,Adhesive_Defects,Processing_Time_s,Microns_Per_Pixel,Error
+ima19.jpg,2025-06-04T12:35:28.016541,MICRON_CALCULATED,Review,25,8,4,12,1,9.62,0.2422,
+img38.jpg,2025-06-04T12:35:37.632667,MICRON_CALCULATED,Review,20,2,9,8,1,3.63,0.1381,
+img63.jpg,2025-06-04T12:35:41.265527,MICRON_CALCULATED,Review,18,5,0,13,0,2.64,0.4861,
+ima18.jpg,2025-06-04T12:35:43.902302,MICRON_CALCULATED,Review,16,6,4,3,3,3.53,0.1389,

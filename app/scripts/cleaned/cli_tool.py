@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#! python3
 """
 Command-line tool for circle image processing
 Usage: python cli_tool.py <image_path> [--display] [--save] [--output-dir <dir>]
