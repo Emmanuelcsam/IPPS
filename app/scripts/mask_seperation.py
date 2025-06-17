@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 
 def apply_filter(image):
-    """Apply the specified filter to the image"""
     result = image.copy()
     
     # Convert to grayscale if needed

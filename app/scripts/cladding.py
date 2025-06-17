@@ -61,7 +61,7 @@ def extract_black_region(original, black_mask):
 
 def main():
     # Load the image
-    image_path = r"C:\Users\Saem1001\Documents\GitHub\IPPS\App\images\img63.jpg"
+    image_path = r"C:\Users\Saem1001\Desktop\All Photos\img (87).jpg"
     original_image = cv2.imread(image_path)
     
     if original_image is None:
