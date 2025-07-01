@@ -1,4 +1,4 @@
-# Image Processing Pipeline Studio - OpenCV Practice
+# Image Processing Studio - OpenCV Practice
 
 
 ### Image Processing Pipeline GUI 
